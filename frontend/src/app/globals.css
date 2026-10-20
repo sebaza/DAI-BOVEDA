@@ -1,0 +1,87 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===========================================================================
+ * Design tokens of the Percepcion module (--portal-*), dark theme only.
+ * Values copied from the Torre's index.css so the module looks the same.
+ * ========================================================================= */
+:root {
+  color-scheme: dark;
+  --accent: #4f9cf0;
+  --portal-bg: #081120;
+  --portal-bg-soft: #11213a;
+  --portal-panel: rgba(17, 30, 50, 0.82);
+  --portal-panel-strong: rgba(14, 26, 44, 0.94);
+  --portal-fg: #e9f0fb;
+  --portal-muted: #9db2d2;
+  --portal-line: rgba(255, 255, 255, 0.12);
+  --portal-cyan: var(--accent);
+  --portal-cyan-soft: rgba(79, 156, 240, 0.18);
+  --portal-copper: #e0aa4e;
+  --portal-copper-soft: rgba(224, 170, 78, 0.2);
+  --portal-emerald: #51c28c;
+  --portal-glow: 0 0 26px rgba(79, 156, 240, 0.26);
+  --portal-bg-gradient:
+    radial-gradient(circle at top, color-mix(in srgb, var(--accent) 16%, transparent), transparent 30%),
+    radial-gradient(circle at 12% 82%, rgba(224, 170, 78, 0.08), transparent 26%),
+    linear-gradient(135deg, #070f1c 0%, #0c1a30 46%, #070f1c 100%);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Manrope", system-ui, sans-serif;
+  background: var(--portal-bg-gradient);
+  background-attachment: fixed;
+  color: var(--portal-fg);
+}
+
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--accent) 28%, transparent) color-mix(in srgb, var(--portal-fg) 4%, transparent);
+}
+
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: color-mix(in srgb, var(--portal-fg) 3%, transparent); border-radius: 999px; }
+*::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--accent) 26%, transparent); border-radius: 999px; }
+*::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--accent) 42%, transparent); }
+
+/* Native form controls: the OS paints the <select> popup, so give it opaque colours. */
+select, input, textarea { accent-color: var(--accent); }
+select {
+  color: var(--portal-fg);
+  color-scheme: dark;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(233, 240, 251, 0.14);
+}
+select option, select optgroup {
+  background-color: #0e1b2f;
+  color: #e9f0fb;
+}
+
+@layer components {
+  .portal-panel-strong {
+    @apply rounded-[1.75rem] shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl;
+    border: 1px solid var(--portal-line);
+    background: var(--portal-panel-strong);
+  }
+
+  .portal-pill {
+    @apply inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em];
+    border: 1px solid var(--portal-line);
+    background: color-mix(in srgb, var(--portal-fg) 6%, transparent);
+    color: var(--portal-muted);
+  }
+
+  .portal-title {
+    font-family: "Space Grotesk", sans-serif;
+  }
+}

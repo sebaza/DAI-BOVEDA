@@ -1,0 +1,13 @@
+fastapi==0.139.0
+# starlette>=1.0.1 closes CVE-2026-48710 (BadHost); FastAPI only declares a floor, so pin it.
+starlette>=1.0.1,<1.4.0
+uvicorn==0.40.0
+pydantic==2.12.5
+python-dotenv==1.2.1
+httpx==0.28.1
+sqlalchemy==2.0.41
+# Verifies the Google ID token (google.oauth2.id_token) and needs requests as transport.
+google-auth==2.41.1
+requests==2.32.3
+# Weekly LLM summary (services/percepcion/resumen_llm.py imports it lazily).
+anthropic==1.0.0

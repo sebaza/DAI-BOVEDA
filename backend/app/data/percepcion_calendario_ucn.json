@@ -1,0 +1,906 @@
+{
+  "_meta": {
+    "fuente": "Calendario académico UCN 2022-2026, entregado por la DAI el 2026-08-24",
+    "regla": "calendario_oficial != calendario_real. El paro de octubre 2024 extendió el semestre de Antofagasta hasta enero 2025, y el de junio 2026 lo corrió a agosto. Cuando hay recalendarización se cargan AMBAS fechas: la programada (planificado) y la efectiva (confirmado).",
+    "confianza": {
+      "confirmado": "fecha documentada",
+      "estimado": "el hecho ocurrió, las fechas son aproximadas",
+      "planificado": "fecha de calendario que todavía puede moverse"
+    },
+    "ambitos": [
+      "global",
+      "Antofagasta",
+      "Coquimbo"
+    ],
+    "corpus_desde": "2022-04-12",
+    "periodos_lectivos": "Los semestres van como PERIODO (tipo `semestre`), no como dos hitos sueltos: lo que informa es el tramo entre el inicio y el fin, no las dos fechas por separado. Donde hubo recalendarizacion se cargan el programado y el efectivo por separado.",
+    "sin_bordes_de_periodo": "No se cargan los hitos que solo marcan el borde administrativo de un periodo lectivo (inicio de actividades academicas, cierre curricular, fin de actividades docentes): el periodo ya se dibuja completo y repetirlos duplicaba la informacion. SI se cargan los hitos con contenido propio, incluidos los posteriores a un paro (retorno efectivo a clases, marcha blanca, reanudacion de evaluaciones), porque esos no son calendario sino consecuencia.",
+    "recesos_deducidos": "Fin DEDUCIDO: hasta el dia antes del inicio del siguiente periodo lectivo. El calendario declara el inicio del receso, no su termino.",
+    "duelo": "Tipo `duelo`: publicaciones de condolencia (personas de la comunidad y mascotas del campus). NO es disruptivo — no interrumpe la actividad — pero hunde el índice de su semana entre 6 y 9 puntos, porque el scorer marca «QEPD», «descanse en paz» y «😢» como NEGATIVOS. Son mensajes tristes, y en eso el modelo acierta; lo que no significan es descontento con la institución. Sin esta marca, esas semanas se leen como crisis."
+  },
+  "eventos": [
+    {
+      "nombre": "Titulaciones Coquimbo 2022",
+      "tipo": "otro",
+      "fecha_inicio": "2022-01-18",
+      "fecha_fin": "2022-01-22",
+      "ambito": "Coquimbo",
+      "confianza": "confirmado",
+      "descripcion": "No hay ceremonia institucional única; se registran las de Coquimbo."
+    },
+    {
+      "nombre": "Matrícula estudiantes nuevos 2022",
+      "tipo": "otro",
+      "fecha_inicio": "2022-01-25",
+      "fecha_fin": "2022-02-03",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Receso de verano 2022",
+      "tipo": "receso",
+      "fecha_inicio": "2022-01-31",
+      "fecha_fin": "2022-02-25",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Matrícula estudiantes antiguos 2022",
+      "tipo": "otro",
+      "fecha_inicio": "2022-02-07",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Inducción estudiantes nuevos 2022",
+      "tipo": "otro",
+      "fecha_inicio": "2022-03-07",
+      "fecha_fin": "2022-03-18",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "I semestre 2022",
+      "tipo": "semestre",
+      "fecha_inicio": "2022-03-21",
+      "fecha_fin": "2022-07-15",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Inauguración año académico 2022 Antofagasta",
+      "tipo": "otro",
+      "fecha_inicio": "2022-04-06",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Inauguración año académico 2022 Coquimbo",
+      "tipo": "otro",
+      "fecha_inicio": "2022-04-07",
+      "ambito": "Coquimbo",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Pausa académica 2022",
+      "tipo": "receso",
+      "fecha_inicio": "2022-05-16",
+      "fecha_fin": "2022-05-20",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Movilización por BAES y demandas estudiantiles",
+      "tipo": "paro",
+      "fecha_inicio": "2022-05-27",
+      "ambito": "Antofagasta",
+      "confianza": "estimado",
+      "descripcion": "Votación/movilización el 27 de mayo. Hay evidencia del hecho, pero la DURACIÓN EFECTIVA del paro no está documentada: no usar para medir duración."
+    },
+    {
+      "nombre": "Aniversario UCN 2022",
+      "tipo": "otro",
+      "fecha_inicio": "2022-05-31",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Exámenes recuperativos I semestre 2022",
+      "tipo": "examenes",
+      "fecha_inicio": "2022-07-18",
+      "fecha_fin": "2022-07-22",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Vacaciones de invierno 2022",
+      "tipo": "receso",
+      "fecha_inicio": "2022-07-18",
+      "ambito": "global",
+      "confianza": "estimado",
+      "fecha_fin": "2022-08-21",
+      "descripcion": "Fin DEDUCIDO: hasta el dia antes del inicio del siguiente periodo lectivo. El calendario declara el inicio del receso, no su termino."
+    },
+    {
+      "nombre": "II semestre 2022",
+      "tipo": "semestre",
+      "fecha_inicio": "2022-08-22",
+      "fecha_fin": "2022-12-16",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Receso Fiestas Patrias 2022",
+      "tipo": "fiestas_patrias",
+      "fecha_inicio": "2022-09-20",
+      "fecha_fin": "2022-09-23",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Exámenes recuperativos II semestre 2022",
+      "tipo": "examenes",
+      "fecha_inicio": "2022-12-19",
+      "fecha_fin": "2022-12-23",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Vacaciones de verano 2022-2023",
+      "tipo": "receso",
+      "fecha_inicio": "2022-12-19",
+      "ambito": "global",
+      "confianza": "estimado",
+      "fecha_fin": "2023-03-19",
+      "descripcion": "Fin DEDUCIDO: hasta el dia antes del inicio del siguiente periodo lectivo. El calendario declara el inicio del receso, no su termino."
+    },
+    {
+      "nombre": "Matrícula seleccionados 2023",
+      "tipo": "otro",
+      "fecha_inicio": "2023-01-18",
+      "fecha_fin": "2023-01-20",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Segundo periodo de matrícula 2023",
+      "tipo": "otro",
+      "fecha_inicio": "2023-01-21",
+      "fecha_fin": "2023-01-27",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Receso de verano 2023",
+      "tipo": "receso",
+      "fecha_inicio": "2023-01-30",
+      "fecha_fin": "2023-02-24",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Matrícula estudiantes antiguos 2023",
+      "tipo": "otro",
+      "fecha_inicio": "2023-02-20",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "I semestre 2023",
+      "tipo": "semestre",
+      "fecha_inicio": "2023-03-20",
+      "fecha_fin": "2023-07-14",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Semana Mechona 2023",
+      "tipo": "otro",
+      "fecha_inicio": "2023-04-19",
+      "fecha_fin": "2023-04-22",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Semana de Autocuidado I semestre 2023",
+      "tipo": "receso",
+      "fecha_inicio": "2023-05-01",
+      "fecha_fin": "2023-05-05",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Exámenes recuperativos I semestre 2023",
+      "tipo": "examenes",
+      "fecha_inicio": "2023-07-17",
+      "fecha_fin": "2023-07-20",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Vacaciones de invierno 2023",
+      "tipo": "receso",
+      "fecha_inicio": "2023-07-17",
+      "ambito": "global",
+      "confianza": "estimado",
+      "fecha_fin": "2023-08-20",
+      "descripcion": "Fin DEDUCIDO: hasta el dia antes del inicio del siguiente periodo lectivo. El calendario declara el inicio del receso, no su termino."
+    },
+    {
+      "nombre": "II semestre 2023",
+      "tipo": "semestre",
+      "fecha_inicio": "2023-08-21",
+      "fecha_fin": "2023-12-15",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Receso Fiestas Patrias 2023",
+      "tipo": "fiestas_patrias",
+      "fecha_inicio": "2023-09-18",
+      "fecha_fin": "2023-09-22",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Anuncio FEUCN de votación de paro indefinido",
+      "tipo": "resolucion",
+      "fecha_inicio": "2023-09-25",
+      "ambito": "Antofagasta",
+      "confianza": "estimado",
+      "descripcion": "A fines de septiembre FEUCN comunica intención de votar paro indefinido: transparencia, recursos y DGE. Fecha aproximada."
+    },
+    {
+      "nombre": "Paralización septiembre-octubre 2023",
+      "tipo": "paro",
+      "fecha_inicio": "2023-10-02",
+      "fecha_fin": "2023-10-20",
+      "ambito": "Antofagasta",
+      "confianza": "estimado",
+      "descripcion": "FECHAS NO VERIFICADAS. Hay antecedentes de que el conflicto derivó en paralización, pero inicio y término no están confirmados. NO usar como fecha definitiva."
+    },
+    {
+      "nombre": "Segunda Semana de Autocuidado 2023",
+      "tipo": "receso",
+      "fecha_inicio": "2023-10-30",
+      "fecha_fin": "2023-11-03",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Límite expedientes título/grado 2023",
+      "tipo": "otro",
+      "fecha_inicio": "2023-11-17",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Exámenes II semestre 2023",
+      "tipo": "examenes",
+      "fecha_inicio": "2023-12-18",
+      "fecha_fin": "2023-12-21",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Vacaciones de verano 2023-2024",
+      "tipo": "receso",
+      "fecha_inicio": "2023-12-18",
+      "ambito": "global",
+      "confianza": "estimado",
+      "fecha_fin": "2024-03-10",
+      "descripcion": "Fin DEDUCIDO: hasta el dia antes del inicio del siguiente periodo lectivo. El calendario declara el inicio del receso, no su termino."
+    },
+    {
+      "nombre": "Matrícula seleccionados 2024",
+      "tipo": "otro",
+      "fecha_inicio": "2024-01-17",
+      "fecha_fin": "2024-01-19",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Matrícula estudiantes antiguos 2024",
+      "tipo": "otro",
+      "fecha_inicio": "2024-01-20",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Matrícula lista de espera 2024",
+      "tipo": "otro",
+      "fecha_inicio": "2024-01-20",
+      "fecha_fin": "2024-01-22",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Repostulación y casos especiales 2024",
+      "tipo": "otro",
+      "fecha_inicio": "2024-01-23",
+      "fecha_fin": "2024-01-26",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Receso de verano 2024",
+      "tipo": "receso",
+      "fecha_inicio": "2024-01-29",
+      "fecha_fin": "2024-02-23",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "I semestre 2024",
+      "tipo": "semestre",
+      "fecha_inicio": "2024-03-11",
+      "fecha_fin": "2024-07-06",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Inauguración año académico 2024 Antofagasta",
+      "tipo": "otro",
+      "fecha_inicio": "2024-04-05",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Inauguración año académico 2024 Coquimbo",
+      "tipo": "otro",
+      "fecha_inicio": "2024-04-08",
+      "ambito": "Coquimbo",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Semana Mechona 2024",
+      "tipo": "otro",
+      "fecha_inicio": "2024-04-08",
+      "fecha_fin": "2024-04-13",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Semana de Autocuidado I semestre 2024",
+      "tipo": "receso",
+      "fecha_inicio": "2024-04-29",
+      "fecha_fin": "2024-05-04",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Aniversario UCN 2024",
+      "tipo": "otro",
+      "fecha_inicio": "2024-05-31",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Vacaciones de invierno 2024",
+      "tipo": "receso",
+      "fecha_inicio": "2024-07-08",
+      "ambito": "global",
+      "confianza": "estimado",
+      "fecha_fin": "2024-08-18",
+      "descripcion": "Fin DEDUCIDO: hasta el dia antes del inicio del siguiente periodo lectivo. El calendario declara el inicio del receso, no su termino."
+    },
+    {
+      "nombre": "II semestre 2024 (efectivo Antofagasta)",
+      "tipo": "semestre",
+      "fecha_inicio": "2024-08-19",
+      "fecha_fin": "2025-01-10",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "Consecuencia directa de la paralizacion de octubre: el semestre cerro el 10 de enero de 2025."
+    },
+    {
+      "nombre": "II semestre 2024 (programado)",
+      "tipo": "semestre",
+      "fecha_inicio": "2024-08-19",
+      "fecha_fin": "2024-12-20",
+      "ambito": "global",
+      "confianza": "planificado",
+      "descripcion": "Calendario original. En Antofagasta NO se cumplio: el paro de octubre lo extendio hasta enero de 2025."
+    },
+    {
+      "nombre": "Receso Fiestas Patrias 2024",
+      "tipo": "fiestas_patrias",
+      "fecha_inicio": "2024-09-16",
+      "fecha_fin": "2024-09-21",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Tomas parciales (Humanidades y Educación)",
+      "tipo": "toma",
+      "fecha_inicio": "2024-10-09",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "Inicio de la movilización de octubre 2024."
+    },
+    {
+      "nombre": "Paralización general octubre 2024",
+      "tipo": "paro",
+      "fecha_inicio": "2024-10-10",
+      "fecha_fin": "2024-10-30",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "Cese efectivo el 30 de octubre tras acuerdo. EL EPISODIO MEJOR DOCUMENTADO del corpus."
+    },
+    {
+      "nombre": "Toma Campus Angamos y suspensión de clases",
+      "tipo": "toma",
+      "fecha_inicio": "2024-10-10",
+      "fecha_fin": "2024-10-30",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "Demandas: cierre del jardín infantil Taqinki, beneficios estudiantiles, transparencia financiera, condiciones institucionales."
+    },
+    {
+      "nombre": "Marcha blanca post-paralización 2024",
+      "tipo": "cambio_calendario",
+      "fecha_inicio": "2024-10-30",
+      "fecha_fin": "2024-11-01",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "Transición sin funcionamiento académico normal."
+    },
+    {
+      "nombre": "Semana de Autocuidado II semestre 2024 (alterada)",
+      "tipo": "receso",
+      "fecha_inicio": "2024-10-30",
+      "fecha_fin": "2024-11-02",
+      "ambito": "global",
+      "confianza": "estimado",
+      "descripcion": "Programada para esas fechas, pero la movilización alteró el calendario efectivo."
+    },
+    {
+      "nombre": "Retorno efectivo a clases 2024",
+      "tipo": "cambio_calendario",
+      "fecha_inicio": "2024-11-06",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Reanudación de evaluaciones 2024",
+      "tipo": "resolucion",
+      "fecha_inicio": "2024-11-13",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "Se autoriza evaluar de nuevo; lo suspendido se recalendariza."
+    },
+    {
+      "nombre": "Límite título/grado 2024",
+      "tipo": "otro",
+      "fecha_inicio": "2024-11-22",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Exámenes recuperativos semestre 2024-20",
+      "tipo": "examenes",
+      "fecha_inicio": "2025-01-13",
+      "fecha_fin": "2025-01-17",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Vacaciones de verano 2025 (Antofagasta)",
+      "tipo": "receso",
+      "fecha_inicio": "2025-01-13",
+      "ambito": "Antofagasta",
+      "confianza": "estimado",
+      "fecha_fin": "2025-03-09",
+      "descripcion": "Fin DEDUCIDO: hasta el dia antes del inicio del siguiente periodo lectivo. El calendario declara el inicio del receso, no su termino."
+    },
+    {
+      "nombre": "Matrícula nuevos 2025 (primer periodo)",
+      "tipo": "otro",
+      "fecha_inicio": "2025-01-21",
+      "fecha_fin": "2025-01-23",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Matrícula nuevos 2025 (segundo periodo)",
+      "tipo": "otro",
+      "fecha_inicio": "2025-01-24",
+      "fecha_fin": "2025-01-30",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Receso de verano 2025",
+      "tipo": "receso",
+      "fecha_inicio": "2025-01-27",
+      "fecha_fin": "2025-02-21",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Matrícula estudiantes antiguos 2025",
+      "tipo": "otro",
+      "fecha_inicio": "2025-02-10",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "I semestre 2025",
+      "tipo": "semestre",
+      "fecha_inicio": "2025-03-10",
+      "fecha_fin": "2025-07-05",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Suspensión institucional por amenaza de tiroteo",
+      "tipo": "emergencia",
+      "fecha_inicio": "2025-04-07",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "Suspensión decidida por la Universidad. DISTINTA del paro estudiantil posterior."
+    },
+    {
+      "nombre": "Paro por gestión de la emergencia",
+      "tipo": "paro",
+      "fecha_inicio": "2025-04-08",
+      "fecha_fin": "2025-04-11",
+      "ambito": "Antofagasta",
+      "confianza": "estimado",
+      "descripcion": "FEUCN cuestiona el manejo de la amenaza: seguridad, protocolos, gestión. Cuatro días aprox.; retorno el 12 de abril."
+    },
+    {
+      "nombre": "Semana Mechona 2025",
+      "tipo": "otro",
+      "fecha_inicio": "2025-05-05",
+      "fecha_fin": "2025-05-10",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Paro estudiantes de Derecho Coquimbo",
+      "tipo": "paro",
+      "fecha_inicio": "2025-05-16",
+      "fecha_fin": "2025-07-04",
+      "ambito": "Coquimbo",
+      "confianza": "estimado",
+      "descripcion": "FECHA DE TÉRMINO NO CONFIRMADA. ~500 estudiantes; NO era paro general de la sede y la Escuela mantenía algunas actividades. Demandas: examen de grado, reprobación, infraestructura."
+    },
+    {
+      "nombre": "Duelo · estudiante Ingeniería Civil Industrial",
+      "tipo": "duelo",
+      "fecha_inicio": "2025-05-27",
+      "fecha_fin": "2025-06-19",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "Comunicado del centro de estudiantes. 5 comentarios de condolencia."
+    },
+    {
+      "nombre": "Semana de Autocuidado I semestre 2025",
+      "tipo": "receso",
+      "fecha_inicio": "2025-06-02",
+      "fecha_fin": "2025-06-07",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Exámenes I semestre 2025",
+      "tipo": "examenes",
+      "fecha_inicio": "2025-07-07",
+      "fecha_fin": "2025-07-11",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Vacaciones de invierno 2025",
+      "tipo": "receso",
+      "fecha_inicio": "2025-07-07",
+      "ambito": "global",
+      "confianza": "estimado",
+      "fecha_fin": "2025-08-17",
+      "descripcion": "Fin DEDUCIDO: hasta el dia antes del inicio del siguiente periodo lectivo. El calendario declara el inicio del receso, no su termino."
+    },
+    {
+      "nombre": "Inicio cursos de invierno 2025",
+      "tipo": "otro",
+      "fecha_inicio": "2025-07-28",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "II semestre 2025",
+      "tipo": "semestre",
+      "fecha_inicio": "2025-08-18",
+      "fecha_fin": "2025-12-19",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Receso Fiestas Patrias 2025",
+      "tipo": "fiestas_patrias",
+      "fecha_inicio": "2025-09-15",
+      "fecha_fin": "2025-09-20",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Semana de Autocuidado / Salud Mental II semestre 2025",
+      "tipo": "receso",
+      "fecha_inicio": "2025-10-13",
+      "fecha_fin": "2025-10-19",
+      "ambito": "global",
+      "confianza": "confirmado",
+      "descripcion": "Existía un acuerdo de movilizaciones previas: tres días sin evaluaciones después de esta semana."
+    },
+    {
+      "nombre": "Paro por incumplimiento del acuerdo de Salud Mental",
+      "tipo": "paro",
+      "fecha_inicio": "2025-10-20",
+      "fecha_fin": "2025-10-22",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "Votación: 22 carreras a favor, 4 en contra. Tres días con evaluaciones suspendidas y flexibilidad de asistencia. Encadena con las movilizaciones de 2024."
+    },
+    {
+      "nombre": "Límite título/grado 2025",
+      "tipo": "otro",
+      "fecha_inicio": "2025-11-28",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Duelo · académica Química y Farmacia",
+      "tipo": "duelo",
+      "fecha_inicio": "2025-12-15",
+      "fecha_fin": "2025-12-18",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "Despedida institucional de la Facultad de Ciencias. 5 comentarios."
+    },
+    {
+      "nombre": "Exámenes II semestre 2025",
+      "tipo": "examenes",
+      "fecha_inicio": "2025-12-22",
+      "fecha_fin": "2025-12-26",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Vacaciones de verano 2025-2026",
+      "tipo": "receso",
+      "fecha_inicio": "2025-12-22",
+      "ambito": "global",
+      "confianza": "estimado",
+      "fecha_fin": "2026-03-08",
+      "descripcion": "Fin DEDUCIDO: hasta el dia antes del inicio del siguiente periodo lectivo. El calendario declara el inicio del receso, no su termino."
+    },
+    {
+      "nombre": "Matrícula antiguos sin gratuidad 2026",
+      "tipo": "otro",
+      "fecha_inicio": "2026-01-08",
+      "fecha_fin": "2026-01-19",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Matrícula nuevos seleccionados 2026",
+      "tipo": "otro",
+      "fecha_inicio": "2026-01-20",
+      "fecha_fin": "2026-01-22",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Lista de espera y repostulación 2026",
+      "tipo": "otro",
+      "fecha_inicio": "2026-01-23",
+      "fecha_fin": "2026-01-29",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Matrícula antiguos con gratuidad 2026",
+      "tipo": "otro",
+      "fecha_inicio": "2026-01-23",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Receso de verano 2026",
+      "tipo": "receso",
+      "fecha_inicio": "2026-02-02",
+      "fecha_fin": "2026-02-28",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "I semestre 2026 (efectivo Antofagasta)",
+      "tipo": "semestre",
+      "fecha_inicio": "2026-03-09",
+      "fecha_fin": "2026-08-01",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "Recalendarizado tras el paro: el semestre se extendio casi un mes."
+    },
+    {
+      "nombre": "I semestre 2026 (programado)",
+      "tipo": "semestre",
+      "fecha_inicio": "2026-03-09",
+      "fecha_fin": "2026-07-04",
+      "ambito": "global",
+      "confianza": "planificado",
+      "descripcion": "Calendario original. En Antofagasta se corrio por la toma y el paro de junio-julio."
+    },
+    {
+      "nombre": "Duelo · comunidad Periodismo",
+      "tipo": "duelo",
+      "fecha_inicio": "2026-03-23",
+      "fecha_fin": "2026-03-31",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "Publicación de homenaje de la Escuela de Periodismo. 15 comentarios."
+    },
+    {
+      "nombre": "Inauguración año académico 2026 Coquimbo",
+      "tipo": "otro",
+      "fecha_inicio": "2026-04-09",
+      "ambito": "Coquimbo",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Inauguración año académico 2026 Antofagasta",
+      "tipo": "otro",
+      "fecha_inicio": "2026-04-10",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Duelo · mascota del campus (Negrito/Yang)",
+      "tipo": "duelo",
+      "fecha_inicio": "2026-04-14",
+      "fecha_fin": "2026-04-29",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "Despedida de una mascota del campus publicada por la agrupación de perritos UCN. 89 comentarios, índice 38,9 y 53 % negativos. Mueve la semana del 13-04 de 68,9 a 59,5: es la mayor marca de duelo del corpus y coincide con el inicio de la paralización, así que sin distinguirla las dos causas se confunden."
+    },
+    {
+      "nombre": "Paralización general abril-mayo 2026",
+      "tipo": "paro",
+      "fecha_inicio": "2026-04-20",
+      "fecha_fin": "2026-05-08",
+      "ambito": "Antofagasta",
+      "confianza": "estimado",
+      "descripcion": "Paralización votada y revalidada semana a semana. Inicio documentado: pleno FEUCN del lunes 20-04 y consulta IICG del mismo día («el paro obtuvo el mayor…»). Revalidaciones el 21-04, 22-04, 27-04 («17 carreras decidieron permanecer»), 30-04 y 02-05. El 06-05 la FEUCN aún comunica «durante la paralización». El término es ESTIMADO: no hay comunicado de cierre, pero el 12-05 los comentarios ya dicen «primera semana después del paro de 2 semanas». Detonante declarado por la FEUCN el 21-04: «los espacios educativos están siendo reducidos a una agenda de seguridad». Detectado en la auditoría del índice de percepción (sept-2026): las semanas del 27-04, 04-05 y 11-05 son −10,6 / −12,7 / −15,2 contra el promedio de su año, con la negatividad más alta de todo el corpus (38,5 % el 04-05)."
+    },
+    {
+      "nombre": "Semana Mechona 2026",
+      "tipo": "otro",
+      "fecha_inicio": "2026-05-11",
+      "fecha_fin": "2026-05-15",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Semana de Autocuidado I semestre 2026",
+      "tipo": "receso",
+      "fecha_inicio": "2026-05-18",
+      "fecha_fin": "2026-05-23",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Aniversario 70 años UCN",
+      "tipo": "otro",
+      "fecha_inicio": "2026-05-29",
+      "ambito": "global",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Toma pabellón de Geología",
+      "tipo": "toma",
+      "fecha_inicio": "2026-06-08",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "Primer foco de la movilización de 2026."
+    },
+    {
+      "nombre": "Petitorio FEUCN 2026",
+      "tipo": "resolucion",
+      "fecha_inicio": "2026-06-11",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "El 9 de junio FEUCN pide reunión urgente; el 11 presenta el petitorio."
+    },
+    {
+      "nombre": "Paralización general junio-julio 2026",
+      "tipo": "paro",
+      "fecha_inicio": "2026-06-15",
+      "fecha_fin": "2026-07-03",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "Distinto de la toma: el 19 de junio se vota mantener la movilización (21 a favor, 1 abstención); acuerdo definitivo el 3 de julio, retorno a clases el 6."
+    },
+    {
+      "nombre": "Toma Casa Central / Campus Angamos",
+      "tipo": "toma",
+      "fecha_inicio": "2026-06-15",
+      "fecha_fin": "2026-06-26",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "El levantamiento de la toma el 26 de junio NO terminó el paro: clases y evaluaciones siguieron suspendidas."
+    },
+    {
+      "nombre": "Duelo · mascota del campus (junio 2026)",
+      "tipo": "duelo",
+      "fecha_inicio": "2026-06-25",
+      "fecha_fin": "2026-07-08",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "87 comentarios, índice 43,0 y 51 % negativos."
+    },
+    {
+      "nombre": "Retorno efectivo a clases 2026",
+      "tipo": "cambio_calendario",
+      "fecha_inicio": "2026-07-06",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado"
+    },
+    {
+      "nombre": "Vacaciones de invierno 2026 (efectivo Antofagasta)",
+      "tipo": "receso",
+      "fecha_inicio": "2026-08-03",
+      "ambito": "Antofagasta",
+      "confianza": "estimado",
+      "fecha_fin": "2026-08-19",
+      "descripcion": "Fin DEDUCIDO: hasta el dia antes del inicio del siguiente periodo lectivo. El calendario declara el inicio del receso, no su termino."
+    },
+    {
+      "nombre": "Duelo · académico Ingeniería Civil Industrial",
+      "tipo": "duelo",
+      "fecha_inicio": "2026-08-14",
+      "fecha_fin": "2026-08-30",
+      "ambito": "Antofagasta",
+      "confianza": "confirmado",
+      "descripcion": "Comunicados de FICG, CEICI, CEAL-ICCI y el Departamento de Ingeniería Industrial. ~80 comentarios. Mueve la semana del 17-08 de 63,9 a 57,5."
+    },
+    {
+      "nombre": "II semestre 2026 (efectivo Antofagasta)",
+      "tipo": "semestre",
+      "fecha_inicio": "2026-08-20",
+      "fecha_fin": "2026-12-19",
+      "ambito": "Antofagasta",
+      "confianza": "planificado",
+      "descripcion": "Programado para el 17 de agosto; se corrio al 20 por la extension del primer semestre."
+    },
+    {
+      "nombre": "Receso Fiestas Patrias 2026",
+      "tipo": "fiestas_patrias",
+      "fecha_inicio": "2026-09-14",
+      "fecha_fin": "2026-09-20",
+      "ambito": "global",
+      "confianza": "planificado"
+    },
+    {
+      "nombre": "Semana de Autocuidado II semestre 2026",
+      "tipo": "receso",
+      "fecha_inicio": "2026-10-19",
+      "fecha_fin": "2026-10-24",
+      "ambito": "global",
+      "confianza": "planificado"
+    },
+    {
+      "nombre": "Límite título/grado 2026",
+      "tipo": "otro",
+      "fecha_inicio": "2026-11-06",
+      "ambito": "global",
+      "confianza": "planificado"
+    },
+    {
+      "nombre": "Vacaciones de verano 2026-2027",
+      "tipo": "receso",
+      "fecha_inicio": "2026-12-21",
+      "ambito": "global",
+      "confianza": "planificado"
+    }
+  ]
+}
