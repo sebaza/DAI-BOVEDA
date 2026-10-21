@@ -6,6 +6,8 @@ pydantic==2.12.5
 python-dotenv==1.2.1
 httpx==0.28.1
 sqlalchemy==2.0.41
+# PostgreSQL driver of the access database (BOVEDA_DATABASE_URL=postgresql+psycopg://...).
+psycopg[binary]==3.3.6
 # Verifies the Google ID token (google.oauth2.id_token) and needs requests as transport.
 google-auth==2.41.1
 requests==2.32.3

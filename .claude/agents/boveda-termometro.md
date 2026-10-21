@@ -10,14 +10,19 @@ independiente a la que se mudó el módulo Percepción de la Torre de Control DA
 ## Por qué existe esta app
 
 El módulo se separó de la Torre por **sensibilidad de los datos**: la base contiene
-comentarios REALES de la comunidad. Por eso el acceso es **solo por allowlist** y falla
-cerrado. No relajes esto sin una decisión explícita de Alberto.
+comentarios REALES de la comunidad. Por eso el acceso es **solo por listas en PostgreSQL**
+(esquema `boveda`, `BOVEDA_DATABASE_URL`) y falla cerrado. No relajes esto sin una decisión
+explícita de Alberto. Las variables `BOVEDA_ALLOWED_EMAILS` / `BOVEDA_TEAM_EMAILS` ya no existen.
 
-- `BOVEDA_ALLOWED_EMAILS`: pueden LEER.
-- `BOVEDA_TEAM_EMAILS`: equipo DAI, pueden además ESCRIBIR (el rol `equipo`).
-- Listas vacías = nadie entra (salvo `/auth/dev-login` con `APP_ENV=dev`).
-- El rol NUNCA viene del token: se resuelve en cada request desde las listas.
-- Todo `POST/PUT/DELETE` bajo `/percepcion` exige `equipo` (compuerta por método en
+- Por módulo (`boveda.accesos_modulo`): `lector` lee, `equipo` lee y ESCRIBE.
+- Administradores globales (`boveda.administradores`): abren todos los módulos activos y son
+  los ÚNICOS que entran a `/percepcion/curacion/*` (texto crudo de comentarios, auditado en
+  `boveda.auditoria_texto`; si la auditoría falla, no se entrega el texto).
+- Sin filas (o base caída) = nadie entra (salvo `/auth/dev-login` con `APP_ENV=dev`, que igual se
+  resuelve contra la base).
+- El rol NUNCA viene del token: se resuelve en cada request desde la base.
+- Las listas se manejan con `scripts/boveda_accesos.py` (sin UI).
+- Todo `POST/PUT/DELETE` bajo `/percepcion` exige `equipo` o admin (compuerta por método en
   `routers/percepcion.py::_exigir_acceso`, así un endpoint nuevo nace cerrado), y
   `GET /percepcion/resumen-semanal?forzar=true` también (re-paga el modelo).
 - Tests de las compuertas: `backend/tests/test_auth_gates.py`.

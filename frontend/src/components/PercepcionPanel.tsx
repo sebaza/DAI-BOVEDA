@@ -34,6 +34,7 @@ import {
   nro,
 } from "./PercepcionUI";
 import {
+  esAdmin,
   esEquipoDai,
   percepcionApi,
   type ComentarioReciente,
@@ -770,14 +771,20 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
   // y Comparar leen todas "promedio del período", así que ya no hay dos números
   // para el mismo objeto: el tema "Otros" daba 58.7 en una pestaña y 64.3 en otra.
   const [vista, setVista] = useState<VistaPercepcion>("resumen");
-  // ¿Mostrar las pestañas internas (Curación y Simulación)?
+  // ¿Mostrar las pestañas internas? Simulación: equipo DAI o administrador.
+  // Curación (con «Revisar comentarios»): SOLO administradores, porque muestra texto
+  // crudo de comentarios (ver `administrador` más abajo).
   //
   // Arranca en `false` y se resuelve DESPUÉS del montaje, no durante el render:
   // `localStorage` no existe en el servidor, y leerlo directo haría que el HTML
   // del servidor y el del cliente difieran (error de hidratación de Next). Partir
   // en `false` además es el lado correcto si algo falla: esconde de más.
   const [equipoDai, setEquipoDai] = useState(false);
-  useEffect(() => { setEquipoDai(esEquipoDai()); }, []);
+  const [administrador, setAdministrador] = useState(false);
+  useEffect(() => {
+    setEquipoDai(esEquipoDai());
+    setAdministrador(esAdmin());
+  }, []);
   // Guía de lectura: siempre CERRADA al entrar, se abre a pedido.
   //
   // Llegó a abrirse sola la primera vez, con la apertura recordada en
@@ -1565,13 +1572,13 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
           es lo que faltaba cuando estaban ordenadas por tipo de gráfico. */}
       <div className="flex flex-wrap gap-2">
         {([
-          { id: "resumen", label: "Resumen", hint: "¿Cómo estamos?", interna: false },
+          { id: "resumen", label: "Resumen", hint: "¿Cómo estamos?", interna: false, soloAdmin: false },
           // El hint dice "antes" y no "ahora" a propósito: es la única pestaña que
           // mira hacia adelante, y es el objetivo del módulo. Medido, sus alarmas
           // se encienden con 28 días de mediana antes de un conflicto.
-          { id: "alertas", label: "Alertas", hint: "¿Qué se viene?", interna: false },
-          { id: "comparar", label: "Comparar", hint: "¿Dónde está el problema?", interna: false },
-          { id: "conversacion", label: "Conversación", hint: "¿Qué se está diciendo?", interna: false },
+          { id: "alertas", label: "Alertas", hint: "¿Qué se viene?", interna: false, soloAdmin: false },
+          { id: "comparar", label: "Comparar", hint: "¿Dónde está el problema?", interna: false, soloAdmin: false },
+          { id: "conversacion", label: "Conversación", hint: "¿Qué se está diciendo?", interna: false, soloAdmin: false },
           // Antes decía solo "corregir lo que el modelo leyó mal", y la pestaña
           // tiene tres bloques: corregir, revisar una muestra y MEDIR el acierto.
           // Quien entraba buscando "¿le puedo creer al índice?" no tenía por qué
@@ -1580,22 +1587,23 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
           // INTERNA: aquí se corrige el modelo comentario por comentario. Quien lee
           // el Termómetro para saber cómo está la universidad no tiene por qué
           // toparse con la herramienta que lo calibra — y menos tocarla.
-          { id: "curacion", label: "Curación", hint: "¿Le puedo creer al modelo?", interna: true },
+          { id: "curacion", label: "Curación", hint: "¿Le puedo creer al modelo?", interna: true, soloAdmin: true },
           // Va ÚLTIMA y separada: las cuatro primeras cuentan datos observados, esta
           // propone modelos. Un pronóstico entre conteos se lee con una autoridad
           // que todavía no tiene.
           //
           // INTERNA: habla en MAE, error irreducible y baselines. Es la discusión de
           // si vale la pena construir un modelo, no una lectura de la percepción.
-          { id: "simulacion", label: "Simulación", hint: "¿Qué pasaría si…? (en construcción)", interna: true },
-          // Las pestañas INTERNAS solo para el equipo DAI. Las otras cuatro cuentan
+          { id: "simulacion", label: "Simulación", hint: "¿Qué pasaría si…? (en construcción)", interna: true, soloAdmin: false },
+          // Las pestañas INTERNAS solo para el equipo DAI (Curación, además, SOLO para
+          // administradores: muestra texto crudo de comentarios). Las otras cuatro cuentan
           // lo que pasó y cualquiera de la UCN puede leerlas; estas dos son las
           // herramientas con las que el equipo calibra y decide, y mezclarlas
           // convierte una lectura en una mesa de trabajo ajena.
           //
           // Es VISIBILIDAD, no autorización: el gate real vive en el backend. Acá
           // solo se decide qué se ofrece.
-        ] as const).filter((v) => !v.interna || equipoDai).map((v) => (
+        ] as const).filter((v) => (!v.interna || equipoDai) && (!v.soloAdmin || administrador)).map((v) => (
           <button
             key={v.id}
             type="button"
@@ -1643,7 +1651,7 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
         // tras el montaje), y una vista guardada o un salto interno podrían dejar
         // `vista` en una interna sin que nadie la haya elegido.
         <PercepcionSimulacion />
-      ) : vista === "curacion" && equipoDai ? (
+      ) : vista === "curacion" && administrador ? (
         <div className="space-y-4">
           {/* El ORDEN es deliberado y se conserva en las sub-pestañas: MEDIR →
               ANOTAR → CURAR. Primero se ve cuánto le erra el modelo, después se

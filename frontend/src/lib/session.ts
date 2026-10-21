@@ -8,15 +8,28 @@ export const SESSION_TOKEN_STORAGE_KEY = "boveda-dai-session-token";
 export const USER_STORAGE_KEY = "boveda-dai-user";
 export const SESSION_CHANGED_EVENT = "boveda-session-changed";
 
-/** `equipo` = DAI team (read + write); `lector` = read only. Resolved by the backend. */
-export type BovedaRole = "equipo" | "lector";
+/**
+ * `admin` = global administrator (every active module, full rights); `equipo` = DAI team
+ * (read + write); `lector` = read only. Resolved by the backend from the database.
+ */
+export type BovedaRole = "admin" | "equipo" | "lector";
+
+/** A module the user can open, with the role they hold in it (admins hold `admin` in all). */
+export interface ModuloAcceso {
+  id: string;
+  nombre: string;
+  rol: BovedaRole;
+}
 
 export interface AuthUser {
   email: string;
   name: string;
   allowed: boolean;
   auth_mode: string;
+  /** Summary role (best across modules). Prefer `is_admin` / `modulos` for decisions. */
   role: BovedaRole | null;
+  is_admin: boolean;
+  modulos: ModuloAcceso[];
   picture?: string | null;
   hosted_domain?: string | null;
 }
@@ -114,7 +127,7 @@ export async function devLogin(email?: string, name?: string): Promise<LoginResp
   return parseJson<LoginResponse>(await fetch(`${API_BASE_URL}/auth/dev-login${qs ? `?${qs}` : ""}`, { cache: "no-store" }));
 }
 
-/** Re-validates the stored token against the backend (it re-resolves the role from the allowlists). */
+/** Re-validates the stored token against the backend (it re-resolves the access from the database). */
 export async function fetchSessionUser(): Promise<AuthUser> {
   const token = getSessionToken();
   const response = await fetch(`${API_BASE_URL}/auth/session-user`, {

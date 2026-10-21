@@ -9,12 +9,15 @@ interface BovedaShellProps {
 }
 
 const ETIQUETA_ROL: Record<string, string> = {
+  admin: "Administración",
   equipo: "Equipo DAI",
   lector: "Solo lectura",
 };
 
 export function BovedaShell({ usuario, onCerrarSesion }: BovedaShellProps) {
-  const rol = usuario.role ? ETIQUETA_ROL[usuario.role] ?? usuario.role : "";
+  // El administrador es global: se rotula como tal, sea cual sea su rol en cada módulo.
+  const claveRol = usuario.is_admin ? "admin" : usuario.role;
+  const rol = claveRol ? ETIQUETA_ROL[claveRol] ?? claveRol : "";
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#081120]/85 backdrop-blur-xl">

@@ -36,31 +36,52 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 }
 
 // ---- Quién está mirando ----
+/** Lee el usuario que la Bóveda guarda en localStorage al iniciar sesión. */
+function usuarioGuardado(): { is_admin?: unknown; role?: unknown; modulos?: unknown } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(USER_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as { is_admin?: unknown; role?: unknown; modulos?: unknown }) : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * ¿La sesión actual es del equipo DAI?
+ * ¿La sesión actual es de un ADMINISTRADOR de la Bóveda?
  *
- * El panel lo necesita para decidir qué pestañas MOSTRAR: Curación y Simulación
- * son herramientas internas y quien solo viene a leer el Termómetro no tiene por
- * qué toparse con ellas.
- *
- * Se lee del usuario que la Bóveda guarda en localStorage al iniciar sesión
- * (`rol === "equipo"`, resuelto por el backend desde `BOVEDA_TEAM_EMAILS`).
+ * La pestaña Curación (que incluye «Revisar comentarios») muestra texto crudo de
+ * comentarios y corrige el modelo: es solo de administradores.
  *
  * ⚠️ Es visibilidad, NO autorización. El gate real vive en el backend: todo
- * POST/PUT/DELETE de /percepcion responde 403 si la sesión no es del equipo.
+ * `/percepcion/curacion/*` responde 403 si la sesión no es de un administrador.
  * Ante cualquier duda devuelve `false`, que es el lado conservador: esconde de
  * más, nunca de menos.
  */
+export function esAdmin(): boolean {
+  return usuarioGuardado()?.is_admin === true;
+}
+
+/**
+ * ¿La sesión actual puede ESCRIBIR en Percepción (equipo DAI o administrador)?
+ *
+ * El panel lo necesita para decidir qué herramientas internas MOSTRAR (Simulación):
+ * quien solo viene a leer el Termómetro no tiene por qué toparse con ellas.
+ *
+ * Se mira el rol en el módulo `percepcion` (`modulos`, resuelto por el backend desde la
+ * base de accesos); un administrador lo tiene como `admin` en todos los módulos activos.
+ *
+ * ⚠️ Es visibilidad, NO autorización. El gate real vive en el backend: todo
+ * POST/PUT/DELETE de /percepcion responde 403 si el rol no es equipo ni admin.
+ * Ante cualquier duda devuelve `false`.
+ */
 export function esEquipoDai(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const raw = window.localStorage.getItem(USER_STORAGE_KEY);
-    if (!raw) return false;
-    const rol = (JSON.parse(raw) as { role?: unknown })?.role;
-    return rol === "equipo";
-  } catch {
-    return false;
-  }
+  const modulos = usuarioGuardado()?.modulos;
+  if (!Array.isArray(modulos)) return false;
+  const percepcion = modulos.find((m) => (m as { id?: unknown })?.id === "percepcion") as
+    | { rol?: unknown }
+    | undefined;
+  return percepcion?.rol === "equipo" || percepcion?.rol === "admin";
 }
 
 // ---- Filtro global ----

@@ -3,7 +3,7 @@
 App independiente de la Dirección de Análisis Institucional (DAI) de la UCN que aloja el
 **Termómetro Institucional** (módulo *Percepción*), antes parte de la Torre de Control
 DAI · UCN. Se separó por **sensibilidad de los datos**: la base contiene comentarios
-reales de la comunidad en redes sociales, así que el acceso es **solo por allowlist** y
+reales de la comunidad en redes sociales, así que el acceso es **solo por listas en la base de datos** y
 falla cerrado.
 
 - **Backend**: FastAPI + SQLAlchemy 2 (`backend/`, puerto `8012`).
@@ -18,19 +18,53 @@ Puertos distintos a los de la Torre (`8011`/`8001`), así que ambas corren a la 
 Login con Google (token de identidad verificado en el servidor contra `GOOGLE_CLIENT_ID`)
 y una sesión propia firmada con HMAC (`APP_SESSION_SECRET`, TTL `APP_SESSION_TTL_SECONDS`).
 
-| Variable | Permiso |
-|---|---|
-| `BOVEDA_ALLOWED_EMAILS` | Pueden **leer** `/percepcion` |
-| `BOVEDA_TEAM_EMAILS` | Equipo DAI: pueden leer y **escribir** (eventos, curación, regenerar el resumen) |
+**Quién entra se decide en PostgreSQL** (esquema `boveda`, variable `BOVEDA_DATABASE_URL`), no en
+variables de entorno. Las antiguas `BOVEDA_ALLOWED_EMAILS` y `BOVEDA_TEAM_EMAILS` **ya no existen** y no hay
+fallback: si siguen en tu `.env`, se ignoran.
 
-- Cualquier cuenta que no esté en una de las dos listas recibe 403, aunque sea `*.ucn.cl`.
-- **Listas vacías = nadie entra.** Única excepción: `GET /auth/dev-login`, que existe solo con `APP_ENV=dev`.
-- El rol se vuelve a calcular en cada request desde las listas (no viaja en el token): sacar
-  un correo de la lista revoca su acceso al reiniciar el servidor.
-- Todo `POST/PUT/DELETE` bajo `/percepcion` exige rol equipo (esto cierra una brecha de la
+| Quién | Qué puede |
+|---|---|
+| `lector` (por módulo) | Leer ese módulo |
+| `equipo` (por módulo) | Leer y **escribir** en ese módulo (en Percepción: eventos, regenerar el resumen) |
+| Administrador (global) | Abrir **todos** los módulos activos con todos los permisos. Es el **único** rol que entra a la Curación (`/percepcion/curacion/*`), que devuelve texto crudo de comentarios |
+
+- Tablas: `boveda.modulos` (catálogo; `activo=false` no da acceso a nadie, ni a administradores),
+  `boveda.accesos_modulo` (correo + rol por módulo), `boveda.administradores` (lista global) y
+  `boveda.auditoria_texto` (auditoría). Se crean con las migraciones de [`backend/sql/`](backend/sql/):
+  `001_boveda_access.sql` y `002_boveda_admin_audit.sql` (idempotentes; aplícalas en ese orden con `psql -f`).
+- **Sin filas = nadie entra.** Si la base no responde, también se niega (nunca se permite por error).
+  Una cuenta puede iniciar sesión solo si es administradora o tiene acceso a al menos un módulo activo; si no, 403,
+  aunque sea `*.ucn.cl`. Única excepción: `GET /auth/dev-login`, que existe solo con `APP_ENV=dev`.
+- El rol se vuelve a calcular en cada request desde la base (no viaja en el token): quitar una fila revoca
+  el acceso en la siguiente petición.
+- Todo `POST/PUT/DELETE` bajo `/percepcion` exige rol equipo o administrador (esto cierra una brecha de la
   Torre, donde cualquier sesión `*.ucn.cl` podía escribir). `GET /percepcion/resumen-semanal?forzar=true`
   también, porque vuelve a pagar al modelo.
-- Con `APP_ENV` distinto de `dev` la app **no arranca** si `APP_SESSION_SECRET` es el valor por defecto o está vacío.
+- **Auditoría:** cada vez que un administrador recibe texto crudo de comentarios (`/curacion/comentarios`,
+  `/curacion/scoring`) se guarda quién, qué comentarios, qué endpoint y cuándo. Si no se puede registrar, la
+  petición falla y no se entrega el texto.
+- `GET /auth/me` (y la respuesta del login) devuelve `is_admin` y `modulos: [{id, nombre, rol}]`.
+- Con `APP_ENV` distinto de `dev` la app **no arranca** si `APP_SESSION_SECRET` es el valor por defecto o está
+  vacío, ni si `BOVEDA_DATABASE_URL` está vacía. En dev con la URL vacía todos son rechazados (el dev-login emite
+  una sesión, pero sin módulos).
+- Requiere el driver `psycopg` (`psycopg[binary]`, ya fijado en `backend/requirements.txt`).
+
+### Administrar las listas
+
+No hay interfaz de administración: se usa [`scripts/boveda_accesos.py`](scripts/boveda_accesos.py), con el venv del backend.
+Lee `BOVEDA_DATABASE_URL` del entorno o de `backend/.env` (y no la imprime).
+
+```bat
+backend\.venv\Scripts\python.exe scripts\boveda_accesos.py agregar-admin persona@ucn.cl
+backend\.venv\Scripts\python.exe scripts\boveda_accesos.py quitar-admin persona@ucn.cl
+backend\.venv\Scripts\python.exe scripts\boveda_accesos.py dar-acceso percepcion persona@ucn.cl lector
+backend\.venv\Scripts\python.exe scripts\boveda_accesos.py dar-acceso percepcion persona@ucn.cl equipo
+backend\.venv\Scripts\python.exe scripts\boveda_accesos.py quitar-acceso percepcion persona@ucn.cl
+backend\.venv\Scripts\python.exe scripts\boveda_accesos.py listar [--modulo percepcion]
+```
+
+`dar-acceso` crea o cambia el rol (`lector` o `equipo`). `--por <nombre>` registra quién hizo el cambio
+(por defecto, el usuario del sistema). Sale con código distinto de cero si el módulo no existe o el correo o el rol son inválidos.
 
 ## Correr en local
 
@@ -53,7 +87,7 @@ cd ..
 ```
 
 Abrir <http://127.0.0.1:3001>. Con `APP_ENV=dev` aparece el botón **Entrar en modo desarrollo**
-(sesión de equipo, sin Google). Sin `GOOGLE_CLIENT_ID` no hay botón de Google.
+(sin Google; el acceso de `dev@boveda.local` se lee de la base como el de cualquiera: dale acceso con el script de arriba). Sin `GOOGLE_CLIENT_ID` no hay botón de Google.
 
 Datos reales en local: copia (no enlaces) la base del worker, `Sentiment_Analisys_University\percepcion_real.db`,
 a `backend\percepcion_real.db` y apunta a ella en `backend\.env`:
@@ -74,11 +108,11 @@ Detalle comentado en [`backend/.env.example`](backend/.env.example) y [`frontend
 
 | Backend | Para qué |
 |---|---|
-| `APP_ENV` | `dev` habilita dev-login. Cualquier otro valor = producción (fail closed) |
+| `APP_ENV` | `dev` habilita dev-login. Cualquier otro valor, o vacía, = producción (fail closed). En local hay que fijar `APP_ENV=dev` |
 | `APP_SESSION_SECRET` | Firma de sesiones. Obligatorio y no-default fuera de dev |
 | `APP_SESSION_TTL_SECONDS` | Duración de la sesión (def. 28800) |
 | `GOOGLE_CLIENT_ID` | Cliente OAuth del botón de Google y *audience* del token |
-| `BOVEDA_ALLOWED_EMAILS` / `BOVEDA_TEAM_EMAILS` | Allowlists (ver arriba) |
+| `BOVEDA_DATABASE_URL` | URL de SQLAlchemy de la base con el esquema `boveda` (`postgresql+psycopg://usuario:clave@host:5432/base`). Obligatoria fuera de dev; vacía = nadie entra |
 | `PERCEPCION_DATABASE_URL` | Base de Percepción (SQLite o `postgresql+psycopg2://…`). Vacío → `OPERATIONAL_DATABASE_URL` → `backend/percepcion.db` |
 | `TASKS_TRIGGER_TOKEN` | Secreto del disparador `POST /tasks/run/percepcion-resumen` (vacío = deshabilitado) |
 | `ANTHROPIC_API_KEY` | Resumen semanal por LLM (sin clave degrada solo) |
@@ -98,7 +132,9 @@ cd frontend && npx tsc --noEmit && npm run build
 ```
 
 `backend/tests/conftest.py` fuerza una base temporal: la suite no toca la base del `.env`.
-`test_auth_gates.py` cubre las compuertas de acceso.
+`test_auth_gates.py` cubre las compuertas de acceso con un repositorio en memoria. `test_accesos_postgres.py` prueba el
+adaptador contra una PostgreSQL real y se **omite** salvo que definas `BOVEDA_TEST_DATABASE_URL` (con las migraciones 001 y 002
+aplicadas); corre dentro de una transacción que se revierte, así que no deja nada en el esquema `boveda`.
 
 ## Contrato con el worker externo
 
@@ -127,14 +163,15 @@ Los documentos de `docs/` mencionan todavía a la Torre y sus rutas: léelos com
 
 ```
 backend/
-  app/            main, config, database, schemas, routers/{percepcion,auth,tasks}, services/{auth,costos,percepcion/}, data/
+  app/            main, config, database, schemas, routers/{percepcion,auth,tasks}, services/{auth,costos,accesos/,percepcion/}, data/
+  sql/            migraciones del esquema `boveda` (accesos, administradores, auditoría)
   tests/          suite del módulo + test_auth_gates.py
   requirements.txt, requirements-dev.txt, pytest.ini, .env.example
 frontend/
   src/app/        layout, page (sesión), globals.css (tokens --portal-*)
   src/components/ LoginScreen, BovedaShell, Percepcion*.tsx, EChartsChart
   src/lib/        session.ts (auth), percepcion.ts (cliente del módulo)
-scripts/          mantenimiento del módulo (importar, exportar, evaluar, reparar…); corren con backend\.venv
+scripts/          mantenimiento del módulo (importar, exportar, evaluar, reparar…) y boveda_accesos.py (listas de acceso); corren con backend\.venv
 docs/             handoff, contrato con el worker, informes, notas/
 .claude/          launch.json (boveda-backend, boveda-frontend) y agents/boveda-termometro.md
 Boveda DAI.bat    lanzador local (CRLF)

@@ -21,10 +21,6 @@ load_dotenv(BASE_DIR / ".env")
 _DEV_SESSION_SECRET_DEFAULT = "boveda-dai-dev-session-secret"
 
 
-def _csv(raw: str) -> list[str]:
-    return [item.strip().lower() for item in (raw or "").split(",") if item.strip()]
-
-
 def _env_flag(name: str, default: str) -> bool:
     return os.getenv(name, default).strip().lower() not in {"0", "false", "no", ""}
 
@@ -36,7 +32,8 @@ class Settings:
     def __init__(self) -> None:
         # --- App / sessions ---
         self.app_name: str = os.getenv("APP_NAME", "Boveda DAI")
-        self.app_env: str = os.getenv("APP_ENV", "dev")
+        # Unset/blank APP_ENV is production: a deploy that forgets it must not enable dev-login.
+        self.app_env: str = os.getenv("APP_ENV", "").strip() or "production"
         self.app_session_secret: str = os.getenv("APP_SESSION_SECRET", _DEV_SESSION_SECRET_DEFAULT)
         self.app_session_ttl_seconds: int = int(os.getenv("APP_SESSION_TTL_SECONDS", "28800"))
         self.cors_origins: list[str] = [
@@ -52,11 +49,12 @@ class Settings:
         self.google_client_id: str = os.getenv("GOOGLE_CLIENT_ID", "")
         self.google_oauth_enabled: bool = os.getenv("GOOGLE_OAUTH_ENABLED", "1") == "1"
 
-        # --- Access control: ALLOWLIST ONLY (fail closed) ---
-        # BOVEDA_ALLOWED_EMAILS: can READ. BOVEDA_TEAM_EMAILS: DAI team, can also WRITE
-        # (and is implicitly allowed to read). Empty lists => nobody gets in.
-        self.boveda_allowed_emails: list[str] = _csv(os.getenv("BOVEDA_ALLOWED_EMAILS", ""))
-        self.boveda_team_emails: list[str] = _csv(os.getenv("BOVEDA_TEAM_EMAILS", ""))
+        # --- Access control: lists in PostgreSQL, fail closed ---
+        # SQLAlchemy URL of the database holding the `boveda` schema (per-module access
+        # lists, global admins, text-view audit; see backend/sql/). The former env
+        # allowlists (BOVEDA_ALLOWED_EMAILS / BOVEDA_TEAM_EMAILS) no longer exist.
+        # Empty => nobody gets in (and get_settings() refuses to boot outside dev).
+        self.boveda_database_url: str = os.getenv("BOVEDA_DATABASE_URL", "").strip()
         self.dev_default_user_email: str = os.getenv("DEV_DEFAULT_USER_EMAIL", "dev@boveda.local")
         self.dev_default_user_name: str = os.getenv("DEV_DEFAULT_USER_NAME", "Equipo DAI (dev)")
 
@@ -106,5 +104,12 @@ def get_settings() -> Settings:
             raise RuntimeError(
                 "APP_SESSION_SECRET is not configured (or uses the dev default) with "
                 "APP_ENV != 'dev'. Set a strong secret before starting outside development."
+            )
+        # Fail closed: without the access database nobody could be authorised.
+        if not (settings.boveda_database_url or "").strip():
+            raise RuntimeError(
+                "BOVEDA_DATABASE_URL is not configured with APP_ENV != 'dev'. Set the "
+                "SQLAlchemy URL of the database that holds the `boveda` schema "
+                "(see backend/sql/) before starting outside development."
             )
     return settings

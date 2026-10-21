@@ -2,16 +2,19 @@
 
 Modeled on the Torre (Google ID token verified server side + own HMAC-signed session
 token) but with a very different access policy: this app exists because the Percepcion
-data is SENSITIVE, so access is ALLOWLIST-ONLY and fails closed.
+data is SENSITIVE, so access is LIST-ONLY and fails closed.
 
-* ``BOVEDA_ALLOWED_EMAILS``: can read.
-* ``BOVEDA_TEAM_EMAILS``: DAI team, can read and write (implicitly allowed to read).
-* Empty lists => nobody gets in. Only exception: ``/auth/dev-login`` when APP_ENV=dev.
+* Per-module lists in PostgreSQL (``boveda.accesos_modulo``): ``lector`` (read) and
+  ``equipo`` (read + write).
+* Global administrators (``boveda.administradores``): open every ACTIVE module and are the
+  only ones allowed into the curation endpoints that return raw comment text.
+* No rows (or a database that cannot be reached) => nobody gets in. Maintenance is done
+  with ``scripts/boveda_accesos.py``.
 
-The role is NEVER trusted from the token: it is re-resolved from the allowlists on every
-request, so removing an email from the env revokes access as soon as the process
-restarts, even for a still-valid token. The only thing the token can add is
-``auth_mode == "dev"``, honoured exclusively while APP_ENV=dev.
+The role is NEVER trusted from the token: it is re-resolved from the database on every
+request, so revoking a row takes effect on the next request, even for a still-valid
+token. The only thing the token carries is ``auth_mode == "dev"``, honoured exclusively
+while APP_ENV=dev.
 """
 from __future__ import annotations
 
@@ -22,15 +25,27 @@ import json
 import secrets
 from datetime import UTC, datetime, timedelta
 
-from fastapi import Header, HTTPException
+from fastapi import Depends, Header, HTTPException
 from pydantic import ValidationError
 
 from app.config import get_settings
-from app.schemas import AppRole, AuthConfigResponse, AuthUser, LoginResponse
+from app.schemas import (
+    ROLES_ESCRITURA,
+    AppRole,
+    AuthConfigResponse,
+    AuthUser,
+    LoginResponse,
+    ModuloAcceso,
+)
+from app.services import accesos
 
 
 class GoogleAuthError(Exception):
     pass
+
+
+class AccountNotAuthorizedError(GoogleAuthError):
+    """The Google identity is valid but the account has no access (HTTP 403, not 401)."""
 
 
 def _b64url_encode(raw: bytes) -> str:
@@ -53,23 +68,24 @@ def is_dev() -> bool:
 
 
 # --------------------------------------------------------------------------- #
-# Allowlist resolution
+# Access resolution (database, fail closed)
 # --------------------------------------------------------------------------- #
-def resolve_role(email: str, *, auth_mode: str = "session") -> AppRole | None:
-    """Role for ``email`` according to the allowlists. ``None`` = not allowed (fail closed)."""
+_PRIORIDAD_ROL = {AppRole.admin: 3, AppRole.equipo: 2, AppRole.lector: 1}
+
+
+def resolve_access(email: str, *, auth_mode: str = "session") -> tuple[bool, list[ModuloAcceso]]:
+    """``(is_admin, active modules the account can open)``. Empty = not allowed (fail closed).
+
+    A dev session is honoured only while APP_ENV=dev, so a dev token is worthless anywhere
+    else even if the same email happens to have access in the database.
+    """
     lowered = (email or "").strip().lower()
     if not lowered:
-        return None
-    settings = get_settings()
-    if lowered in settings.boveda_team_emails:
-        return AppRole.equipo
-    if lowered in settings.boveda_allowed_emails:
-        return AppRole.lector
-    # Dev sessions are minted by /auth/dev-login, which only exists when APP_ENV=dev.
-    # Honoured only while still in dev, so a dev token is worthless anywhere else.
-    if auth_mode == "dev" and is_dev():
-        return AppRole.equipo
-    return None
+        return False, []
+    if auth_mode == "dev" and not is_dev():
+        return False, []
+    repo = accesos.get_repository()
+    return repo.is_admin(lowered), repo.modules_for(lowered)
 
 
 def _build_auth_user(
@@ -80,13 +96,19 @@ def _build_auth_user(
     picture: str | None = None,
     hosted_domain: str | None = None,
 ) -> AuthUser:
-    role = resolve_role(email, auth_mode=auth_mode)
+    is_admin, modulos = resolve_access(email, auth_mode=auth_mode)
+    # Summary role kept for compatibility: the best one across modules (admin if global admin).
+    role = AppRole.admin if is_admin else max(
+        (m.rol for m in modulos), key=lambda r: _PRIORIDAD_ROL[r], default=None
+    )
     return AuthUser(
         email=email,
         name=name,
-        allowed=role is not None,
+        allowed=is_admin or bool(modulos),
         auth_mode=auth_mode,
         role=role,
+        is_admin=is_admin,
+        modulos=modulos,
         picture=picture,
         hosted_domain=hosted_domain,
     )
@@ -142,7 +164,7 @@ def verify_session_token(token: str) -> AuthUser:
     if int(payload.get("exp") or 0) <= int(datetime.now(UTC).timestamp()):
         raise GoogleAuthError("La sesión expiró. Vuelve a iniciar sesión.")
 
-    # Role comes from the allowlists, never from the payload.
+    # Access comes from the database, never from the payload.
     return _build_auth_user(
         email=str(payload.get("email") or ""),
         name=str(payload.get("name") or ""),
@@ -155,25 +177,52 @@ def verify_session_token(token: str) -> AuthUser:
 # --------------------------------------------------------------------------- #
 # FastAPI dependencies
 # --------------------------------------------------------------------------- #
-def get_authenticated_user(authorization: str | None = Header(default=None)) -> AuthUser:
-    """Any ALLOWED user (reader or team). 401 without a valid session, 403 if not allowlisted."""
+def get_session_user(authorization: str | None = Header(default=None)) -> AuthUser:
+    """Any valid session, WITHOUT requiring access (401 if missing/invalid). The returned
+    user carries ``allowed`` / ``is_admin`` / ``modulos`` freshly resolved from the database."""
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(401, "Falta Authorization Bearer para acceder a este recurso.")
     token = authorization.split(" ", 1)[1].strip()
     try:
-        user = verify_session_token(token)
+        return verify_session_token(token)
     except GoogleAuthError as exc:
         raise HTTPException(401, str(exc)) from exc
+
+
+def get_authenticated_user(user: AuthUser = Depends(get_session_user)) -> AuthUser:
+    """Any ALLOWED user (an admin, or someone with access to at least one active module).
+    401 without a valid session, 403 if the account has no access."""
     if not user.allowed:
         raise HTTPException(403, "Tu cuenta no tiene acceso a la Bóveda DAI.")
     return user
 
 
-def get_team_user(authorization: str | None = Header(default=None)) -> AuthUser:
-    """DAI team only (write access)."""
-    user = get_authenticated_user(authorization)
-    if not user.is_team:
-        raise HTTPException(403, "Este recurso es solo para el equipo DAI.")
+def check_module_access(user: AuthUser, module_id: str, *, write: bool = False) -> ModuloAcceso:
+    """Raise 403 unless ``user`` may open ``module_id`` (and, if ``write``, change things in
+    it: roles ``equipo`` and ``admin``). Unknown or inactive modules grant nothing."""
+    acceso = user.acceso_a(module_id)
+    if acceso is None:
+        raise HTTPException(403, "Tu cuenta no tiene acceso a este módulo.")
+    if write and acceso.rol not in ROLES_ESCRITURA:
+        raise HTTPException(403, "Esta acción es solo para el equipo DAI.")
+    return acceso
+
+
+def require_module(module_id: str, *, write: bool = False):
+    """Dependency factory: the user must have access to ``module_id`` (and write access when
+    ``write=True``). 401 without session, 403 without access."""
+
+    def dependency(user: AuthUser = Depends(get_authenticated_user)) -> AuthUser:
+        check_module_access(user, module_id, write=write)
+        return user
+
+    return dependency
+
+
+def require_admin(user: AuthUser = Depends(get_authenticated_user)) -> AuthUser:
+    """Global administrators only (raw comment text, curation)."""
+    if not user.is_admin:
+        raise HTTPException(403, "Este recurso es solo para administradores de la Bóveda DAI.")
     return user
 
 
@@ -222,6 +271,6 @@ def verify_google_credential(credential: str) -> AuthUser:
         hosted_domain=payload.get("hd") or (email.split("@", 1)[1] if "@" in email else None),
     )
     if not user.allowed:
-        # Do not mint a session for an unlisted account.
-        raise GoogleAuthError("Esta cuenta no está autorizada para acceder a la Bóveda DAI.")
+        # Do not mint a session for an account without access.
+        raise AccountNotAuthorizedError("Esta cuenta no está autorizada para acceder a la Bóveda DAI.")
     return user

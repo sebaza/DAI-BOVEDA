@@ -1,8 +1,10 @@
 """Router del feature Percepción — dashboard filtrable de percepción de la comunidad.
 
-Endpoints (prefijo /percepcion). ACCESO (Bóveda DAI): allowlist, falla cerrado.
-Toda lectura (GET) exige un usuario permitido; todo POST/PUT/DELETE exige EQUIPO DAI
-(ver ``_exigir_acceso``). Los GET son de LECTURA sobre la tabla de HECHOS que produce
+Endpoints (prefijo /percepcion). ACCESO (Bóveda DAI): listas por módulo en la base de
+accesos, falla cerrado. Toda lectura (GET) exige acceso al módulo ``percepcion``; todo
+POST/PUT/DELETE exige además rol equipo o administrador (ver ``_exigir_acceso``).
+La CURACIÓN (``/curacion/*``) es solo de ADMINISTRADORES y toda respuesta con texto crudo
+de comentarios queda auditada (ver ``_auditar_texto``). Los GET son de LECTURA sobre la tabla de HECHOS que produce
 el worker externo. Todos aceptan el FILTRO
 global común: dias (rango), sede, facultad, departamento, tema.
 
@@ -26,7 +28,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.schemas import AuthUser
-from app.services.auth import get_authenticated_user
+from app.services import accesos
+from app.services.auth import (
+    check_module_access,
+    get_authenticated_user,
+    require_admin,
+    require_module,
+)
 from app.services.percepcion import (  # noqa: F401
     calidad,
     comunicacion,
@@ -43,20 +51,44 @@ from app.services.percepcion import (  # noqa: F401
 )
 from app.services.percepcion.db import get_percepcion_db, get_percepcion_write_db
 
+MODULO = "percepcion"
 _METODOS_SEGUROS = frozenset({"GET", "HEAD", "OPTIONS"})
+_leer = require_module(MODULO)
+_escribir = require_module(MODULO, write=True)
+
+# La curación es una función de administradores: corrige el modelo comentario por
+# comentario y parte de ella devuelve texto crudo.
+_SOLO_ADMIN = [Depends(require_admin)]
 
 
 def _exigir_acceso(request: Request, user: AuthUser = Depends(get_authenticated_user)) -> AuthUser:
     """Compuerta de TODO el router, por método HTTP (así un endpoint nuevo nace cerrado).
 
-    * Lectura (GET/HEAD/OPTIONS): cualquier usuario de la allowlist (``get_authenticated_user``
-      ya respondió 401 sin sesión y 403 si la cuenta no está permitida).
-    * Cualquier otro método (POST/PUT/DELETE/PATCH): solo EQUIPO DAI. En la Torre esto
-      no existía: cualquier sesión ``*.ucn.cl`` podía escribir eventos y curación.
+    * Lectura (GET/HEAD/OPTIONS): acceso al módulo ``percepcion`` (``get_authenticated_user``
+      ya respondió 401 sin sesión y 403 si la cuenta no tiene acceso a nada).
+    * Cualquier otro método (POST/PUT/DELETE/PATCH): rol equipo o administrador en el
+      módulo. En la Torre esto no existía: cualquier sesión ``*.ucn.cl`` podía escribir
+      eventos y curación.
     """
-    if request.method not in _METODOS_SEGUROS and not user.is_team:
-        raise HTTPException(status_code=403, detail="Esta acción es solo para el equipo DAI.")
-    return user
+    return (_leer if request.method in _METODOS_SEGUROS else _escribir)(user)
+
+
+def _auditar_texto(user: AuthUser, request: Request, ids: list[int]) -> None:
+    """Deja constancia de quién vio el texto crudo de qué comentarios, y por qué endpoint.
+
+    Se llama ANTES de devolver el texto y si no se puede registrar la petición FALLA:
+    no hay texto crudo sin auditoría. Sin comentarios en la respuesta no hay nada que
+    auditar.
+    """
+    if not ids:
+        return
+    try:
+        accesos.get_repository().record_text_view(user.email, MODULO, request.url.path, ids)
+    except accesos.AuditError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="No se pudo registrar la auditoría; por eso no se entrega el texto de los comentarios.",
+        ) from exc
 
 
 router = APIRouter(
@@ -383,8 +415,8 @@ def get_resumen_semanal(
     """
     # `forzar=true` vuelve a PAGAR al modelo aunque los datos no hayan cambiado: aunque sea
     # un GET, es una acción con costo y escritura, así que queda reservada al equipo DAI.
-    if forzar and not user.is_team:
-        raise HTTPException(status_code=403, detail="Regenerar el resumen es solo para el equipo DAI.")
+    if forzar:
+        check_module_access(user, MODULO, write=True)
     return resumen_llm.resumen_semanal(
         db, wdb, semana_inicio=semana, nivel=nivel,
         dimension=dimension, forzar=forzar,
@@ -552,12 +584,12 @@ def get_resumen_semanal_semanas(
         db, limite=limite, nivel=nivel, dimension=dimension)}
 
 
-@router.get("/curacion/temas", response_model=schemas.TemasAsignablesResponse)
+@router.get("/curacion/temas", dependencies=_SOLO_ADMIN, response_model=schemas.TemasAsignablesResponse)
 def get_curacion_temas(db: Session = Depends(get_db)):
     return {"items": curacion.temas_asignables(db)}
 
 
-@router.post("/curacion/tema", response_model=schemas.TemaAsignable)
+@router.post("/curacion/tema", dependencies=_SOLO_ADMIN, response_model=schemas.TemaAsignable)
 def post_curacion_tema(
     req: schemas.CrearTemaRequest, db: Session = Depends(get_percepcion_write_db),
 ):
@@ -570,19 +602,25 @@ def post_curacion_tema(
     return {"tema": r["tema"], "etiqueta": r["etiqueta"]}
 
 
-@router.get("/curacion/publicaciones", response_model=schemas.PublicacionesCurarResponse)
+@router.get("/curacion/publicaciones", dependencies=_SOLO_ADMIN, response_model=schemas.PublicacionesCurarResponse)
 def get_curacion_publicaciones(
     solo_con_otros: bool = True, db: Session = Depends(get_db)
 ):
     return curacion.publicaciones_a_curar(db, solo_con_otros=solo_con_otros)
 
 
-@router.get("/curacion/comentarios", response_model=schemas.ComentariosCurarResponse)
-def get_curacion_comentarios(db: Session = Depends(get_db)):
-    return curacion.comentarios_a_curar(db)
+@router.get("/curacion/comentarios", dependencies=_SOLO_ADMIN, response_model=schemas.ComentariosCurarResponse)
+def get_curacion_comentarios(
+    request: Request, db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_authenticated_user),
+):
+    # TEXTO CRUDO: solo administradores, y cada vista queda auditada.
+    respuesta = curacion.comentarios_a_curar(db)
+    _auditar_texto(user, request, [i["id"] for i in respuesta["items"]])
+    return respuesta
 
 
-@router.post("/curacion/publicacion/{pub_id}", response_model=schemas.AsignarTemaResponse)
+@router.post("/curacion/publicacion/{pub_id}", dependencies=_SOLO_ADMIN, response_model=schemas.AsignarTemaResponse)
 def post_curacion_publicacion(
     pub_id: int, req: schemas.AsignarTemaRequest,
     db: Session = Depends(get_percepcion_write_db),
@@ -592,7 +630,7 @@ def post_curacion_publicacion(
     return curacion.asignar_tema_publicacion(db, pub_id, req.tema)
 
 
-@router.post("/curacion/comentario/{com_id}", response_model=schemas.AsignarTemaResponse)
+@router.post("/curacion/comentario/{com_id}", dependencies=_SOLO_ADMIN, response_model=schemas.AsignarTemaResponse)
 def post_curacion_comentario(
     com_id: int, req: schemas.AsignarTemaRequest,
     db: Session = Depends(get_percepcion_write_db),
@@ -609,14 +647,16 @@ def _email(user) -> str | None:
     return getattr(user, "email", None)
 
 
-@router.get("/curacion/scoring/opciones", response_model=schemas.OpcionesScoringResponse)
+@router.get("/curacion/scoring/opciones", dependencies=_SOLO_ADMIN, response_model=schemas.OpcionesScoringResponse)
 def get_scoring_opciones():
     return {"sentimientos": curacion.SENTIMIENTOS, "emociones": curacion.EMOCIONES,
             "posturas": list(curacion.POSTURAS)}
 
 
-@router.get("/curacion/scoring", response_model=schemas.ComentariosScoringResponse)
+@router.get("/curacion/scoring", dependencies=_SOLO_ADMIN, response_model=schemas.ComentariosScoringResponse)
 def get_scoring(
+    request: Request,
+    user: AuthUser = Depends(get_authenticated_user),
     limite: int = Query(50, ge=1, le=200),
     sentimiento: str | None = Query(None, pattern="^(POS|NEU|NEG)$"),
     emocion: str | None = None,
@@ -644,13 +684,16 @@ def get_scoring(
     `solo_pendientes` (default) saltea lo ya revisado del todo. En False devuelve
     todo, que es lo que hay que usar para AUDITAR lo anotado, no para anotar.
     """
-    return curacion.comentarios_para_scoring(
+    # TEXTO CRUDO: solo administradores, y cada vista queda auditada.
+    respuesta = curacion.comentarios_para_scoring(
         db, limite=limite, sentimiento=sentimiento, emocion=emocion, orden=orden,
         solo_pendientes=solo_pendientes,
     )
+    _auditar_texto(user, request, [i["id"] for i in respuesta["items"]])
+    return respuesta
 
 
-@router.post("/curacion/sentimiento/{com_id}", response_model=schemas.CorregirResponse)
+@router.post("/curacion/sentimiento/{com_id}", dependencies=_SOLO_ADMIN, response_model=schemas.CorregirResponse)
 def post_corregir_sentimiento(
     com_id: int, req: schemas.CorregirRequest,
     db: Session = Depends(get_percepcion_write_db),
@@ -666,7 +709,7 @@ def post_corregir_sentimiento(
     )
 
 
-@router.post("/curacion/tema/{com_id}", response_model=schemas.CorregirResponse)
+@router.post("/curacion/tema/{com_id}", dependencies=_SOLO_ADMIN, response_model=schemas.CorregirResponse)
 def post_corregir_tema(
     com_id: int, req: schemas.CorregirRequest,
     db: Session = Depends(get_percepcion_write_db),
@@ -683,7 +726,7 @@ def post_corregir_tema(
     )
 
 
-@router.post("/curacion/postura/{com_id}", response_model=schemas.CorregirResponse)
+@router.post("/curacion/postura/{com_id}", dependencies=_SOLO_ADMIN, response_model=schemas.CorregirResponse)
 def post_corregir_postura(
     com_id: int, req: schemas.CorregirRequest,
     db: Session = Depends(get_percepcion_write_db),
@@ -703,7 +746,7 @@ def post_corregir_postura(
     )
 
 
-@router.post("/curacion/emocion/{com_id}", response_model=schemas.CorregirResponse)
+@router.post("/curacion/emocion/{com_id}", dependencies=_SOLO_ADMIN, response_model=schemas.CorregirResponse)
 def post_corregir_emocion(
     com_id: int, req: schemas.CorregirRequest,
     db: Session = Depends(get_percepcion_write_db),
@@ -735,7 +778,7 @@ def get_impacto_palabras(f: Filtro = Depends(), db: Session = Depends(get_db)):
     )
 
 
-@router.get("/curacion/calidad", response_model=schemas.CalidadResponse)
+@router.get("/curacion/calidad", dependencies=_SOLO_ADMIN, response_model=schemas.CalidadResponse)
 def get_calidad(db: Session = Depends(get_db)):
     """Qué tan bien lee el modelo, medido contra el histórico de revisiones.
 
@@ -748,7 +791,7 @@ def get_calidad(db: Session = Depends(get_db)):
     return calidad.calidad_modelo(db)
 
 
-@router.get("/curacion/correcciones", response_model=schemas.CorreccionesResponse)
+@router.get("/curacion/correcciones", dependencies=_SOLO_ADMIN, response_model=schemas.CorreccionesResponse)
 def get_correcciones(limite: int = Query(100, ge=1, le=500), db: Session = Depends(get_db)):
     """Historial de revisiones. `curacion.correcciones_recientes()` existía desde
     siempre y no la llamaba ningún endpoint: el trabajo de curación se guardaba y
