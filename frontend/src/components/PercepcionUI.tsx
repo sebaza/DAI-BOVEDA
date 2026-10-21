@@ -12,23 +12,24 @@
 // (opciones de ECharts, controles de la nube) se queda en su componente.
 
 import type { ReactNode } from "react";
+import { PALETA } from "@/lib/paleta";
 
-export const CARD = "rounded-3xl border border-white/10 bg-[#0b1424] p-4";
+export const CARD = "boveda-placa-card p-4 sm:p-5";
 // `w-full` + `min-w-0` es lo que evita que un <select> se desborde de su celda.
 // Sin eso cada uno toma el ancho de su opción más larga, y en la barra de filtros
 // "Departamento" se salía del panel mientras "Sede" quedaba diminuto: cuatro
 // controles del mismo rango visual con cuatro anchos distintos. El contenedor
 // decide el ancho, no el contenido.
 export const SELECT =
-  "w-full min-w-0 truncate rounded-xl border border-white/10 bg-[#0b1424] px-3 py-1.5 " +
-  "text-sm text-slate-200 outline-none transition focus:border-[var(--portal-cyan)] " +
+  "h-9 w-full min-w-0 truncate rounded border border-[var(--boveda-linea-fuerte)] bg-[var(--boveda-madera)] px-3 " +
+  "text-sm text-slate-100 outline-none transition focus:border-[var(--portal-cyan)] " +
   "hover:border-white/20";
 
-export const COLOR_POS = "#51c28c";
-export const COLOR_NEU = "#8aa0c0";
-export const COLOR_NEG = "#f2777a";
-export const COLOR_CYAN = "#4f9cf0";
-export const COLOR_COPPER = "#e0aa4e";
+export const COLOR_POS = PALETA.favorable;
+export const COLOR_NEU = PALETA.neutro;
+export const COLOR_NEG = PALETA.adverso;
+export const COLOR_CYAN = PALETA.azul;
+export const COLOR_COPPER = PALETA.tierraClara;
 
 const EMOCION_LABEL_UI: Record<string, string> = {
   joy: "Alegría",
@@ -115,9 +116,9 @@ export function RotuloMetodo({
         "mes. Responde “de qué se habló en este período”.";
   return (
     <span
-      className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+      className={`rounded border px-2 py-0.5 text-xs font-medium ${
         conRecencia
-          ? "border-[var(--portal-copper)]/30 bg-[var(--portal-copper)]/10 text-[var(--portal-copper)]"
+          ? "border-[color-mix(in_srgb,var(--portal-copper)_30%,transparent)] bg-[color-mix(in_srgb,var(--portal-copper)_10%,transparent)] text-ucn-tierra-clara"
           : "border-white/10 bg-white/[0.04] text-slate-400"
       }`}
       title={ayuda}
@@ -132,7 +133,7 @@ export function RotuloMetodo({
 export function SinActividadReciente({ dias }: { dias: number }) {
   return (
     <span
-      className="text-[11px] text-slate-500"
+      className="text-sm text-slate-500"
       title={`Tiene comentarios en el período, pero ninguno dentro de los últimos ${dias} días que pondera la recencia. Pon la recencia en "off" para ver su índice del período completo.`}
     >
       sin actividad reciente
@@ -150,7 +151,7 @@ export function Indice({ valor, evidencia }: { valor: number | null; evidencia: 
       >
         {fmt(valor)}
       </span>
-      <span className="text-[11px] text-slate-500">{lecturaIndice(valor)}</span>
+      <span className="text-sm text-slate-500">{lecturaIndice(valor)}</span>
     </div>
   );
 }
@@ -177,7 +178,7 @@ export function BarraConfianza({ valor }: { valor: number }) {
       <span className="h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-white/[0.06]">
         <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
       </span>
-      <span className="text-[11px] tabular-nums" style={{ color }}>
+      <span className="text-xs tabular-nums" style={{ color }}>
         {pct}%
       </span>
     </span>
@@ -200,7 +201,7 @@ export function Delta({
 }) {
   if (valor == null) {
     return (
-      <span className="w-16 text-right text-[11px] text-slate-600" title={`Sin ${titulo} previo`}>
+      <span className="w-16 text-right text-sm text-slate-500" title={`Sin ${titulo} previo`}>
         —
       </span>
     );
@@ -216,7 +217,7 @@ export function Delta({
   const flecha = valor > 0 ? "▲" : valor < 0 ? "▼" : "—";
   return (
     <span
-      className="w-16 text-right text-[11px] font-semibold tabular-nums"
+      className="w-16 text-right text-xs font-semibold tabular-nums"
       style={{ color }}
       title={`Variación de ${titulo} contra el período anterior`}
     >
@@ -228,7 +229,7 @@ export function Delta({
 export function SinEvidencia({ n, minimo }: { n: number; minimo: number }) {
   return (
     <span
-      className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-200"
+      className="rounded border border-[var(--alerta-media)] bg-[var(--ucn-tierra-suave)] px-2 py-0.5 text-xs font-semibold text-ucn-tierra-clara"
       title={`Solo ${n} comentarios (se necesitan ${minimo} para leer el índice como tendencia). La cifra es referencial.`}
     >
       muestra insuficiente
@@ -266,7 +267,7 @@ export function BarraSentimiento({
   ];
   return (
     <div
-      className={`flex w-full overflow-hidden rounded-full bg-white/[0.06] ${alta ? "h-5" : "h-2"}`}
+      className={`flex w-full overflow-hidden rounded bg-white/[0.06] ${alta ? "h-5" : "h-2"}`}
       title={`${pos} positivos · ${neu} neutrales · ${neg} negativos`}
       role="img"
       aria-label={
@@ -284,7 +285,7 @@ export function BarraSentimiento({
             style={{ width: `${ancho}%`, background: p.color }}
           >
             {alta && ancho >= ANCHO_MINIMO_ETIQUETA ? (
-              <span className="text-[10px] font-bold tabular-nums" style={{ color: "#0b1424" }}>
+              <span className="text-xs font-bold tabular-nums" style={{ color: PALETA.panel }}>
                 {Math.round(ancho)}%
               </span>
             ) : null}
@@ -309,14 +310,14 @@ export function TituloBloque({
 }) {
   return (
     <>
-      <div className="mb-1 flex flex-wrap items-center gap-2">
-        <span className="text-sm font-medium text-slate-200">{titulo}</span>
+      <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-[var(--portal-line)] pb-3">
+        <span className="portal-title text-lg font-semibold text-slate-100">{titulo}</span>
         {vidaMedia === undefined ? null : (
           <RotuloMetodo vidaMedia={vidaMedia} ignoraRecencia={ignoraRecencia} />
         )}
         {extra}
       </div>
-      {children ? <p className="mb-3 text-[11px] leading-5 text-slate-500">{children}</p> : null}
+      {children ? <p className="-mt-2 mb-3 text-sm text-slate-400">{children}</p> : null}
     </>
   );
 }
@@ -380,17 +381,17 @@ export function SubPestanas<T extends string>({
             aria-selected={activa === o.id}
             onClick={() => onCambio(o.id)}
             className={
-              "-mb-px border-b-2 px-0.5 pb-2 text-xs transition " +
+              "-mb-px border-b-2 px-0.5 pb-2 text-sm transition " +
               (activa === o.id
                 ? "border-[var(--portal-cyan)] font-semibold text-slate-100"
-                : "border-transparent text-slate-500 hover:border-white/20 hover:text-slate-300")
+                : "border-transparent text-slate-500 hover:border-white/20 hover:text-slate-400")
             }
           >
             {o.label}
           </button>
         ))}
       </div>
-      {sel ? <p className="text-[11px] leading-5 text-slate-500">{sel.hint}</p> : null}
+      {sel ? <p className="text-sm leading-5 text-slate-500">{sel.hint}</p> : null}
     </div>
   );
 }

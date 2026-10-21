@@ -94,35 +94,35 @@ export function PercepcionCuracion({ onCambio }: { onCambio: () => void }) {
   return (
     <div className={CARD}>
       <button onClick={() => setAbierto((a) => !a)} className="flex w-full items-center justify-between gap-3">
-        <div className="text-sm font-medium text-slate-200">
+        <div className="text-sm font-medium text-slate-100">
           Curación de temas · asignar los “Otros” a mano
         </div>
-        <span className="text-xs text-slate-500">{abierto ? "▲ ocultar" : `▼ pendientes: ${pendientes}`}</span>
+        <span className="text-sm text-slate-500">{abierto ? "▲ ocultar" : `▼ pendientes: ${pendientes}`}</span>
       </button>
 
       {abierto ? (
         <div className="mt-3">
           {/* Crear tema nuevo (con keywords → el clasificador lo aprende) */}
-          <div className="mb-3 rounded-2xl border border-[var(--portal-cyan)]/20 bg-[var(--portal-cyan)]/[0.05] p-3">
-            <div className="mb-2 text-xs font-semibold text-slate-300">Crear tema nuevo</div>
+          <div className="mb-3 rounded-md border border-[color-mix(in_srgb,var(--portal-cyan)_20%,transparent)] bg-[color-mix(in_srgb,var(--portal-cyan)_5%,transparent)] p-3">
+            <div className="mb-2 text-sm font-semibold text-slate-400">Crear tema nuevo</div>
             <div className="flex flex-wrap items-end gap-2">
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Nombre</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Nombre</span>
                 <input value={nombreTema} onChange={(e) => setNombreTema(e.target.value)} placeholder="Ej: Deportes" className={INPUT} />
               </label>
               <label className="flex min-w-[220px] flex-1 flex-col gap-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Palabras clave (separadas por coma)</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Palabras clave (separadas por coma)</span>
                 <input value={kwTema} onChange={(e) => setKwTema(e.target.value)} placeholder="futbol, deporte, campeonato" className={INPUT} />
               </label>
               <button
                 onClick={crearTema}
                 disabled={!nombreTema.trim()}
-                className="rounded-xl border border-[var(--portal-cyan)]/40 bg-[var(--portal-cyan)]/15 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-[var(--portal-cyan)]/25 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-xl border border-[color-mix(in_srgb,var(--portal-cyan)_40%,transparent)] bg-[color-mix(in_srgb,var(--portal-cyan)_15%,transparent)] px-4 py-1.5 text-sm font-semibold text-slate-100 transition hover:bg-[color-mix(in_srgb,var(--portal-cyan)_25%,transparent)] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Crear
               </button>
             </div>
-            <p className="mt-1.5 text-[11px] text-slate-500">
+            <p className="mt-1.5 text-sm text-slate-500">
               Sin palabras clave sirve solo para asignar a mano; con palabras clave, el clasificador lo usa solo en las próximas ingestas.
             </p>
           </div>
@@ -132,22 +132,22 @@ export function PercepcionCuracion({ onCambio }: { onCambio: () => void }) {
               <button
                 key={v}
                 onClick={() => setVista(v)}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                className={`rounded border px-3 py-1 text-sm font-semibold transition ${
                   vista === v
-                    ? "border-[var(--portal-cyan)]/50 bg-[var(--portal-cyan)]/15 text-white"
+                    ? "border-[color-mix(in_srgb,var(--portal-cyan)_50%,transparent)] bg-[color-mix(in_srgb,var(--portal-cyan)_15%,transparent)] text-slate-100"
                     : "border-white/10 bg-white/[0.04] text-slate-400 hover:bg-white/[0.08]"
                 }`}
               >
                 {v === "post" ? "Por publicación" : "Por comentario"}
               </button>
             ))}
-            <span className="ml-auto text-[11px] text-slate-500">
+            <span className="ml-auto text-sm text-slate-500">
               asignar escribe en la base y actualiza los gráficos
             </span>
           </div>
 
-          {msg ? <div className="mb-2 rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-300">{msg}</div> : null}
-          {error ? <div className="mb-2 rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs text-rose-200">{error}</div> : null}
+          {msg ? <div className="mb-2 rounded-lg bg-[var(--ucn-azul-suave)] px-3 py-1.5 text-sm text-ucn-azul-claro">{msg}</div> : null}
+          {error ? <div className="mb-2 rounded-lg bg-[var(--ucn-tierra-suave)] px-3 py-1.5 text-sm text-ucn-tierra-clara">{error}</div> : null}
 
           {cargando ? (
             <p className="py-6 text-center text-sm text-slate-500">Cargando…</p>
@@ -155,11 +155,11 @@ export function PercepcionCuracion({ onCambio }: { onCambio: () => void }) {
             pubs.length > 0 ? (
               <ul className="space-y-2">
                 {pubs.map((p) => (
-                  <li key={p.id} className="flex items-start justify-between gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-3">
+                  <li key={p.id} className="flex items-start justify-between gap-3 rounded-md border border-white/5 bg-white/[0.02] p-3">
                     <div className="flex-1">
-                      <p className="text-sm text-slate-200">{p.caption || "(publicación sin texto)"}</p>
-                      <p className="mt-1 text-[11px] text-slate-500">
-                        {p.cuenta ? `@${p.cuenta} · ` : ""}<strong className="text-[var(--portal-copper)]">{p.n_otros}</strong> de {p.n_comentarios} comentarios en “Otros” heredarán
+                      <p className="text-sm text-slate-100">{p.caption || "(publicación sin texto)"}</p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {p.cuenta ? `@${p.cuenta} · ` : ""}<strong className="text-ucn-tierra-clara">{p.n_otros}</strong> de {p.n_comentarios} comentarios en “Otros” heredarán
                       </p>
                     </div>
                     <TemaSelect temas={temas} onPick={(t) => asignar(
@@ -175,15 +175,15 @@ export function PercepcionCuracion({ onCambio }: { onCambio: () => void }) {
           ) : coms.length > 0 ? (
             <ul className="space-y-2">
               {coms.map((c) => (
-                <li key={c.id} className="rounded-2xl border border-white/5 bg-white/[0.02] p-3">
+                <li key={c.id} className="rounded-md border border-white/5 bg-white/[0.02] p-3">
                   <div className="flex items-start justify-between gap-3">
-                    <p className="flex-1 text-sm text-slate-200">{c.texto}</p>
+                    <p className="flex-1 text-sm text-slate-100">{c.texto}</p>
                     <TemaSelect temas={temas} onPick={(t) => asignar(
                       percepcionApi.asignarTemaComentario(c.id, t),
                       () => "Comentario reclasificado.",
                     )} />
                   </div>
-                  <p className="mt-1 text-[11px] text-slate-500">
+                  <p className="mt-1 text-sm text-slate-500">
                     {c.fecha} · {c.sentimiento}{c.caption ? ` · post: ${c.caption}` : ""}
                   </p>
                 </li>

@@ -36,8 +36,8 @@ import { CARD, TituloBloque, nro } from "./PercepcionUI";
 const DISRUPTIVOS = new Set(["paro", "toma", "emergencia"]);
 
 const COLOR_CONFIANZA: Record<string, string> = {
-  confirmado: "text-[#51c28c]",
-  estimado: "text-[#e0aa4e]",
+  confirmado: "text-dato-favorable",
+  estimado: "text-ucn-tierra-clara",
   planificado: "text-slate-500",
 };
 
@@ -101,26 +101,26 @@ export function PercepcionCalendarioDatos() {
         del baseline de calendario y de cualquier medición de respuesta a shock.
       </TituloBloque>
 
-      {error ? <p className="text-sm text-[#f2777a]">{error}</p> : null}
+      {error ? <p className="text-sm text-ucn-tierra-clara">{error}</p> : null}
 
       <div className="mb-3 flex flex-wrap gap-2">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-          <p className="text-[10px] uppercase tracking-wide text-slate-500">Eventos</p>
-          <p className="text-lg font-semibold text-slate-200">{nro(eventos.length)}</p>
+        <div className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Eventos</p>
+          <p className="text-lg font-semibold text-slate-100">{nro(eventos.length)}</p>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-          <p className="text-[10px] uppercase tracking-wide text-slate-500">Disruptivos</p>
-          <p className="text-lg font-semibold text-[#f2777a]">{nro(resumen.disruptivos)}</p>
-          <p className="text-[10px] text-slate-500">paros, tomas y emergencias</p>
+        <div className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Disruptivos</p>
+          <p className="text-lg font-semibold text-ucn-tierra-clara">{nro(resumen.disruptivos)}</p>
+          <p className="text-sm text-slate-500">paros, tomas y emergencias</p>
         </div>
         {(["confirmado", "estimado", "planificado"] as const).map((c) =>
           resumen.porConfianza[c] ? (
-            <div key={c} className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-              <p className="text-[10px] uppercase tracking-wide text-slate-500">{c}</p>
+            <div key={c} className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2">
+              <p className="text-xs uppercase tracking-wide text-slate-500">{c}</p>
               <p className={`text-lg font-semibold ${COLOR_CONFIANZA[c]}`}>
                 {nro(resumen.porConfianza[c])}
               </p>
-              <p className="max-w-[15rem] text-[10px] leading-4 text-slate-500">
+              <p className="max-w-[15rem] text-sm leading-4 text-slate-500">
                 {AYUDA_CONFIANZA[c]}
               </p>
             </div>
@@ -128,12 +128,12 @@ export function PercepcionCalendarioDatos() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
         <span>Por año:</span>
         {Object.entries(resumen.porAnio)
           .sort()
           .map(([a, n]) => (
-            <span key={a} className="rounded-full border border-white/10 px-2 py-0.5">
+            <span key={a} className="rounded border border-white/10 px-2 py-0.5">
               {a}: {n}
             </span>
           ))}
@@ -143,7 +143,7 @@ export function PercepcionCalendarioDatos() {
         <button
           type="button"
           onClick={() => setAbierto((v) => !v)}
-          className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-slate-300 transition hover:border-white/25 hover:text-white"
+          className="rounded border border-white/10 px-2.5 py-1 text-sm text-slate-400 transition hover:border-white/25 hover:text-slate-100"
         >
           {abierto ? "Ocultar la lista" : "Ver la lista completa"}
         </button>
@@ -153,8 +153,8 @@ export function PercepcionCalendarioDatos() {
             onClick={() => setSoloDisruptivos((v) => !v)}
             className={
               soloDisruptivos
-                ? "rounded-full border border-[#f2777a]/40 bg-[#f2777a]/10 px-2.5 py-1 text-[11px] text-[#f2777a]"
-                : "rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-slate-400 transition hover:border-white/25 hover:text-white"
+                ? "rounded border border-[var(--alerta-media)] bg-[var(--ucn-tierra-suave)] px-2.5 py-1 text-sm text-ucn-tierra-clara"
+                : "rounded border border-white/10 px-2.5 py-1 text-sm text-slate-400 transition hover:border-white/25 hover:text-slate-100"
             }
           >
             solo paros y tomas
@@ -163,7 +163,7 @@ export function PercepcionCalendarioDatos() {
       </div>
 
       {abierto ? (
-        <div className="mt-2 max-h-96 overflow-y-auto rounded-2xl border border-white/5">
+        <div className="mt-2 max-h-96 overflow-y-auto rounded-md border border-white/5">
           {lista.map((e) => {
             const c = e.confianza ?? "estimado";
             return (
@@ -172,20 +172,20 @@ export function PercepcionCalendarioDatos() {
                 className="border-b border-white/5 px-3 py-1.5 last:border-0"
               >
                 <div className="flex flex-wrap items-baseline gap-2">
-                  <span className="font-mono text-[11px] text-slate-500">
+                  <span className="font-mono text-sm text-slate-500">
                     {e.fecha_inicio}
                     {e.fecha_fin && e.fecha_fin !== e.fecha_inicio ? ` → ${e.fecha_fin}` : ""}
                   </span>
-                  <span className="text-[13px] text-slate-200">{e.nombre}</span>
-                  <span className={`text-[10px] ${COLOR_CONFIANZA[c]}`} title={AYUDA_CONFIANZA[c]}>
+                  <span className="text-sm text-slate-100">{e.nombre}</span>
+                  <span className={`text-sm ${COLOR_CONFIANZA[c]}`} title={AYUDA_CONFIANZA[c]}>
                     {c}
                   </span>
                   {e.ambito && e.ambito !== "global" ? (
-                    <span className="text-[10px] text-slate-500">· {e.ambito}</span>
+                    <span className="text-sm text-slate-500">· {e.ambito}</span>
                   ) : null}
                 </div>
                 {e.descripcion ? (
-                  <p className="text-[11px] leading-5 text-slate-500">{e.descripcion}</p>
+                  <p className="text-sm leading-5 text-slate-500">{e.descripcion}</p>
                 ) : null}
               </div>
             );

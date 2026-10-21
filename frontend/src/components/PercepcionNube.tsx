@@ -18,6 +18,7 @@
 // es SENTIMIENTO con los neutrales en gris tenue: el color solo "grita" donde hay
 // polaridad real (~40% del corpus). Igual se puede cambiar desde el selector.
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { PALETA } from "@/lib/paleta";
 
 import type { Filtro, NubeResponse, PalabraNube } from "../lib/percepcion";
 import { percepcionApi } from "../lib/percepcion";
@@ -34,29 +35,29 @@ type CriterioColor = "sentimiento" | "tema" | "mono";
 // con las claves previas a la partición de `eventos` (2026-08-14) y 4 de los 8 temas
 // se veían grises. Si cambia `taxonomy.ETIQUETAS` en el worker, actualizar acá.
 const COLOR_TEMA: Record<string, string> = {
-  academico: "#6cb6ff",
-  vida_estudiantil: "#b98cff",
-  organizacion_estudiantil: "#e0aa4e",
-  servicios_institucionales: "#4dd0c1",
-  logros_reconocimientos: "#f5d76e",
-  bienestar_salud: "#51c28c",
-  mascotas: "#f0a6ca",
-  otros: "#8aa0c0",
+  academico: PALETA.azulClaro,
+  vida_estudiantil: PALETA.serie3,
+  organizacion_estudiantil: PALETA.tierraClara,
+  servicios_institucionales: PALETA.azul,
+  logros_reconocimientos: PALETA.adverso,
+  bienestar_salud: PALETA.serie4,
+  mascotas: PALETA.tierra,
+  otros: PALETA.neutro,
   // Retirados: se conservan para que los datos históricos aún sin re-clasificar
   // no se pinten grises. Ver `taxonomy.RENOMBRES`.
-  eventos: "#b98cff",
-  charlas_seminarios: "#6cb6ff",
-  infraestructura: "#4dd0c1",
-  tramites: "#4dd0c1",
-  matricula_aranceles: "#4dd0c1",
-  difusion_admision: "#4dd0c1",
+  eventos: PALETA.serie3,
+  charlas_seminarios: PALETA.azulClaro,
+  infraestructura: PALETA.azul,
+  tramites: PALETA.azul,
+  matricula_aranceles: PALETA.azul,
+  difusion_admision: PALETA.azul,
 };
 
 const TAM_MIN = 13;
 const TAM_MAX = 52;
 
 function colorDe(p: PalabraNube, criterio: CriterioColor): string {
-  if (criterio === "mono") return "#c7d4e6";
+  if (criterio === "mono") return PALETA.azulClaro;
   if (criterio === "tema") return COLOR_TEMA[p.tema_dominante ?? "otros"] ?? COLOR_NEU;
   if (p.sentimiento_dominante === "POS") return COLOR_POS;
   if (p.sentimiento_dominante === "NEG") return COLOR_NEG;
@@ -259,11 +260,11 @@ function FilaRanking({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="w-4 shrink-0 text-right text-[10px] tabular-nums text-slate-600">
+      <span className="w-4 shrink-0 text-right text-xs tabular-nums text-slate-500">
         {puesto}
       </span>
       <span
-        className="w-28 shrink-0 truncate text-xs font-semibold"
+        className="w-28 shrink-0 truncate text-sm font-semibold"
         style={{ color: colorDe(p, criterio) }}
         title={p.texto}
       >
@@ -277,10 +278,10 @@ function FilaRanking({
           style={{ width: `${(100 * p.n) / tope}%`, background: colorDe(p, criterio) }}
         />
       </span>
-      <span className="w-20 shrink-0 text-right text-[11px] tabular-nums text-slate-400">
+      <span className="w-20 shrink-0 text-right text-xs tabular-nums text-slate-400">
         {p.n} coment.
       </span>
-      <span className="hidden w-24 shrink-0 text-right text-[10px] tabular-nums text-slate-500 sm:block">
+      <span className="hidden w-24 shrink-0 text-right text-xs tabular-nums text-slate-500 sm:block">
         {p.pos}/{p.neu}/{p.neg}
       </span>
     </div>
@@ -386,7 +387,7 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
   if (error && !data) {
     return (
       <div className={CARD}>
-        <p className="text-sm text-[#f2777a]">{error}</p>
+        <p className="text-sm text-ucn-tierra-clara">{error}</p>
       </div>
     );
   }
@@ -398,7 +399,7 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
       aria-busy={cargando}
     >
       {error ? (
-        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-200">
+        <div className="rounded-md border border-[var(--alerta-media)] bg-[var(--ucn-tierra-suave)] px-4 py-2 text-sm text-ucn-tierra-clara">
           {error}
           {cargando ? " · reintentando…" : ""}
         </div>
@@ -411,8 +412,8 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
                 componente dejó de ser una pestaña con nombre propio y ahora vive
                 embebido en Conversación: sin esto, el bloque aparecía sin
                 anunciarse y no se entendía qué se estaba mirando. */}
-            <div className="text-sm font-medium text-slate-200">Nube de palabras</div>
-            <p className="mt-1 text-[11px] leading-5 text-slate-500">
+            <div className="text-sm font-medium text-slate-100">Nube de palabras</div>
+            <p className="mt-1 text-sm leading-5 text-slate-500">
               El vocabulario <strong className="text-slate-400">crudo</strong> de los comentarios,
               sin pasar por las 8 categorías del clasificador: sirve para ver de qué se habla
               antes de que exista un tema para eso. El tamaño es en cuántos{" "}
@@ -423,7 +424,7 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
           <div className="flex flex-wrap items-center gap-3">
             {/* Disposición primero: decide la ESTRUCTURA de la vista, y el resto
                 de los controles se leen dentro de esa decisión. */}
-            <label className="flex items-center gap-2 text-xs text-slate-400">
+            <label className="flex items-center gap-2 text-sm text-slate-400">
               Disposición
               <select
                 className={SELECT}
@@ -435,7 +436,7 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
                 <option value="tema">Agrupada por tema</option>
               </select>
             </label>
-            <label className="flex items-center gap-2 text-xs text-slate-400">
+            <label className="flex items-center gap-2 text-sm text-slate-400">
               Color por
               <select
                 className={SELECT}
@@ -447,7 +448,7 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
                 <option value="mono">Sin color</option>
               </select>
             </label>
-            <label className="flex items-center gap-2 text-xs text-slate-400">
+            <label className="flex items-center gap-2 text-sm text-slate-400">
               Mínimo
               <select
                 className={SELECT}
@@ -460,7 +461,7 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
                 <option value={5}>5 comentarios</option>
               </select>
             </label>
-            <label className="flex items-center gap-2 text-xs text-slate-400">
+            <label className="flex items-center gap-2 text-sm text-slate-400">
               Mostrar
               <select
                 className={SELECT}
@@ -478,7 +479,7 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
         <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
           {/* Leyenda del criterio de color activo. Un color sin leyenda es
               decoración: el lector ve tonos distintos y no sabe qué codifican. */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-400">
             {criterio === "sentimiento" ? (
               <>
                 <span className="flex items-center gap-1.5">
@@ -503,13 +504,13 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
                       style={{ background: COLOR_TEMA[t.tema] ?? COLOR_NEU }}
                     />
                     {t.etiqueta}
-                    <span className="tabular-nums text-slate-600">({t.total})</span>
+                    <span className="tabular-nums text-slate-500">({t.total})</span>
                   </span>
                 ))
               : null}
           </div>
           <div className="flex flex-wrap items-center gap-4">
-            <label className="flex cursor-pointer items-center gap-2 text-[11px] text-slate-400">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-400">
               <input
                 type="checkbox"
                 checked={verConteo}
@@ -519,7 +520,7 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
               Mostrar el número
             </label>
             <label
-              className="flex cursor-pointer items-center gap-2 text-[11px] text-slate-400"
+              className="flex cursor-pointer items-center gap-2 text-sm text-slate-400"
               title={
                 "Las palabras largas llaman más la atención aunque tengan la misma frecuencia: " +
                 "“felicitaciones” y “cursos” aparecen en 12 comentarios cada una, pero la primera " +
@@ -535,7 +536,7 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
               Corregir sesgo por largo de palabra
             </label>
             <label
-              className="flex cursor-pointer items-center gap-2 text-[11px] text-slate-400"
+              className="flex cursor-pointer items-center gap-2 text-sm text-slate-400"
               title={
                 "Junta singular y plural en una sola palabra (curso → cursos). " +
                 "Separadas, las variantes reparten el peso de un mismo concepto."
@@ -549,11 +550,11 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
               />
               Agrupar singular y plural
               {data && data.n_variantes_agrupadas > 0 ? (
-                <span className="text-slate-600">({data.n_variantes_agrupadas} fundidas)</span>
+                <span className="text-slate-500">({data.n_variantes_agrupadas} fundidas)</span>
               ) : null}
             </label>
             <label
-              className="flex cursor-pointer items-center gap-2 text-[11px] text-slate-400"
+              className="flex cursor-pointer items-center gap-2 text-sm text-slate-400"
               title={
                 "Franja bajo cada palabra con la proporción positivo/neutral/negativo. " +
                 "Muestra las palabras que se dicen en los dos sentidos, que el color " +
@@ -603,16 +604,16 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
         ) : (
           <div className="space-y-4 py-2">
             {bloques.map((b) => (
-              <div key={b.tema} className="rounded-2xl border border-white/5 bg-white/[0.02] p-3">
+              <div key={b.tema} className="rounded-md border border-white/5 bg-white/[0.02] p-3">
                 <div className="mb-2 flex items-baseline gap-2">
                   <span
                     className="h-2 w-2 shrink-0 rounded-full"
                     style={{ background: COLOR_TEMA[b.tema] ?? COLOR_NEU }}
                   />
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                     {b.etiqueta}
                   </span>
-                  <span className="text-[10px] tabular-nums text-slate-500">
+                  <span className="text-xs tabular-nums text-slate-500">
                     {b.palabras.length} palabras · {b.total} menciones
                   </span>
                 </div>
@@ -636,7 +637,7 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
           </div>
         )}
 
-        <div className="mt-2 border-t border-white/5 pt-2 text-[11px] text-slate-500">
+        <div className="mt-2 border-t border-white/5 pt-2 text-sm text-slate-500">
           {data
             ? `${data.n_palabras_unicas.toLocaleString("es-CL")} palabras distintas sobre ` +
               `${data.n_comentarios.toLocaleString("es-CL")} comentarios · se muestran las ${nube.length} más frecuentes`
@@ -649,10 +650,10 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
           disposición que la nube — si arriba se agrupó por tema, acá también. */}
       {ranking.length > 0 ? (
         <div className={CARD}>
-          <div className="mb-1 text-sm font-medium text-slate-200">
+          <div className="mb-1 text-sm font-medium text-slate-100">
             {layout === "tema" ? "Las más dichas de cada tema" : "Las 10 más dichas"}
           </div>
-          <p className="mb-3 text-[11px] text-slate-500">
+          <p className="mb-3 text-sm text-slate-500">
             La nube muestra la forma general; acá está la diferencia exacta entre una
             palabra y la siguiente.
             {layout === "tema"
@@ -669,10 +670,10 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
                       className="h-2 w-2 shrink-0 rounded-full"
                       style={{ background: COLOR_TEMA[b.tema] ?? COLOR_NEU }}
                     />
-                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                       {b.etiqueta}
                     </span>
-                    <span className="text-[10px] tabular-nums text-slate-500">
+                    <span className="text-xs tabular-nums text-slate-500">
                       {b.total} menciones
                     </span>
                   </div>
@@ -704,7 +705,7 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
             </div>
           )}
 
-          <p className="mt-2 text-[10px] text-slate-600">
+          <p className="mt-2 text-sm text-slate-500">
             Última columna: positivos / neutrales / negativos.
           </p>
         </div>
@@ -715,12 +716,12 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
       {excluidas.length > 0 ? (
         <div className={CARD}>
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-sm font-medium text-slate-200">
+            <span className="text-sm font-medium text-slate-100">
               Palabras excluidas ({excluidas.length})
             </span>
             <button
               type="button"
-              className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-slate-300 transition hover:bg-white/[0.09]"
+              className="rounded border border-white/10 bg-white/[0.04] px-3 py-1 text-sm text-slate-400 transition hover:bg-white/[0.09]"
               onClick={() => setExcluidas([])}
             >
               Restaurar todas
@@ -732,7 +733,7 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
                 key={w}
                 type="button"
                 title="Clic para devolverla a la nube"
-                className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-xs text-slate-400 transition hover:bg-white/[0.09]"
+                className="rounded border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-xs text-slate-400 transition hover:bg-white/[0.09]"
                 onClick={() => setExcluidas((prev) => prev.filter((x) => x !== w))}
               >
                 {w} ✕
@@ -742,7 +743,7 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
         </div>
       ) : null}
 
-      <p className="px-1 text-[11px] text-slate-500">
+      <p className="px-1 text-sm text-slate-500">
         La nube muestra texto público tal cual se escribió. Puede contener nombres de usuario
         que el scraper dejó pegados al comentario o lenguaje ofensivo: usa el clic sobre una
         palabra para sacarla antes de mostrar el tablero.

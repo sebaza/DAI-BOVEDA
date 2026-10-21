@@ -1,5 +1,6 @@
 "use client";
 
+import { BovedaEmblema } from "./BovedaEmblema";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -139,44 +140,47 @@ export function LoginScreen({ aviso, onAuthenticated }: LoginScreenProps) {
   const googleActivo = Boolean(config?.google_oauth_enabled);
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-10">
-      <div className="portal-panel-strong w-full max-w-md p-6 md:p-8">
-        <p className="portal-pill">Acceso restringido</p>
-        <h1 className="portal-title mt-4 text-3xl font-bold text-white">Bóveda DAI</h1>
-        <p className="mt-3 text-sm leading-7 text-slate-400">
-          Termómetro Institucional de la Dirección de Análisis Institucional. Contiene comentarios
+    <main className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+      <div className="boveda-madera w-full max-w-md overflow-hidden">
+        <div className="boveda-banda h-7" aria-hidden="true" />
+        <div className="p-6 md:p-8">
+        <BovedaEmblema size={56} />
+        <p className="boveda-kicker mt-4">Acceso restringido</p>
+        <h1 className="portal-title mt-2 text-3xl font-bold text-[var(--portal-fg)]">Bóveda DAI</h1>
+        <p className="mt-3 text-sm text-[var(--portal-muted)]">
+          Bóveda de la Dirección de Análisis Institucional, reservada a la dirección universitaria. Contiene comentarios
           reales de la comunidad, por lo que solo pueden entrar las cuentas autorizadas por la DAI.
         </p>
 
         <div className="mt-6 flex flex-col gap-4">
           {errorConfig ? (
-            <div className="flex flex-col gap-3 rounded-3xl border border-dashed border-white/10 p-4 text-sm text-slate-400">
+            <div className="flex flex-col gap-3 rounded-md border border-dashed border-[color-mix(in_srgb,var(--boveda-laton)_25%,transparent)] p-4 text-sm text-[var(--portal-muted)]">
               <span>No se pudo leer la configuración de acceso. Revisa que el servidor esté en marcha.</span>
               <button
                 type="button"
                 onClick={() => setReintento((n) => n + 1)}
-                className="self-start rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/[0.12]"
+                className="self-start rounded border border-[color-mix(in_srgb,var(--boveda-laton)_25%,transparent)] bg-white/[0.06] px-4 py-2 text-sm font-semibold text-[var(--portal-fg)] transition hover:bg-white/[0.12]"
               >
                 Reintentar conexión
               </button>
             </div>
           ) : !config ? (
-            <p className="text-sm text-slate-400">Cargando…</p>
+            <p className="text-sm text-[var(--portal-muted)]">Cargando…</p>
           ) : (
             <>
               {googleActivo ? (
                 <>
                   <div ref={botonRef} />
                   {!gsiListo && !gsiFallo ? (
-                    <p className="text-sm text-slate-400">Cargando el botón de Google…</p>
+                    <p className="text-sm text-[var(--portal-muted)]">Cargando el botón de Google…</p>
                   ) : null}
                   {gsiFallo ? (
                     <div className="flex flex-col gap-2">
-                      <p className="text-sm text-rose-200">No se pudo cargar el inicio de sesión de Google.</p>
+                      <p className="text-sm text-ucn-tierra-clara">No se pudo cargar el inicio de sesión de Google.</p>
                       <button
                         type="button"
                         onClick={() => setReintento((n) => n + 1)}
-                        className="self-start rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/[0.12]"
+                        className="self-start rounded border border-[color-mix(in_srgb,var(--boveda-laton)_25%,transparent)] bg-white/[0.06] px-4 py-2 text-sm font-semibold text-[var(--portal-fg)] transition hover:bg-white/[0.12]"
                       >
                         Reintentar
                       </button>
@@ -184,7 +188,7 @@ export function LoginScreen({ aviso, onAuthenticated }: LoginScreenProps) {
                   ) : null}
                 </>
               ) : (
-                <p className="rounded-3xl border border-dashed border-white/10 p-4 text-sm text-slate-400">
+                <p className="rounded-md border border-dashed border-[color-mix(in_srgb,var(--boveda-laton)_25%,transparent)] p-4 text-sm text-[var(--portal-muted)]">
                   {config.dev_login_enabled
                     ? "Google no está configurado (falta GOOGLE_CLIENT_ID). Puedes entrar en modo desarrollo."
                     : "El inicio de sesión con Google no está configurado en el servidor."}
@@ -196,10 +200,10 @@ export function LoginScreen({ aviso, onAuthenticated }: LoginScreenProps) {
                   type="button"
                   onClick={() => void entrarDev()}
                   disabled={trabajando}
-                  className="flex flex-col items-start rounded-2xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-2 text-left font-semibold text-cyan-100 transition hover:bg-cyan-400/20 disabled:opacity-50"
+                  className="flex flex-col items-start rounded-md border border-[color-mix(in_srgb,var(--ucn-azul)_40%,transparent)] bg-[color-mix(in_srgb,var(--ucn-azul)_10%,transparent)] px-4 py-2 text-left font-semibold text-[var(--portal-fg)] transition hover:bg-[color-mix(in_srgb,var(--ucn-azul)_20%,transparent)] disabled:opacity-50"
                 >
                   <span>Entrar en modo desarrollo</span>
-                  <span className="text-xs font-normal text-cyan-200/70">Solo disponible con APP_ENV=dev</span>
+                  <span className="text-sm font-normal text-[var(--ucn-azul-claro)]">Solo disponible con APP_ENV=dev</span>
                 </button>
               ) : null}
             </>
@@ -208,11 +212,12 @@ export function LoginScreen({ aviso, onAuthenticated }: LoginScreenProps) {
           {mensaje ? (
             <p
               role="alert"
-              className="rounded-2xl border border-rose-400/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-100"
+              className="rounded-md border border-[var(--alerta-media)] bg-[var(--ucn-tierra-suave)] px-4 py-3 text-sm text-ucn-tierra-clara"
             >
               {mensaje}
             </p>
           ) : null}
+        </div>
         </div>
       </div>
     </main>

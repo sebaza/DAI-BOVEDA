@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { PALETA } from "@/lib/paleta";
 
 // Apache ECharts (open-source) desde el CDN gratuito jsDelivr. Sin npm install.
 // BLINDAJE (Lote C): versión EXACTA (no rango @5) + SRI sha384 + crossorigin. Si jsDelivr
@@ -39,37 +40,38 @@ type WindowWithECharts = Window & { echarts?: EChartsLib };
 // y series refinados sobre fondo oscuro, inspirado en galerías open-source tipo Tremor/ECharts). Las
 // opciones por-gráfico siguen mandando sobre el tema donde definen su propio estilo (no rompe nada).
 const TORRE_THEME: Record<string, unknown> = {
-  color: ["#1b9ce3", "#22d3ee", "#a855f7", "#f59e0b", "#22c55e", "#ef4444", "#14b8a6", "#ec4899", "#84cc16", "#c084fc"],
+  color: [PALETA.azul, PALETA.adverso, PALETA.serie3, PALETA.azulClaro, PALETA.tierraClara, PALETA.serie4, PALETA.neutro, PALETA.tierra],
   backgroundColor: "transparent",
-  textStyle: { color: "#cbd5e1" },
-  title: { textStyle: { color: "#e2e8f0", fontWeight: 600 }, subtextStyle: { color: "#94a3b8" } },
-  legend: { textStyle: { color: "#94a3b8" }, inactiveColor: "#475569", icon: "roundRect" },
+  textStyle: { color: PALETA.muted },
+  title: { textStyle: { color: PALETA.fg, fontWeight: 600 }, subtextStyle: { color: PALETA.muted } },
+  legend: { textStyle: { color: PALETA.muted }, inactiveColor: PALETA.subtle, icon: "roundRect" },
   tooltip: {
-    backgroundColor: "rgba(11,20,36,0.96)",
-    borderColor: "rgba(148,163,184,0.22)",
+    backgroundColor: "#232528",
+    borderColor: "rgba(201,162,94,0.25)",
     borderWidth: 1,
+    borderRadius: 3,
     padding: [8, 12],
-    textStyle: { color: "#e2e8f0", fontSize: 12 },
-    axisPointer: { lineStyle: { color: "rgba(148,163,184,0.35)" }, crossStyle: { color: "rgba(148,163,184,0.35)" } },
+    textStyle: { color: PALETA.fg, fontSize: 12 },
+    axisPointer: { lineStyle: { color: "rgba(237,237,239,0.3)" }, crossStyle: { color: "rgba(237,237,239,0.3)" } },
     // Nunca dejar el tooltip flotando fuera de la caja del gráfico (p.ej. si el
     // canvas quedó a medio redimensionar): se confina al contenedor del chart.
     confine: true,
   },
   categoryAxis: {
-    axisLine: { lineStyle: { color: "#334155" } },
+    axisLine: { lineStyle: { color: PALETA.lineaFuerte } },
     axisTick: { show: false },
-    axisLabel: { color: "#94a3b8" },
-    splitLine: { show: false, lineStyle: { color: "#1e293b" } },
+    axisLabel: { color: PALETA.muted },
+    splitLine: { show: false, lineStyle: { color: PALETA.linea } },
   },
   valueAxis: {
     axisLine: { show: false },
     axisTick: { show: false },
-    axisLabel: { color: "#94a3b8" },
-    splitLine: { lineStyle: { color: "rgba(148,163,184,0.12)" } },
+    axisLabel: { color: PALETA.muted },
+    splitLine: { lineStyle: { color: PALETA.linea } },
   },
   line: { smooth: true, symbol: "circle", symbolSize: 6, lineStyle: { width: 2.5 } },
-  bar: { itemStyle: { borderRadius: [4, 4, 0, 0] } },
-  pie: { itemStyle: { borderColor: "#0b1424", borderWidth: 2 } },
+  bar: { itemStyle: { borderRadius: [1, 1, 0, 0] } },
+  pie: { itemStyle: { borderColor: PALETA.panel, borderWidth: 2 } },
 };
 let themeRegistered = false;
 

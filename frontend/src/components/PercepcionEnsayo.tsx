@@ -73,7 +73,7 @@ export function PercepcionEnsayo() {
         que conversa el <strong>{fmt(base)}%</strong> de las veces.
       </TituloBloque>
 
-      {error ? <p className="text-sm text-[#f2777a]">{error}</p> : null}
+      {error ? <p className="text-sm text-ucn-tierra-clara">{error}</p> : null}
 
       {data ? (
         <>
@@ -92,9 +92,9 @@ export function PercepcionEnsayo() {
                       ? `Efecto medido dentro de cada cuenta: ${r.efecto_intra! > 0 ? "+" : ""}${r.efecto_intra} puntos`
                       : "Su efecto no se distingue del azar: se puede elegir, pero no mueve el número"
                   }
-                  className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                  className={`rounded border px-3 py-1.5 text-sm transition ${
                     on
-                      ? "border-[var(--portal-cyan)]/50 bg-[var(--portal-cyan)]/15 font-semibold text-[var(--portal-cyan)]"
+                      ? "border-[color-mix(in_srgb,var(--portal-cyan)_50%,transparent)] bg-[color-mix(in_srgb,var(--portal-cyan)_15%,transparent)] font-semibold text-ucn-azul-claro"
                       : "border-white/10 bg-white/[0.03] text-slate-400 hover:bg-white/[0.07]"
                   }`}
                 >
@@ -106,7 +106,7 @@ export function PercepcionEnsayo() {
                       {r.efecto_intra! > 0 ? "+" : ""}{r.efecto_intra}
                     </span>
                   ) : (
-                    <span className="ml-1.5 text-[10px] text-slate-600">sin evidencia</span>
+                    <span className="ml-1.5 text-sm text-slate-500">sin evidencia</span>
                   )}
                 </button>
               );
@@ -115,7 +115,7 @@ export function PercepcionEnsayo() {
               <button
                 type="button"
                 onClick={() => setRasgos([])}
-                className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-slate-500 hover:text-slate-300"
+                className="rounded border border-white/10 px-3 py-1.5 text-sm text-slate-500 hover:text-slate-400"
               >
                 Limpiar
               </button>
@@ -123,10 +123,10 @@ export function PercepcionEnsayo() {
           </div>
 
           {/* ---- el resultado ---- */}
-          <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <div className="mt-4 rounded-md border border-white/10 bg-white/[0.03] p-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-slate-500">
+                <p className="text-xs uppercase tracking-wider text-slate-500">
                   Probabilidad de generar conversación
                 </p>
                 <p className="mt-1 flex items-baseline gap-2">
@@ -137,17 +137,17 @@ export function PercepcionEnsayo() {
                     {p === null ? "—" : `${fmt(p)}%`}
                   </span>
                   {data.margen > 0 ? (
-                    <span className="text-xs text-slate-500">± {fmt(data.margen)}</span>
+                    <span className="text-sm text-slate-500">± {fmt(data.margen)}</span>
                   ) : null}
                 </p>
               </div>
               {/* EL ORIGEN DEL NÚMERO, visible y no en un tooltip: un dato contado y
                   una suma de efectos no se leen igual. */}
               <span
-                className={`rounded-full border px-2.5 py-1 text-[10px] ${
+                className={`rounded border px-2.5 py-1 text-sm ${
                   observado
-                    ? "border-[var(--portal-cyan)]/40 bg-[var(--portal-cyan)]/10 text-[var(--portal-cyan)]"
-                    : "border-[var(--portal-copper)]/40 bg-[var(--portal-copper)]/10 text-[var(--portal-copper)]"
+                    ? "border-[color-mix(in_srgb,var(--portal-cyan)_40%,transparent)] bg-[color-mix(in_srgb,var(--portal-cyan)_10%,transparent)] text-ucn-azul-claro"
+                    : "border-[color-mix(in_srgb,var(--portal-copper)_40%,transparent)] bg-[color-mix(in_srgb,var(--portal-copper)_10%,transparent)] text-ucn-tierra-clara"
                 }`}
               >
                 {observado
@@ -176,12 +176,12 @@ export function PercepcionEnsayo() {
                 />
               </div>
             ) : null}
-            <p className="mt-1.5 text-[10px] text-slate-600">
+            <p className="mt-1.5 text-sm text-slate-500">
               La línea punteada es la publicación promedio ({fmt(base)}%).
             </p>
 
             {data.aplicados.length ? (
-              <p className="mt-2 text-[11px] text-slate-400">
+              <p className="mt-2 text-sm text-slate-400">
                 Suman:{" "}
                 {data.aplicados.map((a, i) => (
                   <span key={a.rasgo}>
@@ -195,7 +195,7 @@ export function PercepcionEnsayo() {
               </p>
             ) : null}
             {data.ignorados.length ? (
-              <p className="mt-1 text-[11px] text-[var(--portal-copper)]/80">
+              <p className="mt-1 text-sm text-[color-mix(in_srgb,var(--portal-copper)_80%,transparent)]">
                 No mueven el número: {data.ignorados.map((a) => a.etiqueta).join(" · ")} —
                 su efecto no se distingue del azar.
               </p>
@@ -205,12 +205,12 @@ export function PercepcionEnsayo() {
           {data.avisos.length ? (
             <ul className="mt-3 space-y-1 border-t border-white/5 pt-2.5">
               {data.avisos.map((a) => (
-                <li key={a} className="text-[11px] leading-5 text-slate-500">· {a}</li>
+                <li key={a} className="text-sm leading-5 text-slate-500">· {a}</li>
               ))}
             </ul>
           ) : null}
 
-          <p className="mt-2 text-[10px] text-slate-600">
+          <p className="mt-2 text-sm text-slate-500">
             Sobre {nro(data.publicaciones)} publicaciones ingestadas.
           </p>
         </>

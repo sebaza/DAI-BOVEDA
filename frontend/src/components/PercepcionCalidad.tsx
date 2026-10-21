@@ -50,10 +50,10 @@ function Aviso({ aviso }: { aviso: CalidadAviso }) {
   const critico = aviso.nivel === "critico";
   return (
     <div
-      className={`rounded-2xl border px-4 py-2.5 text-xs leading-5 ${
+      className={`rounded-md border px-4 py-2.5 text-sm leading-5 ${
         critico
-          ? "border-rose-500/30 bg-rose-500/[0.08] text-rose-100"
-          : "border-amber-500/25 bg-amber-500/[0.08] text-amber-100"
+          ? "border-[var(--alerta-media)] bg-[var(--ucn-tierra-suave)] text-ucn-tierra-clara"
+          : "border-[var(--alerta-media)] bg-[var(--ucn-tierra-suave)] text-ucn-tierra-clara"
       }`}
     >
       <strong className="font-semibold">{aviso.titulo}.</strong> {aviso.detalle}
@@ -72,23 +72,23 @@ function Metrica({
   tono?: "normal" | "alerta";
 }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-2xl border border-white/10 bg-white/[0.02] px-3 py-2">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+    <div className="flex flex-col gap-0.5 rounded-md border border-white/10 bg-white/[0.02] px-3 py-2">
+      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
         {etiqueta}
       </span>
       {valor === null ? (
         <>
           <span className="text-sm font-semibold text-slate-500">desconocido</span>
-          {motivo ? <span className="text-[10px] leading-4 text-slate-500">{motivo}</span> : null}
+          {motivo ? <span className="text-sm leading-4 text-slate-500">{motivo}</span> : null}
         </>
       ) : (
         <span
           className={`text-lg font-bold ${
-            tono === "alerta" ? "text-[var(--portal-copper)]" : "text-slate-100"
+            tono === "alerta" ? "text-ucn-tierra-clara" : "text-slate-100"
           }`}
         >
           {valor}
-          {sufijo ? <span className="ml-0.5 text-xs font-normal text-slate-500">{sufijo}</span> : null}
+          {sufijo ? <span className="ml-0.5 text-sm font-normal text-slate-500">{sufijo}</span> : null}
         </span>
       )}
     </div>
@@ -99,31 +99,31 @@ function Metrica({
  *  que señal, y lo que importa es CUÁL desacuerdo domina. */
 function Matriz({ resumen }: { resumen: CalidadResumen }) {
   if (!resumen.matriz.length) {
-    return <p className="text-xs text-slate-500">Todavía no hay revisiones registradas.</p>;
+    return <p className="text-sm text-slate-500">Todavía no hay revisiones registradas.</p>;
   }
   const max = Math.max(...resumen.matriz.map((c) => c.n));
   return (
     <ul className="space-y-1">
       {resumen.matriz.map((c) => (
-        <li key={`${c.modelo}->${c.revisor}`} className="flex items-center gap-2 text-xs">
+        <li key={`${c.modelo}->${c.revisor}`} className="flex items-center gap-2 text-sm">
           <span className="w-40 shrink-0 truncate text-slate-400">
             {c.modelo_label}
-            <span className="mx-1 text-slate-600">→</span>
-            <span className={c.acuerdo ? "text-emerald-300" : "text-[var(--portal-copper)]"}>
+            <span className="mx-1 text-slate-500">→</span>
+            <span className={c.acuerdo ? "text-ucn-azul-claro" : "text-ucn-tierra-clara"}>
               {c.revisor_label}
             </span>
           </span>
           <span className="h-2 flex-1 overflow-hidden rounded-full bg-white/[0.05]">
             <span
               className={`block h-full rounded-full ${
-                c.acuerdo ? "bg-emerald-400/60" : "bg-[var(--portal-copper)]/70"
+                c.acuerdo ? "bg-[var(--dato-favorable)]" : "bg-[color-mix(in_srgb,var(--portal-copper)_70%,transparent)]"
               }`}
               style={{ width: `${(c.n / max) * 100}%` }}
             />
           </span>
-          <span className="w-10 shrink-0 text-right font-semibold text-slate-300">{nro(c.n)}</span>
-          {c.acuerdo ? <span className="w-14 shrink-0 text-[10px] text-emerald-400">acierto</span> : (
-            <span className="w-14 shrink-0 text-[10px] text-slate-600">corregido</span>
+          <span className="w-10 shrink-0 text-right font-semibold text-slate-400">{nro(c.n)}</span>
+          {c.acuerdo ? <span className="w-14 shrink-0 text-sm text-dato-favorable">acierto</span> : (
+            <span className="w-14 shrink-0 text-sm text-slate-500">corregido</span>
           )}
         </li>
       ))}
@@ -138,21 +138,21 @@ function PorMargen({ resumen }: { resumen: CalidadResumen }) {
   if (!resumen.por_margen.length) return null;
   return (
     <div>
-      <p className="mb-1.5 text-[11px] font-semibold text-slate-400">
+      <p className="mb-1.5 text-sm font-semibold text-slate-400">
         Según qué tan seguro estaba el modelo
       </p>
       <div className="flex flex-wrap gap-2">
         {resumen.por_margen.map((b) => (
           <div key={b.bucket} className="rounded-xl border border-white/10 bg-white/[0.02] px-2.5 py-1.5">
-            <div className="text-[10px] text-slate-500">margen {b.bucket}</div>
-            <div className="text-sm font-semibold text-slate-200">
+            <div className="text-sm text-slate-500">margen {b.bucket}</div>
+            <div className="text-sm font-semibold text-slate-100">
               {nro(b.cambios)}
-              <span className="text-[11px] font-normal text-slate-500"> de {nro(b.n)} corregidos</span>
+              <span className="text-sm font-normal text-slate-500"> de {nro(b.n)} corregidos</span>
             </div>
           </div>
         ))}
       </div>
-      <p className="mt-1 text-[10px] leading-4 text-slate-500">
+      <p className="mt-1 text-sm leading-4 text-slate-500">
         Margen alto = el modelo estaba seguro. Corregir mucho ahí es la señal fuerte: o
         está mal calibrado, o quien revisa se está pasando de largo. En <em>Tema</em> no
         es margen sino la confianza cruda del clasificador, que no devuelve una
@@ -171,27 +171,27 @@ function Grupos({ titulo, grupos, etiquetas, nota }: {
   if (!grupos.length) return null;
   return (
     <div>
-      <p className="mb-1.5 text-[11px] font-semibold text-slate-400">{titulo}</p>
+      <p className="mb-1.5 text-sm font-semibold text-slate-400">{titulo}</p>
       <ul className="space-y-1">
         {grupos.map((g) => (
-          <li key={g.clave} className="flex items-center gap-2 text-xs text-slate-400">
+          <li key={g.clave} className="flex items-center gap-2 text-sm text-slate-400">
             <span className="w-44 shrink-0 truncate">{etiquetas[g.clave] ?? g.clave}</span>
-            <span className="text-slate-300">{nro(g.n)}</span>
-            <span className="text-slate-600">revisiones ·</span>
-            <span className="text-emerald-300">{nro(g.confirmaciones)} ok</span>
-            <span className="text-[var(--portal-copper)]">{nro(g.cambios)} corregidas</span>
+            <span className="text-slate-400">{nro(g.n)}</span>
+            <span className="text-slate-500">revisiones ·</span>
+            <span className="text-ucn-azul-claro">{nro(g.confirmaciones)} ok</span>
+            <span className="text-ucn-tierra-clara">{nro(g.cambios)} corregidas</span>
           </li>
         ))}
       </ul>
-      {nota ? <p className="mt-1 text-[10px] leading-4 text-slate-500">{nota}</p> : null}
+      {nota ? <p className="mt-1 text-sm leading-4 text-slate-500">{nota}</p> : null}
     </div>
   );
 }
 
 function Campo({ nombre, campo }: { nombre: string; campo: CalidadCampo }) {
   return (
-    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-3">
-      <p className="mb-2 text-sm font-semibold text-slate-200">
+    <div className="rounded-md border border-white/5 bg-white/[0.02] p-3">
+      <p className="mb-2 text-sm font-semibold text-slate-100">
         {ETIQUETA_CAMPO[nombre] ?? nombre}
       </p>
 
@@ -200,8 +200,8 @@ function Campo({ nombre, campo }: { nombre: string; campo: CalidadCampo }) {
           29,2% cuando la lectura correcta es 78%. Mostrar el número mezclado como
           titular sería alarmar por un artefacto del registro, no por el modelo. */}
       {campo.estimacion ? (
-        <div className="mb-3 rounded-2xl border border-[var(--portal-cyan)]/25 bg-[var(--portal-cyan)]/[0.05] p-3">
-          <p className="mb-2 text-[11px] font-semibold text-[var(--portal-cyan)]">
+        <div className="mb-3 rounded-md border border-[color-mix(in_srgb,var(--portal-cyan)_25%,transparent)] bg-[color-mix(in_srgb,var(--portal-cyan)_5%,transparent)] p-3">
+          <p className="mb-2 text-sm font-semibold text-ucn-azul-claro">
             Estimación válida · solo revisión humana sobre muestra aleatoria
           </p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -218,7 +218,7 @@ function Campo({ nombre, campo }: { nombre: string; campo: CalidadCampo }) {
             />
           </div>
           {campo.estimacion.suficiente ? null : (
-            <p className="mt-1.5 text-[10px] leading-4 text-[var(--portal-copper)]">
+            <p className="mt-1.5 text-sm leading-4 text-ucn-tierra-clara">
               Muestra insuficiente para que estos números signifiquen algo. Anota con el
               orden «aleatorio» de la cola de revisión.
             </p>
@@ -241,7 +241,7 @@ function Campo({ nombre, campo }: { nombre: string; campo: CalidadCampo }) {
       </div>
 
       {campo.sesgo_direccional?.alerta ? (
-        <div className="mb-3 rounded-xl border border-[var(--portal-copper)]/30 bg-[var(--portal-copper)]/[0.08] px-3 py-2 text-[11px] leading-5 text-amber-100">
+        <div className="mb-3 rounded-xl border border-[color-mix(in_srgb,var(--portal-copper)_30%,transparent)] bg-[color-mix(in_srgb,var(--portal-copper)_8%,transparent)] px-3 py-2 text-sm leading-5 text-ucn-tierra-clara">
           <strong>Sesgo direccional:</strong> el{" "}
           {pct(campo.sesgo_direccional.proporcion)} de los cambios (
           {nro(campo.sesgo_direccional.n)} de {nro(campo.sesgo_direccional.de)}) apunta a{" "}
@@ -252,7 +252,7 @@ function Campo({ nombre, campo }: { nombre: string; campo: CalidadCampo }) {
 
       <div className="space-y-3">
         <div>
-          <p className="mb-1.5 text-[11px] font-semibold text-slate-400">
+          <p className="mb-1.5 text-sm font-semibold text-slate-400">
             Qué dijo el modelo y qué dijo quien revisó
           </p>
           <Matriz resumen={campo} />
@@ -300,10 +300,10 @@ export function PercepcionCalidad() {
   return (
     <div className={CARD}>
       <button onClick={() => setAbierto((a) => !a)} className="flex w-full items-center justify-between gap-3">
-        <div className="text-sm font-medium text-slate-200">
+        <div className="text-sm font-medium text-slate-100">
           Calidad del modelo · qué acierta y qué no
         </div>
-        <span className="text-xs text-slate-500">
+        <span className="text-sm text-slate-500">
           {abierto ? "▲ ocultar" : criticos ? `▼ ${criticos} advertencia(s)` : "▼ ver"}
         </span>
       </button>
@@ -316,7 +316,7 @@ export function PercepcionCalidad() {
           </TituloBloque>
 
           {error ? (
-            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-200">
+            <div className="rounded-md border border-[var(--alerta-media)] bg-[var(--ucn-tierra-suave)] px-4 py-2 text-sm text-ucn-tierra-clara">
               {error}
             </div>
           ) : null}

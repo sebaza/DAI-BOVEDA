@@ -70,23 +70,23 @@ export function PercepcionDominantes({ filtro }: { filtro: Filtro }) {
         gente etiqueta amigos, o un post de condolencias.
       </TituloBloque>
 
-      {error ? <p className="text-sm text-[#f2777a]">{error}</p> : null}
+      {error ? <p className="text-sm text-ucn-tierra-clara">{error}</p> : null}
 
       {data && data.items.length > 0 ? (
         <>
           {/* La concentración PRIMERO y con veredicto: es lo que dice si el resto
               del tablero se puede leer como promedio en este período. */}
           <div
-            className={`mb-3 rounded-xl border px-3 py-2 text-[11px] leading-5 ${
+            className={`mb-3 rounded-xl border px-3 py-2 text-sm leading-5 ${
               concentrado
-                ? "border-amber-400/30 bg-amber-400/[0.07] text-amber-100/90"
+                ? "border-[var(--alerta-media)] bg-[var(--ucn-tierra-suave)] text-ucn-tierra-clara"
                 : "border-white/10 bg-white/[0.03] text-slate-400"
             }`}
           >
             {nro(data.n_comentarios)} comentarios en{" "}
-            <strong className="text-slate-200">{nro(data.n_publicaciones)}</strong>{" "}
+            <strong className="text-slate-100">{nro(data.n_publicaciones)}</strong>{" "}
             publicaciones. La más grande junta{" "}
-            <strong className={concentrado ? "text-amber-200" : "text-slate-200"}>
+            <strong className={concentrado ? "text-ucn-tierra-clara" : "text-slate-100"}>
               {conc}%
             </strong>{" "}
             del período.
@@ -104,16 +104,16 @@ export function PercepcionDominantes({ filtro }: { filtro: Filtro }) {
             {data.items.map((p) => (
               <li
                 key={p.publicacion_id}
-                className="rounded-2xl border border-white/5 bg-white/[0.02] px-3 py-2"
+                className="rounded-md border border-white/5 bg-white/[0.02] px-3 py-2"
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                  <span className="min-w-0 flex-1 text-[12.5px] leading-5 text-slate-300">
+                  <span className="min-w-0 flex-1 text-sm leading-5 text-slate-400">
                     {p.cuenta ?? "(cuenta sin nombre)"}
-                    {p.cuenta_tipo ? <span className="ml-2 rounded-full bg-white/[0.04] px-2 py-0.5 text-[10.5px] text-slate-400">{p.cuenta_tipo}</span> : null}
+                    {p.cuenta_tipo ? <span className="ml-2 rounded bg-white/[0.04] px-2 py-0.5 text-xs text-slate-400">{p.cuenta_tipo}</span> : null}
                     {p.desde ? <span className="ml-2 text-slate-500">{p.desde === p.hasta || !p.hasta ? p.desde : `${p.desde} → ${p.hasta}`}</span> : null}
                   </span>
                   <span className="flex shrink-0 items-baseline gap-3">
-                    <span className="text-[11px] tabular-nums text-slate-500">
+                    <span className="text-xs tabular-nums text-slate-500">
                       {nro(p.n_comentarios)} com.
                     </span>
                     <span
@@ -124,7 +124,7 @@ export function PercepcionDominantes({ filtro }: { filtro: Filtro }) {
                     </span>
                   </span>
                 </div>
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-slate-500">
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
                   {p.pct_neg !== null ? <span>{p.pct_neg}% negativos</span> : null}
                   {/* Barra de PESO en la muestra, no de índice: es la variable que
                       decide si el promedio del período se puede leer. */}

@@ -24,6 +24,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { PALETA } from "@/lib/paleta";
 
 import { percepcionApi, type ConflictoResponse, type Filtro } from "../lib/percepcion";
 import { CARD, COLOR_NEG, COLOR_POS, TituloBloque, fmt, nro } from "./PercepcionUI";
@@ -31,7 +32,7 @@ import { CARD, COLOR_NEG, COLOR_POS, TituloBloque, fmt, nro } from "./Percepcion
 const COLOR_TENDENCIA: Record<string, string> = {
   sube: COLOR_NEG,
   baja: COLOR_POS,
-  igual: "#8aa0c0",
+  igual: PALETA.neutro,
 };
 
 const TITULO_TENDENCIA: Record<string, string> = {
@@ -65,7 +66,7 @@ export function PercepcionConflicto({ filtro }: { filtro: Filtro }) {
   if (error && !data) {
     return (
       <div className={CARD}>
-        <p className="text-sm text-[#f2777a]">{error}</p>
+        <p className="text-sm text-ucn-tierra-clara">{error}</p>
       </div>
     );
   }
@@ -73,7 +74,7 @@ export function PercepcionConflicto({ filtro }: { filtro: Filtro }) {
 
   const a = data.actual;
   const tend = data.tendencia;
-  const color = data.consistente && tend ? COLOR_TENDENCIA[tend] : "#8aa0c0";
+  const color = data.consistente && tend ? COLOR_TENDENCIA[tend] : PALETA.neutro;
 
   return (
     <div className={CARD} style={{ opacity: cargando ? 0.55 : 1 }} aria-busy={cargando}>
@@ -86,13 +87,13 @@ export function PercepcionConflicto({ filtro }: { filtro: Filtro }) {
 
       <div className="flex flex-wrap items-end gap-4">
         <div>
-          <p className="text-[10px] uppercase tracking-wide text-slate-500">
+          <p className="text-xs uppercase tracking-wide text-slate-500">
             Comentarios adversos
           </p>
           <p className="text-3xl font-bold" style={{ color }}>
             {nro(a.n_adversos)}
           </p>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-sm text-slate-500">
             {a.pct_adversos !== null ? `${fmt(a.pct_adversos)}% de ${nro(a.n)}` : `de ${nro(a.n)}`}
           </p>
         </div>
@@ -102,7 +103,7 @@ export function PercepcionConflicto({ filtro }: { filtro: Filtro }) {
             {data.consistente && tend ? TITULO_TENDENCIA[tend] : "Variación no concluyente"}
           </p>
           {data.explicacion ? (
-            <p className="mt-0.5 text-[11px] leading-5 text-slate-400">{data.explicacion}</p>
+            <p className="mt-0.5 text-sm leading-5 text-slate-400">{data.explicacion}</p>
           ) : null}
         </div>
       </div>
@@ -112,14 +113,14 @@ export function PercepcionConflicto({ filtro }: { filtro: Filtro }) {
           <button
             type="button"
             onClick={() => setVerBarrido((v) => !v)}
-            className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] text-slate-400 transition hover:border-white/25 hover:text-white"
+            className="rounded border border-white/10 px-2.5 py-1 text-sm text-slate-400 transition hover:border-white/25 hover:text-slate-100"
           >
             {verBarrido ? "Ocultar" : `Ver el barrido de ${data.comparaciones.length} períodos`}
           </button>
 
           {verBarrido ? (
             <div className="mt-2 overflow-x-auto">
-              <table className="w-full text-[11px]">
+              <table className="w-full text-sm">
                 <thead className="text-slate-500">
                   <tr>
                     <th className="py-1 text-left font-medium">Comparado contra</th>
@@ -145,7 +146,7 @@ export function PercepcionConflicto({ filtro }: { filtro: Filtro }) {
                         className="px-2 py-1 text-right font-semibold tabular-nums"
                         style={{
                           color:
-                            c.signo === "sube" ? COLOR_NEG : c.signo === "baja" ? COLOR_POS : "#8aa0c0",
+                            c.signo === "sube" ? COLOR_NEG : c.signo === "baja" ? COLOR_POS : PALETA.neutro,
                         }}
                       >
                         {(c.delta_adversos ?? 0) > 0 ? "+" : ""}
@@ -159,7 +160,7 @@ export function PercepcionConflicto({ filtro }: { filtro: Filtro }) {
                   ))}
                 </tbody>
               </table>
-              <p className="mt-1 text-[10px] leading-4 text-slate-500">
+              <p className="mt-1 text-sm leading-4 text-slate-500">
                 Cada fila compara el período actual contra un tramo previo distinto. Si
                 la columna «Δ adversos» no mantiene el signo, el resultado depende de
                 dónde se ponga el corte y por eso no se afirma.
@@ -172,7 +173,7 @@ export function PercepcionConflicto({ filtro }: { filtro: Filtro }) {
       {data.avisos.length ? (
         <ul className="mt-2 space-y-1 border-t border-white/5 pt-2">
           {data.avisos.map((av) => (
-            <li key={av} className="text-[11px] leading-5 text-slate-500">
+            <li key={av} className="text-sm leading-5 text-slate-500">
               · {av}
             </li>
           ))}

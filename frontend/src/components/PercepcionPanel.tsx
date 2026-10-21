@@ -5,6 +5,7 @@
 // (rango × sede × facultad × departamento × tema) que reconfigura TODO el tablero.
 // Estilado con el sistema de la Torre (portal oscuro).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { PALETA } from "@/lib/paleta";
 
 import { EChartsChart, type EChartsInstance } from "./EChartsChart";
 import { PercepcionAlertas } from "./PercepcionAlertas";
@@ -57,6 +58,8 @@ import {
 // distintas.
 
 const DEFAULT_DIAS = 36500;
+// "Último mes" quick button: same 30-day step as the range select.
+const DIAS_ULTIMO_MES = 30;
 
 // Espejo de las categorías de `PercepcionFranjaEventos`. Dos criterios que conviene
 // no perder si alguien retoca esto:
@@ -126,6 +129,9 @@ const SUB_CURACION = [
   },
 ] as const;
 
+// Event (time-gap) colors keep their original per-type hues on purpose: each
+// calendar category must stay distinguishable at a glance, which the brand
+// palette alone can't offer. Must match CATEGORIAS_EVENTO in PercepcionFranjaEventos.
 const COLOR_EVENTO: Record<string, string> = {
   paro: "rgba(242,119,122,0.28)", toma: "rgba(242,119,122,0.28)",
   emergencia: "rgba(251,146,60,0.28)",
@@ -422,7 +428,7 @@ function lineOption(
 
   const bandas: unknown[] = eventosVisibles.map((e) => {
     const rol = rolDe(e.tipo);
-    const base = COLOR_EVENTO_LINEA[e.tipo] ?? "#94a3b8";
+    const base = COLOR_EVENTO_LINEA[e.tipo] ?? PALETA.muted;
     return [
       {
         xAxis: e.inicioVisible,
@@ -449,7 +455,7 @@ function lineOption(
     bandas.push([
       {
         xAxis: seleccion.desde,
-        itemStyle: { color: "rgba(224,170,78,0.16)" },
+        itemStyle: { color: PALETA.alertaBaja },
         label: { show: false },
       },
       { xAxis: seleccion.hasta },
@@ -458,8 +464,8 @@ function lineOption(
   const markLineData: Record<string, unknown>[] = [
     {
       yAxis: 50,
-      label: { show: true, formatter: "Neutralidad 50", color: "rgba(203,213,225,0.8)", position: "insideEndTop" },
-      lineStyle: { color: "rgba(203,213,225,0.38)", width: 1, type: "dashed" },
+      label: { show: true, formatter: "Neutralidad 50", color: PALETA.muted, position: "insideEndTop" },
+      lineStyle: { color: PALETA.lineaFuerte, width: 1, type: "dashed" },
     },
   ];
   for (const d of marcas) {
@@ -490,7 +496,7 @@ function lineOption(
     // sirve para ubicarse y nada más. Antes todos cruzaban de 0 a 100 y por eso 21
     // hitos administrativos tapaban la serie.
     lineStyle: {
-      color: COLOR_EVENTO_LINEA[e.tipo] ?? "#94a3b8",
+      color: COLOR_EVENTO_LINEA[e.tipo] ?? PALETA.muted,
       // Los tres roles, también acá. Un receso corto que cae a línea seguía cruzando
       // toda la altura al 50 % y pesaba como un paro, que es justo la confusión que
       // los roles vienen a resolver.
@@ -542,7 +548,7 @@ function lineOption(
       max: fechas[fechas.length - 1],
       // `hideOverlap` deja solo las etiquetas que entran sin pisarse; con eje
       // temporal ECharts además elige cortes redondos (meses, años) por su cuenta.
-      axisLabel: { fontSize: 9, hideOverlap: true },
+      axisLabel: { fontSize: 12, hideOverlap: true },
     },
     // 0-100 FIJO a propósito. Un eje automático haría que ±3 puntos de ruido de
     // muestreo llenaran la pantalla y parecieran un derrumbe; además dejaría la línea
@@ -560,7 +566,7 @@ function lineOption(
         // largo y recto donde no se midió nada.
         connectNulls: true,
         lineStyle: { color: COLOR_CYAN, width: 2.4, cap: "round", join: "round" },
-        areaStyle: { color: "rgba(79,156,240,0.10)" },
+        areaStyle: { color: "rgba(117,156,192,0.12)" },
         emphasis: { focus: "series" },
         markLine: { silent: true, symbol: "none", data: markLineData },
         markArea: { silent: true, data: bandas },
@@ -580,7 +586,7 @@ function lineOption(
         // detecta el algoritmo sobre la serie. Un anillo hueco los separa de toda la
         // paleta del calendario —que es de bloques llenos— y comunica "medición",
         // no "hecho".
-        itemStyle: { color: "transparent", borderColor: "#e2e8f0", borderWidth: 2 },
+        itemStyle: { color: "transparent", borderColor: PALETA.fg, borderWidth: 2 },
         z: 14,
         tooltip: {
           trigger: "item",
@@ -602,12 +608,12 @@ function lineOption(
         symbol: "roundRect",
         symbolSize: [82, 18],
         encode: { x: 0, y: 1 },
-        itemStyle: { color: (params: { data?: { color?: string } }) => params.data?.color ?? "#94a3b8" },
+        itemStyle: { color: (params: { data?: { color?: string } }) => params.data?.color ?? PALETA.muted },
         label: {
           show: true,
           formatter: (params: { data?: { label?: string } }) => params.data?.label ?? "",
-          color: "#0b1424",
-          fontSize: 10,
+          color: PALETA.panel,
+          fontSize: 12,
           fontWeight: 800,
         },
         z: 13,
@@ -664,13 +670,13 @@ function RastroNavegacion({
   rastro, onVolver,
 }: { rastro: Rastro; onVolver: () => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-[var(--portal-cyan)]/30 bg-[var(--portal-cyan)]/[0.07] px-4 py-2 text-xs">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-[color-mix(in_srgb,var(--portal-cyan)_30%,transparent)] bg-[color-mix(in_srgb,var(--portal-cyan)_7%,transparent)] px-4 py-2 text-sm">
       <span className="text-slate-400">Viendo el detalle de</span>
-      <strong className="text-[var(--portal-cyan)]">{rastro.desde}</strong>
+      <strong className="text-ucn-azul-claro">{rastro.desde}</strong>
       <button
         type="button"
         onClick={onVolver}
-        className="ml-auto rounded-full border border-white/15 bg-white/[0.06] px-3 py-1 font-semibold text-slate-200 transition hover:bg-white/[0.12]"
+        className="ml-auto rounded border border-white/15 bg-white/[0.06] px-3 py-1 font-semibold text-slate-100 transition hover:bg-white/[0.12]"
       >
         ← Volver al resumen
       </button>
@@ -685,7 +691,7 @@ function FiltroSelect({
     // `min-w-0` en el label además del select: sin él, el ancho intrínseco del
     // contenido gana igual dentro de un grid y el control vuelve a desbordarse.
     <label className="flex min-w-0 flex-col gap-1.5">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</span>
+      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</span>
       <select value={value} onChange={(e) => onChange(e.target.value)} className={SELECT}>
         {children}
       </select>
@@ -1221,70 +1227,84 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
     }
     return [...vistas.values()];
   }, [eventos]);
+  const [ajustesAbiertos, setAjustesAbiertos] = useState(false);
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
+  const pestanas = ([
+    { id: "resumen", label: "Resumen", hint: "¿Cómo estamos?", interna: false, soloAdmin: false },
+    // Only tab that looks forward; the hint says "antes" on purpose.
+    { id: "alertas", label: "Alertas", hint: "¿Qué se viene?", interna: false, soloAdmin: false },
+    { id: "comparar", label: "Comparar", hint: "¿Dónde está el problema?", interna: false, soloAdmin: false },
+    { id: "conversacion", label: "Conversación", hint: "¿Qué se está diciendo?", interna: false, soloAdmin: false },
+    // Internal tabs: visibility only, the real gate lives in the backend.
+    { id: "curacion", label: "Curación", hint: "¿Le puedo creer al modelo?", interna: true, soloAdmin: true },
+    { id: "simulacion", label: "Simulación", hint: "¿Qué pasaría si…? (en construcción)", interna: true, soloAdmin: false },
+  ] as const).filter((v) => (!v.interna || equipoDai) && (!v.soloAdmin || administrador));
+  const ajustesCambiados = filtro.pesoLikes !== 1 || filtro.vidaMedia !== 30;
+  const filtrosActivos =
+    [filtro.sede, filtro.facultad, filtro.departamento, filtro.tema].filter(Boolean).length +
+    (filtro.dias !== DEFAULT_DIAS ? 1 : 0) +
+    (filtro.fechaDesde || filtro.fechaHasta ? 1 : 0) +
+    (ajustesCambiados ? 1 : 0);
+  const moverPestana = (e: React.KeyboardEvent, i: number) => {
+    const paso = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    if (!paso) return;
+    e.preventDefault();
+    const sig = pestanas[(i + paso + pestanas.length) % pestanas.length];
+    setVista(sig.id);
+    document.getElementById(`percepcion-tab-${sig.id}`)?.focus();
+  };
+
   return (
-    <section className="portal-panel-strong space-y-5 p-6 md:p-8">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="portal-pill">Percepción</p>
-          <h2 className="portal-title mt-3 text-2xl font-bold text-white">Percepción de la comunidad</h2>
-          <p className="mt-1 text-sm text-slate-400">
-            Sentimiento de publicaciones y comentarios de cuentas públicas UCN autorizadas.
-          </p>
-        </div>
-      </header>
-
-      {/* GUÍA DE LECTURA — cerrada por defecto, se abre a pedido.
-          Va ANTES de los filtros porque el orden de la pantalla es el orden en que
-          se aprende: primero qué estoy viendo, después con qué lo puedo mover.
-
-          Está escrita para alguien que NO construyó el sistema. La versión anterior
-          hablaba de comentarios "favorables" y "adversos" y de cuentas "autorizadas":
-          ese es el vocabulario interno del módulo y a quien entra de afuera no le
-          dice nada. Acá se explica con la palabra de todos los días, con un ejemplo
-          numérico y con una escala dibujada, porque un rango de 0 a 100 sin un punto
-          de referencia no se interpreta solo.
-
-          La barra y el botón de retroalimentación quedan SIEMPRE visibles: son la
-          puerta de entrada a la explicación y la de salida hacia el formulario, y
-          esta pantalla está justamente en prueba. */}
-      <section className="overflow-hidden rounded-2xl border border-[var(--portal-cyan)]/25 bg-[var(--portal-cyan)]/[0.05]">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <button
-            type="button"
-            onClick={() => setGuiaAbierta((v) => !v)}
-            aria-expanded={guiaAbierta}
-            className="flex items-center gap-2 text-left text-sm font-semibold text-[var(--portal-cyan)] transition hover:opacity-80"
-          >
-            <span aria-hidden="true" className={guiaAbierta ? "rotate-90 transition-transform" : "transition-transform"}>›</span>
-            ¿Qué es esto y cómo se lee?
-            <span className="font-normal text-slate-400">· 1 minuto de lectura</span>
-          </button>
-          {/* El destino se resuelve en cascada, de lo más específico a lo más
-              general, y si no hay ninguno el botón NO se dibuja en vez de
-              dibujarse muerto. */}
-          {URL_RETROALIMENTACION ? (
-            <a
-              href={URL_RETROALIMENTACION}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-full border border-[var(--portal-cyan)]/40 bg-[var(--portal-cyan)]/10 px-3 py-1.5 text-xs font-semibold text-[var(--portal-cyan)] transition hover:bg-[var(--portal-cyan)]/20"
-            >
-              Dar retroalimentación ↗
-            </a>
-          ) : onIrAFormulario ? (
+    <div className="space-y-6">
+      <header className="space-y-1">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+          <h2 className="portal-title text-2xl font-bold text-slate-100">Percepción de la comunidad</h2>
+          <div className="flex items-center gap-4">
+            {/* Feedback destination resolves from most to least specific; no destination, no button. */}
+            {URL_RETROALIMENTACION ? (
+              <a
+                href={URL_RETROALIMENTACION}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded text-sm font-semibold text-ucn-azul-claro hover:underline"
+              >
+                Dar retroalimentación ↗
+              </a>
+            ) : onIrAFormulario ? (
+              <button
+                type="button"
+                onClick={onIrAFormulario}
+                className="rounded text-sm font-semibold text-ucn-azul-claro hover:underline"
+              >
+                Dar retroalimentación
+              </button>
+            ) : null}
             <button
               type="button"
-              onClick={onIrAFormulario}
-              className="rounded-full border border-[var(--portal-cyan)]/40 bg-[var(--portal-cyan)]/10 px-3 py-1.5 text-xs font-semibold text-[var(--portal-cyan)] transition hover:bg-[var(--portal-cyan)]/20"
+              onClick={() => setGuiaAbierta((v) => !v)}
+              aria-expanded={guiaAbierta}
+              className="rounded text-sm font-semibold text-ucn-azul-claro hover:underline"
             >
-              Dar retroalimentación
+              ¿Qué es esto?
             </button>
-          ) : null}
+          </div>
         </div>
+        <p className="text-sm text-slate-400">
+          Sentimiento de publicaciones y comentarios de cuentas públicas UCN autorizadas.
+        </p>
+        <p className="text-xs text-slate-500">Indicador de redes sociales: no representa a toda la comunidad.</p>
+      </header>
 
-        {guiaAbierta ? (
-          <div className="space-y-5 border-t border-white/10 px-4 py-4 text-sm leading-6 text-slate-300">
-            <p className="text-slate-200">
+      {guiaAbierta ? (
+        <section className="boveda-placa-card p-4 sm:p-5">
+          <div className="space-y-5 text-sm text-slate-400">
+            <p className="border-l-[3px] border-l-[var(--ucn-tierra-clara)] pl-3 text-slate-400">
+              <strong className="text-[var(--portal-fg)]">Lectura con cuidado:</strong> este indicador mide la percepción{" "}
+              <em>expresada en redes sociales</em>, que proviene de un grupo autoseleccionado y no
+              representa a toda la comunidad universitaria. Las coincidencias con eventos institucionales
+              son temporales, no causales.
+            </p>
+            <p className="text-base text-slate-100">
               Esto mira, semana a semana, si lo que la gente escribe en redes sociales sobre la
               universidad suena más <strong>a favor</strong> o más <strong>en contra</strong>.
             </p>
@@ -1292,13 +1312,13 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
             {/* La escala dibujada es la pieza que más ayuda: convierte un rango
                 abstracto en algo que se mira una vez y queda entendido. */}
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 El número va de 0 a 100
               </p>
-              <div className="mt-2 h-2 rounded-full bg-gradient-to-r from-rose-500/70 via-slate-500/50 to-emerald-500/70" />
-              <div className="mt-1.5 flex justify-between text-[11px] text-slate-400">
+              <div className="mt-2 h-2 rounded-full bg-gradient-to-r from-[var(--dato-adverso)] via-slate-500/50 to-[var(--dato-favorable)]" />
+              <div className="mt-1.5 flex justify-between text-sm text-slate-400">
                 <span>0 · todo en contra</span>
-                <span className="text-slate-200">50 · empate</span>
+                <span className="text-slate-100">50 · empate</span>
                 <span>100 · todo a favor</span>
               </div>
               <p className="mt-3">
@@ -1314,7 +1334,7 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
 
             <div className="grid gap-5 md:grid-cols-2">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                   Lo que importa es el cambio
                 </p>
                 <p className="mt-1">
@@ -1325,7 +1345,7 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
                 </p>
               </div>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                   De dónde sale
                 </p>
                 <p className="mt-1">
@@ -1338,7 +1358,7 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
             </div>
 
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Para qué no sirve
               </p>
               <p className="mt-1">
@@ -1355,7 +1375,7 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
             </div>
 
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Por dónde empezar
               </p>
               <ul className="mt-1 grid gap-1 sm:grid-cols-2">
@@ -1372,254 +1392,185 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
               <p className="text-slate-400">
-                Esta pantalla está <strong className="text-slate-200">en prueba</strong>. Nos sirve saber
+                Esta pantalla está <strong className="text-slate-100">en prueba</strong>. Nos sirve saber
                 qué entendiste, qué te confundió y qué le falta para que te sea útil.
               </p>
               <button
                 type="button"
                 onClick={() => setGuiaAbierta(false)}
-                className="whitespace-nowrap rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/[0.08] hover:text-white"
+                className="whitespace-nowrap rounded border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm font-semibold text-slate-400 transition hover:bg-white/[0.08] hover:text-slate-100"
               >
                 Cerrar
               </button>
             </div>
           </div>
-        ) : null}
-      </section>
-      {/* Barra de filtros GLOBAL.
-          GRID, no flex-wrap: con `flex` cada select tomaba el ancho de su opción
-          más larga y los cuatro quedaban desparejos —"Departamento" se salía del
-          panel y "Sede" quedaba diminuto—. Cuatro controles del mismo rango tienen
-          que verse iguales; el que manda el ancho es la grilla, no el contenido. */}
-      <div className="grid grid-cols-2 items-end gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:grid-cols-4 lg:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
-        <FiltroSelect label="Sede" value={filtro.sede ?? ""} onChange={(v) => up({ sede: v || undefined })}>
-          <option value="">Todas</option>
-          {(opciones?.sedes ?? []).map((s) => <option key={s} value={s}>{s}</option>)}
-        </FiltroSelect>
-        <FiltroSelect label="Facultad" value={filtro.facultad ?? ""} onChange={(v) => up({ facultad: v || undefined })}>
-          <option value="">Todas</option>
-          {(opciones?.facultades ?? []).map((s) => <option key={s} value={s}>{s}</option>)}
-        </FiltroSelect>
-        <FiltroSelect label="Departamento" value={filtro.departamento ?? ""} onChange={(v) => up({ departamento: v || undefined })}>
-          <option value="">Todos</option>
-          {(opciones?.departamentos ?? []).map((s) => <option key={s} value={s}>{s}</option>)}
-        </FiltroSelect>
-        <FiltroSelect label="Tema" value={filtro.tema ?? ""} onChange={(v) => up({ tema: v || undefined })}>
-          <option value="">Todos</option>
-          {(opciones?.temas ?? []).map((t) => <option key={t.tema} value={t.tema}>{t.etiqueta}</option>)}
-        </FiltroSelect>
-        {(filtro.sede || filtro.facultad || filtro.departamento || filtro.tema || filtro.dias !== DEFAULT_DIAS
-          || filtro.pesoLikes !== 1 || filtro.vidaMedia !== 30 || filtro.fechaDesde || filtro.fechaHasta) ? (
-          <button
-            onClick={() => setFiltro({ dias: DEFAULT_DIAS, pesoLikes: 1, vidaMedia: 30 })}
-            className="col-span-2 justify-self-start whitespace-nowrap rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/[0.08] hover:text-white sm:col-span-4 lg:col-span-1 lg:justify-self-end"
-          >
-            Limpiar filtros
-          </button>
-        ) : null}
-      </div>
+        </section>
+      ) : null}
 
-      {/* Controles GLOBALES: rango, peso por likes y recencia. Los tres afectan a
-          todas las pestañas por igual.
-          
-          Estuvieron un tiempo escondidos fuera de Conversación, para evitar que
-          una vista ponderara la recencia y otra no —que era el origen de que el
-          mismo tema diera 58.7 en una pestaña y 64.3 en otra—. Pero ese problema
-          venía de que la diferencia era FIJA e invisible, no del control en sí:
-          con un control único que mueve todo a la vez, las pestañas siguen
-          coherentes entre ellas y además el `RotuloMetodo` de cada bloque dice en
-          qué modo está leyendo. La única excepción es ALERTAS, que ignora la
-          recencia a propósito y lo declara: aplicándola, la detección se vuelve
-          ciega (|z| máximo 1.98 contra umbral 2.5 en el paro de 2026). */}
-      {/* Separadores verticales entre los tres controles: son mandos distintos que
-          se leían como un bloque continuo. `divide-*` en vez de bordes propios para
-          que no aparezca una línea colgando en el primero ni en el último. */}
-      <div className="grid grid-cols-1 gap-4 divide-y divide-white/[0.07] rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-y-0">
-        {/* RANGO — control segmentado, no slider.
-            Los tableros que viven de series temporales (Grafana, Kibana, Datadog)
-            resuelven esto con rangos rápidos discretos + un rango absoluto aparte,
-            y ninguno usa un deslizador: con un histórico de años, nadie elige "743
-            días" arrastrando, y el valor exacto no significa nada. Acá el rango
-            arbitrario ya lo cubre el selector Desde/Hasta de más abajo, así que el
-            deslizador solo agregaba ruido. */}
-        {/* Los tres mandos REPARTEN su alto en vez de apilarse arriba.
-            El rango es el más alto —tres filas de botones más la línea de fechas— y
-            los dos deslizadores terminaban ~55 px antes, dejando el separador
-            vertical colgando en vacío y las tres ayudas a alturas distintas.
-            `justify-between` alinea las tres etiquetas arriba Y los tres pies de
-            ayuda abajo, que es lo que hace que se lean como una sola barra. Centrar
-            el bloque entero también llenaba el hueco, pero desalineaba las
-            etiquetas, que son el ancla que dice cuántos mandos hay. */}
-        <div className="flex flex-col justify-between gap-1.5 sm:pr-4">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-              Rango (ventana)
-            </span>
-            <span className="text-xs font-semibold tabular-nums text-slate-100">
-              {rangoActivo?.label ?? (esTodo ? "Todo" : `${filtro.dias} d`)}
-            </span>
+      {/* Filters + tabs stay pinned under the header (h-16) so settings can change while scrolling.
+          Capped to the viewport so an open "Ajustes" panel scrolls inside instead of hiding the page. */}
+      <div className="sticky top-16 z-20 -mx-4 max-h-[calc(100vh-4rem)] space-y-2 overflow-y-auto bg-[var(--boveda-fondo)] px-4 pt-3 shadow-[0_8px_16px_-12px_rgba(0,0,0,0.8)] md:-mx-6 md:px-6">
+        <div className="flex flex-wrap items-end gap-3">
+          {/* On phones the selects hide behind "Filtros" so the pinned bar stays short. */}
+          <div className={`${filtrosAbiertos ? "grid" : "hidden"} min-w-0 basis-full grid-cols-2 gap-3 md:grid md:flex-1 md:basis-0 md:grid-cols-5`}>
+            <FiltroSelect label="Sede" value={filtro.sede ?? ""} onChange={(v) => up({ sede: v || undefined })}>
+              <option value="">Todas</option>
+              {(opciones?.sedes ?? []).map((s) => <option key={s} value={s}>{s}</option>)}
+            </FiltroSelect>
+            <FiltroSelect label="Facultad" value={filtro.facultad ?? ""} onChange={(v) => up({ facultad: v || undefined })}>
+              <option value="">Todas</option>
+              {(opciones?.facultades ?? []).map((s) => <option key={s} value={s}>{s}</option>)}
+            </FiltroSelect>
+            <FiltroSelect label="Departamento" value={filtro.departamento ?? ""} onChange={(v) => up({ departamento: v || undefined })}>
+              <option value="">Todos</option>
+              {(opciones?.departamentos ?? []).map((s) => <option key={s} value={s}>{s}</option>)}
+            </FiltroSelect>
+            <FiltroSelect label="Tema" value={filtro.tema ?? ""} onChange={(v) => up({ tema: v || undefined })}>
+              <option value="">Todos</option>
+              {(opciones?.temas ?? []).map((t) => <option key={t.tema} value={t.tema}>{t.etiqueta}</option>)}
+            </FiltroSelect>
+            <FiltroSelect label="Rango" value={String(diasEfectivo)} onChange={(v) => up({ dias: Number(v) })}>
+              {marcasRango.map((m) => <option key={m.dias} value={m.dias}>{m.label}</option>)}
+            </FiltroSelect>
           </div>
-          {/* GRILLA de 3 columnas, no `flex-wrap`.
-              Con nueve escalones, envolver dejaba cinco botones arriba y cuatro
-              abajo, de anchos distintos según su texto: el control se leía como un
-              amontonamiento. Tres columnas dan tres filas EXACTAS y todos los
-              botones del mismo ancho, que es lo que hace que un segmentado se lea
-              como un solo mando y no como nueve piezas sueltas.
-              ⚠️ Si algún día se agrega o quita un escalón, conviene que la cuenta
-              siga siendo múltiplo de 3 o la última fila vuelve a quedar coja. */}
-          <div
-            className="grid w-full grid-cols-3 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/[0.06]"
-            role="group"
-            aria-label="Rango de tiempo"
-          >
-            {marcasRango.map((m) => {
-              const activo = diasEfectivo === m.dias;
-              return (
+          <div className="flex flex-wrap items-center gap-3 pb-1.5">
+            <button
+              type="button"
+              onClick={() => setFiltrosAbiertos((v) => !v)}
+              aria-expanded={filtrosAbiertos}
+              className="whitespace-nowrap rounded-lg border border-[var(--boveda-linea-fuerte)] px-3 py-1.5 text-sm font-semibold text-slate-400 transition hover:text-slate-100 md:hidden"
+            >
+              Filtros {filtrosAbiertos ? "▴" : "▾"}
+            </button>
+            {/* Quick jump to the most recent month; pressed again goes back to the default range. */}
+            {spanMax > DIAS_ULTIMO_MES ? (
+              <button
+                type="button"
+                onClick={() => up({ dias: diasEfectivo === DIAS_ULTIMO_MES ? DEFAULT_DIAS : DIAS_ULTIMO_MES })}
+                aria-pressed={diasEfectivo === DIAS_ULTIMO_MES}
+                className={`whitespace-nowrap rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
+                  diasEfectivo === DIAS_ULTIMO_MES
+                    ? "border-[var(--ucn-azul)] bg-[var(--ucn-azul-suave)] text-ucn-azul-claro"
+                    : "border-[var(--boveda-linea-fuerte)] text-slate-400 hover:text-slate-100"
+                }`}
+              >
+                Último mes
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setAjustesAbiertos((v) => !v)}
+              aria-expanded={ajustesAbiertos}
+              className="whitespace-nowrap rounded-lg border border-[var(--boveda-linea-fuerte)] px-3 py-1.5 text-sm font-semibold text-slate-400 transition hover:text-slate-100"
+            >
+              Ajustes {ajustesAbiertos ? "▴" : "▾"}
+            </button>
+            {filtrosActivos > 0 ? (
+              <>
+                <span className="whitespace-nowrap text-sm text-slate-500">
+                  {filtrosActivos} {filtrosActivos === 1 ? "filtro activo" : "filtros activos"}
+                </span>
                 <button
-                  key={m.dias}
                   type="button"
-                  onClick={() => up({ dias: m.dias })}
-                  aria-pressed={activo}
-                  className={`whitespace-nowrap px-1 py-1.5 text-[11px] font-semibold transition ${
-                    activo
-                      ? "bg-[var(--portal-cyan)] text-slate-950"
-                      : "bg-[#0b1424] text-slate-400 hover:bg-white/[0.06] hover:text-slate-200"
-                  }`}
+                  onClick={() => setFiltro({ dias: DEFAULT_DIAS, pesoLikes: 1, vidaMedia: 30 })}
+                  className="whitespace-nowrap rounded text-sm font-semibold text-ucn-azul-claro hover:underline"
                 >
-                  {m.label}
+                  Restablecer
                 </button>
-              );
-            })}
+              </>
+            ) : null}
           </div>
-          <span className="text-[11px] text-slate-500">
-            {/* El rango REAL en fechas: es lo que responde "¿qué estoy mirando?".
-                Se ancla al comentario más reciente, no a hoy. */}
-            {fechaDesdeLabel} → {fechaHastaLabel}
-            {esTodo ? " · todo el histórico" : ` · ${diasEfectivo} días`}
-          </span>
         </div>
-        {/* Los VALORES de los tres controles van todos en el mismo gris claro.
-            Antes eran cian, cian y cobre: tres colores para tres lecturas del mismo
-            rango jerárquico, que hacía parecer que "30 d" significaba algo distinto
-            de "100%". El acento queda para el estado ACTIVO de un control, que sí
-            es información. */}
-        <div className="flex flex-col justify-between gap-1.5 pt-3 sm:px-4 sm:pt-0">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-              Peso por likes
-            </span>
-            <span className="text-xs font-semibold tabular-nums text-slate-100">
-              {Math.round(filtro.pesoLikes * 100)}%
-            </span>
+
+        {ajustesAbiertos ? (
+          <div className="grid gap-5 boveda-placa-card p-4 sm:grid-cols-2 sm:p-5">
+            {/* Both sliders affect every tab; Alertas ignores recency on purpose and says so. */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Peso por likes</span>
+                <span className="text-sm font-semibold tabular-nums text-slate-100">{Math.round(filtro.pesoLikes * 100)}%</span>
+              </div>
+              <input
+                type="range" min={0} max={100} step={5}
+                value={Math.round(filtro.pesoLikes * 100)}
+                onChange={(e) => up({ pesoLikes: Number(e.target.value) / 100 })}
+                className="w-full accent-[var(--portal-cyan)]"
+                aria-label="Intensidad de ponderación por likes"
+              />
+              <span className="text-sm text-slate-500">
+                {filtro.pesoLikes === 0
+                  ? "cada comentario pesa igual (ignora likes)"
+                  : filtro.pesoLikes === 1
+                    ? "ponderación completa por likes"
+                    : "mezcla: los virales pesan más, atenuado"}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Recencia (vida del comentario)</span>
+                <span className="text-sm font-semibold tabular-nums text-slate-100">
+                  {filtro.vidaMedia === 0 ? "sin decaimiento" : `${filtro.vidaMedia} d`}
+                </span>
+              </div>
+              <input
+                type="range" min={0} max={90} step={1}
+                value={filtro.vidaMedia}
+                onChange={(e) => up({ vidaMedia: Number(e.target.value) })}
+                className="w-full accent-[var(--portal-cyan)]"
+                aria-label="Recencia: días hasta que un comentario deja de contar"
+              />
+              <span className="text-sm text-slate-500">
+                {filtro.vidaMedia === 0
+                  ? "sin decaimiento: todos los días pesan igual"
+                  : `baja parejo día a día; a los ${filtro.vidaMedia} días un comentario deja de contar`}
+              </span>
+            </div>
           </div>
-          <input
-            type="range" min={0} max={100} step={5}
-            value={Math.round(filtro.pesoLikes * 100)}
-            onChange={(e) => up({ pesoLikes: Number(e.target.value) / 100 })}
-            className="w-full accent-[var(--portal-cyan)]"
-            aria-label="Intensidad de ponderación por likes"
-          />
-          <span className="text-[11px] text-slate-500">
-            {filtro.pesoLikes === 0
-              ? "cada comentario pesa igual (ignora likes)"
-              : filtro.pesoLikes === 1
-                ? "ponderación completa por likes"
-                : "mezcla: los virales pesan más, atenuado"}
-          </span>
-        </div>
-        <div className="flex flex-col justify-between gap-1.5 pt-3 sm:pl-4 sm:pt-0">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-              Recencia (vida del comentario)
-            </span>
-            <span className="text-xs font-semibold tabular-nums text-slate-100">
-              {filtro.vidaMedia === 0 ? "sin decaimiento" : `${filtro.vidaMedia} d`}
-            </span>
-          </div>
-          <input
-            type="range" min={0} max={90} step={1}
-            value={filtro.vidaMedia}
-            onChange={(e) => up({ vidaMedia: Number(e.target.value) })}
-            className="w-full accent-[var(--portal-copper)]"
-            aria-label="Recencia: días hasta que un comentario deja de contar"
-          />
-          <span className="text-[11px] text-slate-500">
-            {filtro.vidaMedia === 0
-              ? "sin decaimiento: todos los días pesan igual"
-              : `baja parejo día a día; a los ${filtro.vidaMedia} días un comentario deja de contar`}
-          </span>
+        ) : null}
+
+        {/* The REAL window: anchored to the most recent comment, not to today. */}
+        <p className="text-xs text-slate-500">
+          {fechaDesdeLabel} → {fechaHastaLabel}
+          {esTodo ? " · todo el histórico" : ` · ${diasEfectivo} días`}
+        </p>
+
+        {/* Tab bar. Labels only: each tab's sub-tabs already carry its questions. */}
+        <div
+          role="tablist"
+          aria-label="Secciones de Percepción"
+          className="flex overflow-x-auto border-b border-[var(--boveda-linea)]"
+        >
+          {pestanas.map((v, i) => {
+            const activa = vista === v.id;
+            return (
+              <button
+                key={v.id}
+                id={`percepcion-tab-${v.id}`}
+                type="button"
+                role="tab"
+                aria-selected={activa}
+                tabIndex={activa ? 0 : -1}
+                onClick={() => setVista(v.id)}
+                onKeyDown={(e) => moverPestana(e, i)}
+                className={`relative shrink-0 whitespace-nowrap px-4 py-3 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--ucn-azul-claro)] ${
+                  activa
+                    ? "font-semibold text-[var(--portal-fg)] after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-none after:bg-[var(--ucn-azul)]"
+                    : "text-slate-400 hover:text-[var(--portal-fg)]"
+                }`}
+              >
+                {v.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="rounded-2xl border border-amber-500/25 bg-amber-500/[0.08] px-4 py-2 text-xs leading-6 text-amber-100">
-        <strong>Lectura con cuidado:</strong> este indicador mide la percepción{" "}
-        <em>expresada en redes sociales</em>, que proviene de un grupo autoseleccionado y no
-        representa a toda la comunidad universitaria. Las coincidencias con eventos institucionales
-        son temporales, no causales.
-      </div>
-
-      {/* Aviso NO bloqueante: si una recarga falla (p.ej. rate-limit por mover un
-          slider), mostramos el error arriba pero MANTENEMOS el tablero con los
-          últimos datos, en vez de tirar todo abajo. */}
+      {/* Non-blocking notice: if a reload fails we keep the board with the last data. */}
       {error ? (
-        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-200">
+        <div className="rounded-md border border-[var(--alerta-media)] bg-[var(--ucn-tierra-suave)] px-4 py-2 text-sm text-ucn-tierra-clara">
           {error}{loading ? " · reintentando…" : ""}
         </div>
       ) : null}
-
-      {/* Selector de pestaña. Todas comparten el MISMO filtro global de arriba.
-          El subtítulo no es decorativo: dice qué PREGUNTA responde cada una, que
-          es lo que faltaba cuando estaban ordenadas por tipo de gráfico. */}
-      <div className="flex flex-wrap gap-2">
-        {([
-          { id: "resumen", label: "Resumen", hint: "¿Cómo estamos?", interna: false, soloAdmin: false },
-          // El hint dice "antes" y no "ahora" a propósito: es la única pestaña que
-          // mira hacia adelante, y es el objetivo del módulo. Medido, sus alarmas
-          // se encienden con 28 días de mediana antes de un conflicto.
-          { id: "alertas", label: "Alertas", hint: "¿Qué se viene?", interna: false, soloAdmin: false },
-          { id: "comparar", label: "Comparar", hint: "¿Dónde está el problema?", interna: false, soloAdmin: false },
-          { id: "conversacion", label: "Conversación", hint: "¿Qué se está diciendo?", interna: false, soloAdmin: false },
-          // Antes decía solo "corregir lo que el modelo leyó mal", y la pestaña
-          // tiene tres bloques: corregir, revisar una muestra y MEDIR el acierto.
-          // Quien entraba buscando "¿le puedo creer al índice?" no tenía por qué
-          // suponer que la respuesta estaba detrás de la palabra "curación".
-          //
-          // INTERNA: aquí se corrige el modelo comentario por comentario. Quien lee
-          // el Termómetro para saber cómo está la universidad no tiene por qué
-          // toparse con la herramienta que lo calibra — y menos tocarla.
-          { id: "curacion", label: "Curación", hint: "¿Le puedo creer al modelo?", interna: true, soloAdmin: true },
-          // Va ÚLTIMA y separada: las cuatro primeras cuentan datos observados, esta
-          // propone modelos. Un pronóstico entre conteos se lee con una autoridad
-          // que todavía no tiene.
-          //
-          // INTERNA: habla en MAE, error irreducible y baselines. Es la discusión de
-          // si vale la pena construir un modelo, no una lectura de la percepción.
-          { id: "simulacion", label: "Simulación", hint: "¿Qué pasaría si…? (en construcción)", interna: true, soloAdmin: false },
-          // Las pestañas INTERNAS solo para el equipo DAI (Curación, además, SOLO para
-          // administradores: muestra texto crudo de comentarios). Las otras cuatro cuentan
-          // lo que pasó y cualquiera de la UCN puede leerlas; estas dos son las
-          // herramientas con las que el equipo calibra y decide, y mezclarlas
-          // convierte una lectura en una mesa de trabajo ajena.
-          //
-          // Es VISIBILIDAD, no autorización: el gate real vive en el backend. Acá
-          // solo se decide qué se ofrece.
-        ] as const).filter((v) => (!v.interna || equipoDai) && (!v.soloAdmin || administrador)).map((v) => (
-          <button
-            key={v.id}
-            type="button"
-            onClick={() => setVista(v.id)}
-            title={v.hint}
-            className={
-              vista === v.id
-                ? "rounded-full border border-[var(--portal-cyan)]/40 bg-[var(--portal-cyan)]/10 px-4 py-1.5 text-left text-sm font-semibold text-[var(--portal-cyan)]"
-                : "rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-left text-sm text-slate-400 transition hover:bg-white/[0.07]"
-            }
-          >
-            {v.label}
-            <span className="ml-2 text-[11px] font-normal opacity-70">{v.hint}</span>
-          </button>
-        ))}
-      </div>
 
       {/* filtroEstable, no filtro: las hojas heredan el mismo debounce que el
           tablero, así un arrastre de slider no dispara una request por pixel. */}
@@ -1670,10 +1621,10 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
       ) : loading && !resumen ? (
         <div className="py-12 text-center text-slate-500">Cargando percepción…</div>
       ) : !resumen?.hay_datos ? (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-300">
-          <p className="font-medium text-slate-200">No hay datos de percepción para este filtro.</p>
+        <div className="rounded-md border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
+          <p className="font-medium text-slate-100">No hay datos de percepción para este filtro.</p>
           <p className="mt-1">Prueba ampliar el rango o limpiar los filtros. Si no hay datos aún, pobla con el worker:</p>
-          <pre className="mt-2 overflow-x-auto rounded-xl border border-white/10 bg-[#0b1424] p-3 text-xs text-slate-200">
+          <pre className="mt-2 overflow-x-auto rounded-xl border border-white/10 bg-[var(--boveda-madera)] p-3 text-sm text-slate-100">
 {`python -m percepcion.cli simular --dias 90
 python -m percepcion.cli scorear --scorer rule
 python -m percepcion.cli temas
@@ -1688,12 +1639,12 @@ python -m percepcion.cli agregar`}
               vista pondera la recencia y aquella no. Las dos lecturas son
               correctas; lo que faltaba era decirlo antes de que alguien compare
               dos números que no son comparables. */}
-          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-2 text-[11px] leading-5 text-slate-400">
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-4 py-2 text-sm leading-5 text-slate-400">
             <RotuloMetodo vidaMedia={filtro.vidaMedia} />
             <span>
-              Esta pestaña pondera la <strong className="text-slate-300">recencia</strong> con los
+              Esta pestaña pondera la <strong className="text-slate-400">recencia</strong> con los
               controles de arriba, así que sus números pueden diferir de los del{" "}
-              <strong className="text-slate-300">Resumen</strong>, que promedia todo el período por
+              <strong className="text-slate-400">Resumen</strong>, que promedia todo el período por
               igual. Pon la recencia en <em>off</em> para que coincidan.
             </span>
           </div>
@@ -1722,13 +1673,13 @@ python -m percepcion.cli agregar`}
           <div className="grid grid-cols-1 gap-4">
             <div className={`${CARD} lg:col-span-2`}>
               <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-medium text-slate-200">
+                <span className="text-sm font-medium text-slate-100">
                   Evolución diaria{" "}
                   {/* La leyenda va acá y no en un tooltip: los anillos se confundían
                       con marcas de conflicto por estar en el mismo rojo, y nadie va a
                       pasar el mouse por un punto para averiguar qué categoría es. */}
-                  <span className="text-[11px] font-normal text-slate-500">
-                    · bandas rojas = paros · <span className="text-slate-300">◦</span> anillos = cambios inusuales detectados
+                  <span className="text-sm font-normal text-slate-500">
+                    · bandas rojas = paros · <span className="text-slate-400">◦</span> anillos = cambios inusuales detectados
                     · el calendario, abajo
                   </span>
                 </span>
@@ -1743,13 +1694,13 @@ python -m percepcion.cli agregar`}
                       para ubicar un episodio corto. El automático sigue siendo el
                       default. */}
                   <label className="flex items-center gap-1.5">
-                    <span className="text-[10px] uppercase tracking-wider text-slate-500">
+                    <span className="text-xs uppercase tracking-wider text-slate-500">
                       Agregación
                     </span>
                     <select
                       value={pasoManual}
                       onChange={(e) => setPasoManual(Number(e.target.value))}
-                      className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-300 outline-none transition hover:border-white/20 focus:border-[var(--portal-cyan)]"
+                      className="rounded border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-400 outline-none transition hover:border-white/20 focus:border-[var(--portal-cyan)]"
                       title="Cada cuánto se promedian los puntos de la línea de tiempo"
                     >
                       {PASOS_ELEGIBLES.map((p) => (
@@ -1763,13 +1714,13 @@ python -m percepcion.cli agregar`}
                       umbral, así que ahí este número sería ruido en pantalla. */}
                   {pasoManual > 0 && puntosSerie > PUNTOS_APRETADOS ? (
                     <span
-                      className="rounded-full border border-[var(--portal-copper)]/40 bg-[var(--portal-copper)]/10 px-2 py-0.5 text-[10px] text-[var(--portal-copper)]"
+                      className="rounded border border-[color-mix(in_srgb,var(--portal-copper)_40%,transparent)] bg-[color-mix(in_srgb,var(--portal-copper)_10%,transparent)] px-2 py-0.5 text-xs text-ucn-tierra-clara"
                       title="Con esta cantidad los puntos se pisan entre sí y buena parte de lo que se ve es ruido de muestreo, no tendencia."
                     >
                       {nro(puntosSerie)} puntos · se van a pisar
                     </span>
                   ) : null}
-                  <span className="text-[11px] text-[var(--portal-cyan)]/80">
+                  <span className="text-sm text-[color-mix(in_srgb,var(--portal-cyan)_80%,transparent)]">
                     {pasoSerie.dias > 1
                       ? "Click en un punto para filtrar todo el tablero"
                       : "Click en un dia para filtrar todo el tablero"}
@@ -1778,7 +1729,7 @@ python -m percepcion.cli agregar`}
                     <button
                       type="button"
                       onClick={limpiarFecha}
-                      className="rounded-full border border-[var(--portal-copper)]/40 bg-[var(--portal-copper)]/10 px-2.5 py-1 text-[11px] font-semibold text-[var(--portal-copper)] hover:bg-[var(--portal-copper)]/15"
+                      className="rounded border border-[color-mix(in_srgb,var(--portal-copper)_40%,transparent)] bg-[color-mix(in_srgb,var(--portal-copper)_10%,transparent)] px-2.5 py-1 text-sm font-semibold text-ucn-tierra-clara hover:bg-[color-mix(in_srgb,var(--portal-copper)_15%,transparent)]"
                     >
                       Quitar filtro del gráfico
                     </button>
@@ -1822,7 +1773,7 @@ python -m percepcion.cli agregar`}
                   vez — y sobre todo para que «ver la serie sin nada» sea un clic y no
                   seis. */}
               <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-white/5 pt-2.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                   Vista
                 </span>
                 {PRESETS.map((p) => {
@@ -1836,8 +1787,8 @@ python -m percepcion.cli agregar`}
                       aria-pressed={on}
                       className={
                         on
-                          ? "rounded-full border border-[var(--portal-cyan)]/40 bg-[var(--portal-cyan)]/10 px-2.5 py-1 text-[11px] font-semibold text-[var(--portal-cyan)]"
-                          : "rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-slate-400 transition hover:border-white/25 hover:text-white"
+                          ? "rounded border border-[color-mix(in_srgb,var(--portal-cyan)_40%,transparent)] bg-[color-mix(in_srgb,var(--portal-cyan)_10%,transparent)] px-2.5 py-1 text-sm font-semibold text-ucn-azul-claro"
+                          : "rounded border border-white/10 px-2.5 py-1 text-sm text-slate-400 transition hover:border-white/25 hover:text-slate-100"
                       }
                     >
                       {p.label}
@@ -1845,16 +1796,16 @@ python -m percepcion.cli agregar`}
                   );
                 })}
                 {presetActivo === null ? (
-                  <span className="text-[10px] text-slate-500">· combinación propia</span>
+                  <span className="text-sm text-slate-500">· combinación propia</span>
                 ) : null}
               </div>
 
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                   Marcas
                 </span>
                 {categoriasEnVentana.length === 0 ? (
-                  <span className="text-[11px] text-slate-500">sin marcas en esta ventana</span>
+                  <span className="text-sm text-slate-500">sin marcas en esta ventana</span>
                 ) : (
                   categoriasEnVentana.map(({ clave, label, color: c, tipos }) => {
                     const on = tipos.some((t) => !tiposOcultos.has(t));
@@ -1865,16 +1816,16 @@ python -m percepcion.cli agregar`}
                         onClick={() => toggleCategoria(tipos)}
                         aria-pressed={on}
                         title={on ? `Ocultar ${label} del gráfico` : `Mostrar ${label} en el gráfico`}
-                        className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition"
+                        className="inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-sm font-semibold transition"
                         style={{
-                          borderColor: on ? `${c}66` : "rgba(148,163,184,0.25)",
+                          borderColor: on ? `${c}66` : PALETA.lineaFuerte,
                           background: on ? `${c}1f` : "transparent",
-                          color: on ? c : "#64748b",
+                          color: on ? c : PALETA.subtle,
                         }}
                       >
                         <span
                           className="h-2 w-2 rounded-full"
-                          style={{ background: on ? c : "transparent", border: `1px solid ${on ? c : "#64748b"}` }}
+                          style={{ background: on ? c : "transparent", border: `1px solid ${on ? c : PALETA.subtle}` }}
                         />
                         {label}
                       </button>
@@ -1884,7 +1835,7 @@ python -m percepcion.cli agregar`}
                 <button
                   type="button"
                   onClick={() => { setAbmAbierto((v) => !v); if (!eventosTodos.length) void recargarEventos(); }}
-                  className="ml-auto rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-slate-300 transition hover:bg-white/[0.08]"
+                  className="ml-auto rounded border border-white/10 bg-white/[0.04] px-2.5 py-1 text-sm font-semibold text-slate-400 transition hover:bg-white/[0.08]"
                 >
                   {abmAbierto ? "Cerrar administración" : "Administrar marcas"}
                 </button>
@@ -1899,12 +1850,12 @@ python -m percepcion.cli agregar`}
               {abmAbierto ? (
                 <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-300">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                       {evtEdit ? `Editando: ${evtEdit.nombre}` : "Nueva marca de contexto"}
                     </span>
                     {evtEdit ? (
                       <button type="button" onClick={nuevoEvento}
-                        className="text-[11px] font-semibold text-[var(--portal-cyan)] hover:underline">
+                        className="text-sm font-semibold text-ucn-azul-claro hover:underline">
                         + Crear otra
                       </button>
                     ) : null}
@@ -1915,12 +1866,12 @@ python -m percepcion.cli agregar`}
                       type="text" placeholder="Nombre (ej. Vacaciones de invierno)"
                       value={evtForm.nombre}
                       onChange={(e) => setEvtForm((p) => ({ ...p, nombre: e.target.value }))}
-                      className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:border-[var(--portal-cyan)]/50 lg:col-span-2"
+                      className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-sm text-slate-100 outline-none focus:border-[color-mix(in_srgb,var(--portal-cyan)_50%,transparent)] lg:col-span-2"
                     />
                     <select
                       value={evtForm.tipo}
                       onChange={(e) => setEvtForm((p) => ({ ...p, tipo: e.target.value }))}
-                      className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:border-[var(--portal-cyan)]/50"
+                      className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-sm text-slate-100 outline-none focus:border-[color-mix(in_srgb,var(--portal-cyan)_50%,transparent)]"
                       aria-label="Tipo de marca"
                     >
                       {tiposEvento.map((t) => (
@@ -1930,13 +1881,13 @@ python -m percepcion.cli agregar`}
                     <input
                       type="date" value={evtForm.fecha_inicio}
                       onChange={(e) => setEvtForm((p) => ({ ...p, fecha_inicio: e.target.value }))}
-                      className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:border-[var(--portal-cyan)]/50"
+                      className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-sm text-slate-100 outline-none focus:border-[color-mix(in_srgb,var(--portal-cyan)_50%,transparent)]"
                       aria-label="Fecha de inicio"
                     />
                     <input
                       type="date" value={evtForm.fecha_fin ?? ""}
                       onChange={(e) => setEvtForm((p) => ({ ...p, fecha_fin: e.target.value }))}
-                      className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:border-[var(--portal-cyan)]/50"
+                      className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-sm text-slate-100 outline-none focus:border-[color-mix(in_srgb,var(--portal-cyan)_50%,transparent)]"
                       aria-label="Fecha de fin (vacía = un solo día)"
                     />
                   </div>
@@ -1944,19 +1895,19 @@ python -m percepcion.cli agregar`}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <button
                       type="button" onClick={guardarEvento} disabled={evtBusy}
-                      className="rounded-full border border-[var(--portal-cyan)]/40 bg-[var(--portal-cyan)]/15 px-3 py-1 text-[11px] font-semibold text-[var(--portal-cyan)] transition hover:bg-[var(--portal-cyan)]/25 disabled:opacity-50"
+                      className="rounded border border-[color-mix(in_srgb,var(--portal-cyan)_40%,transparent)] bg-[color-mix(in_srgb,var(--portal-cyan)_15%,transparent)] px-3 py-1 text-sm font-semibold text-ucn-azul-claro transition hover:bg-[color-mix(in_srgb,var(--portal-cyan)_25%,transparent)] disabled:opacity-50"
                     >
                       {evtBusy ? "Guardando…" : evtEdit ? "Guardar cambios" : "Crear marca"}
                     </button>
-                    <span className="text-[11px] text-slate-500">
+                    <span className="text-sm text-slate-500">
                       Fin vacío = marca de un solo día.
                     </span>
-                    {evtMsg ? <span className="text-[11px] text-slate-300">{evtMsg}</span> : null}
+                    {evtMsg ? <span className="text-sm text-slate-400">{evtMsg}</span> : null}
                   </div>
 
                   {eventosTodos.length > 0 ? (
                     <div className="mt-3 max-h-52 overflow-y-auto">
-                      <table className="w-full text-left text-[11px]">
+                      <table className="w-full text-left text-sm">
                         <thead className="text-slate-500">
                           <tr>
                             <th className="pb-1 font-semibold">Marca</th>
@@ -1967,10 +1918,10 @@ python -m percepcion.cli agregar`}
                         </thead>
                         <tbody>
                           {eventosTodos.map((e) => {
-                            const c = COLOR_EVENTO_LINEA[e.tipo] ?? "#94a3b8";
+                            const c = COLOR_EVENTO_LINEA[e.tipo] ?? PALETA.muted;
                             return (
                               <tr key={e.id} className="border-t border-white/5">
-                                <td className="py-1.5 pr-2 text-slate-200">{e.nombre}</td>
+                                <td className="py-1.5 pr-2 text-slate-100">{e.nombre}</td>
                                 <td className="py-1.5 pr-2">
                                   <span className="inline-flex items-center gap-1.5" style={{ color: c }}>
                                     <span className="h-2 w-2 rounded-full" style={{ background: c }} />
@@ -1982,11 +1933,11 @@ python -m percepcion.cli agregar`}
                                 </td>
                                 <td className="py-1.5 text-right">
                                   <button type="button" onClick={() => editarEvento(e)} disabled={evtBusy}
-                                    className="mr-2 text-[var(--portal-cyan)] hover:underline disabled:opacity-50">
+                                    className="mr-2 text-ucn-azul-claro hover:underline disabled:opacity-50">
                                     Editar
                                   </button>
                                   <button type="button" onClick={() => borrarEvento(e)} disabled={evtBusy}
-                                    className="text-rose-300 hover:underline disabled:opacity-50">
+                                    className="text-ucn-tierra-clara hover:underline disabled:opacity-50">
                                     Borrar
                                   </button>
                                 </td>
@@ -1997,7 +1948,7 @@ python -m percepcion.cli agregar`}
                       </table>
                     </div>
                   ) : (
-                    <p className="mt-3 text-[11px] text-slate-500">Todavía no hay marcas cargadas.</p>
+                    <p className="mt-3 text-sm text-slate-500">Todavía no hay marcas cargadas.</p>
                   )}
                 </div>
               ) : null}
@@ -2023,8 +1974,8 @@ python -m percepcion.cli agregar`}
           {/* Comentarios recientes que están afectando la percepción */}
           <div className={CARD}>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <div className="text-sm font-medium text-slate-200">Comentarios recientes</div>
-              <span className="text-[11px] text-slate-500">clic en un comentario para corregir · autor anónimo</span>
+              <div className="text-sm font-medium text-slate-100">Comentarios recientes</div>
+              <span className="text-sm text-slate-500">clic en un comentario para corregir · autor anónimo</span>
             </div>
 
             {/* Filtros LOCALES: sentimiento (chips) + emoción (selector) */}
@@ -2041,10 +1992,10 @@ python -m percepcion.cli agregar`}
                   <button
                     key={chip.label}
                     onClick={() => setComFiltro((p) => ({ ...p, sentimiento: chip.key }))}
-                    className="rounded-full border px-3 py-1 text-xs font-semibold transition"
+                    className="rounded border px-3 py-1 text-sm font-semibold transition"
                     style={activo
                       ? { background: col + "22", color: col, borderColor: col + "55" }
-                      : { background: "rgba(255,255,255,0.03)", color: "#94a3b8", borderColor: "rgba(255,255,255,0.1)" }}
+                      : { background: PALETA.linea, color: PALETA.muted, borderColor: PALETA.lineaFuerte }}
                   >
                     {chip.label}
                   </button>
@@ -2064,9 +2015,9 @@ python -m percepcion.cli agregar`}
 
             {/* Filtro por FECHA (día puntual o rango). Sincronizado con el clic en el
                 gráfico de evolución: ambos escriben fechaDesde/fechaHasta. */}
-            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Fecha global</span>
-              <label className="flex items-center gap-1.5 text-xs text-slate-400">
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Fecha global</span>
+              <label className="flex items-center gap-1.5 text-sm text-slate-400">
                 Desde
                 <input
                   type="date"
@@ -2078,7 +2029,7 @@ python -m percepcion.cli agregar`}
                   style={{ colorScheme: "dark" }}
                 />
               </label>
-              <label className="flex items-center gap-1.5 text-xs text-slate-400">
+              <label className="flex items-center gap-1.5 text-sm text-slate-400">
                 Hasta
                 <input
                   type="date"
@@ -2091,16 +2042,16 @@ python -m percepcion.cli agregar`}
                 />
               </label>
               {rangoFechaLabel ? (
-                <span className="flex items-center gap-2 rounded-full border border-[var(--portal-cyan)]/40 bg-[var(--portal-cyan)]/10 px-3 py-1 text-xs font-semibold text-[var(--portal-cyan)]">
+                <span className="flex items-center gap-2 rounded border border-[color-mix(in_srgb,var(--portal-cyan)_40%,transparent)] bg-[color-mix(in_srgb,var(--portal-cyan)_10%,transparent)] px-3 py-1 text-sm font-semibold text-ucn-azul-claro">
                   Mostrando: {rangoFechaLabel}
-                  <button onClick={limpiarFecha} className="text-slate-300 transition hover:text-white" aria-label="Limpiar filtro de fecha" type="button">✕</button>
+                  <button onClick={limpiarFecha} className="text-slate-400 transition hover:text-slate-100" aria-label="Limpiar filtro de fecha" type="button">✕</button>
                 </span>
               ) : (
-                <span className="text-[11px] text-slate-500">o hace clic en un dia del grafico para filtrar todo el tablero</span>
+                <span className="text-sm text-slate-500">o hace clic en un dia del grafico para filtrar todo el tablero</span>
               )}
             </div>
 
-            <p className="mt-2 text-[11px] text-slate-500">
+            <p className="mt-2 text-sm text-slate-500">
               Por privacidad, los comentarios se muestran como etiquetas.
             </p>
             {comentarios.length > 0 ? (
@@ -2111,35 +2062,35 @@ python -m percepcion.cli agregar`}
                   return (
                     <li
                       key={c.id}
-                      className={`rounded-2xl border bg-white/[0.02] p-3 transition ${editando ? "border-[var(--portal-cyan)]/40" : "border-white/5 hover:border-white/15"}`}
+                      className={`rounded-md border bg-white/[0.02] p-3 transition ${editando ? "border-[color-mix(in_srgb,var(--portal-cyan)_40%,transparent)]" : "border-white/5 hover:border-white/15"}`}
                     >
                       <div className="flex cursor-pointer items-start gap-3" onClick={() => abrirEdicion(c)} title="Clic para corregir sentimiento/emoción">
                         <span
-                          className="mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                          className="mt-0.5 shrink-0 rounded px-2 py-0.5 text-xs font-semibold"
                           style={{ background: color + "1f", color, border: `1px solid ${color}33` }}
                         >
                           {c.sentimiento_label}
                         </span>
-                        <div className="flex flex-1 flex-wrap items-center gap-2 text-sm text-slate-200">
-                          {c.tema_label ? <span className="rounded-full bg-white/[0.06] px-2 py-0.5">{c.tema_label}</span> : <span className="text-slate-500">(sin tema)</span>}
-                          {c.emocion_label ? <span className="rounded-full bg-white/[0.06] px-2 py-0.5">{labelEmocion(c.emocion, c.emocion_label)}</span> : null}
-                          <span className="text-[11px] text-slate-500">neto {c.neto.toFixed(2)}</span>
+                        <div className="flex flex-1 flex-wrap items-center gap-2 text-sm text-slate-100">
+                          {c.tema_label ? <span className="rounded bg-white/[0.06] px-2 py-0.5">{c.tema_label}</span> : <span className="text-slate-500">(sin tema)</span>}
+                          {c.emocion_label ? <span className="rounded bg-white/[0.06] px-2 py-0.5">{labelEmocion(c.emocion, c.emocion_label)}</span> : null}
+                          <span className="text-sm text-slate-500">neto {c.neto.toFixed(2)}</span>
                         </div>
-                        <span className="mt-0.5 shrink-0 text-[11px] text-slate-500">{editando ? "▲" : "✎"}</span>
+                        <span className="mt-0.5 shrink-0 text-sm text-slate-500">{editando ? "▲" : "✎"}</span>
                       </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
                         <span>{c.fecha}</span>
                         {c.cuenta ? <span>· @{c.cuenta}</span> : null}
                         {c.unidad ? <span>· {c.unidad}</span> : null}
-                        {c.cuenta_tipo ? <span className="rounded-full bg-white/[0.04] px-2 py-0.5 text-slate-400">{c.cuenta_tipo}</span> : null}
+                        {c.cuenta_tipo ? <span className="rounded bg-white/[0.04] px-2 py-0.5 text-slate-400">{c.cuenta_tipo}</span> : null}
                         {c.n_likes > 0 ? <span>· ♥ {c.n_likes.toLocaleString("es-CL")}</span> : null}
-                        <span className="ml-auto text-slate-600">impacto {c.impacto.toFixed(2)}</span>
+                        <span className="ml-auto text-slate-500">impacto {c.impacto.toFixed(2)}</span>
                       </div>
 
                       {editando ? (
-                        <div className="mt-3 rounded-2xl border border-[var(--portal-cyan)]/20 bg-[var(--portal-cyan)]/[0.05] p-3">
-                          <div className="mb-2 text-[11px] font-semibold text-slate-300">Corregir y enseñarle al modelo</div>
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                        <div className="mt-3 rounded-md border border-[color-mix(in_srgb,var(--portal-cyan)_20%,transparent)] bg-[color-mix(in_srgb,var(--portal-cyan)_5%,transparent)] p-3">
+                          <div className="mb-2 text-sm font-semibold text-slate-400">Corregir y enseñarle al modelo</div>
+                          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
                             <label className="flex items-center gap-1">
                               Sentimiento:
                               <select className={SELECT} value={editSent} onChange={(e) => setEditSent(e.target.value)}>
@@ -2162,7 +2113,7 @@ python -m percepcion.cli agregar`}
                             />
                             <button
                               onClick={() => guardarCorreccion(c)}
-                              className="rounded-xl border border-[var(--portal-cyan)]/40 bg-[var(--portal-cyan)]/15 px-3 py-1 text-sm font-semibold text-white transition hover:bg-[var(--portal-cyan)]/25"
+                              className="rounded-xl border border-[color-mix(in_srgb,var(--portal-cyan)_40%,transparent)] bg-[color-mix(in_srgb,var(--portal-cyan)_15%,transparent)] px-3 py-1 text-sm font-semibold text-slate-100 transition hover:bg-[color-mix(in_srgb,var(--portal-cyan)_25%,transparent)]"
                             >
                               Guardar
                             </button>
@@ -2173,7 +2124,7 @@ python -m percepcion.cli agregar`}
                               Cancelar
                             </button>
                           </div>
-                          {editMsg ? <div className="mt-2 text-[11px] text-amber-300">{editMsg}</div> : null}
+                          {editMsg ? <div className="mt-2 text-sm text-ucn-tierra-clara">{editMsg}</div> : null}
                         </div>
                       ) : null}
                     </li>
@@ -2206,20 +2157,20 @@ python -m percepcion.cli agregar`}
           {/* Emociones */}
           {emociones.length > 0 ? (
             <div className={CARD}>
-              <div className="mb-2 text-sm font-medium text-slate-200">Emociones predominantes</div>
+              <div className="mb-2 text-sm font-medium text-slate-100">Emociones predominantes</div>
               <div className="flex flex-wrap gap-2">
                 {(() => {
                   const total = emociones.reduce((s, e) => s + e.n, 0) || 1;
                   const colorEmo: Record<string, string> = {
                     joy: COLOR_POS, anger: COLOR_NEG, sadness: COLOR_CYAN,
-                    fear: "#a88bfa", surprise: COLOR_COPPER,
-                    humor_ironia: "#f97316", empatia: "#c084fc", sin_emocion: COLOR_NEU,
-                    disgust: "#c98a5a", others: COLOR_NEU,
+                    fear: PALETA.serie3, surprise: COLOR_COPPER,
+                    humor_ironia: PALETA.serie4, empatia: PALETA.azulClaro, sin_emocion: COLOR_NEU,
+                    disgust: PALETA.tierra, others: COLOR_NEU,
                   };
                   return emociones.map((e) => {
                     const c = colorEmo[e.emocion] ?? COLOR_NEU;
                     return (
-                      <span key={e.emocion} className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs" style={{ background: c + "1f", color: c, borderColor: c + "33" }}>
+                      <span key={e.emocion} className="flex items-center gap-1.5 rounded border px-3 py-1 text-sm" style={{ background: c + "1f", color: c, borderColor: c + "33" }}>
                         <span className="h-2 w-2 rounded-full" style={{ background: c }} />
                         {labelEmocion(e.emocion, e.etiqueta)} · {Math.round((e.n / total) * 100)}%
                       </span>
@@ -2246,7 +2197,7 @@ python -m percepcion.cli agregar`}
           )}
         </>
       )}
-    </section>
+    </div>
   );
 }
 

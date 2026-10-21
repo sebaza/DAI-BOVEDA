@@ -20,6 +20,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { PALETA } from "@/lib/paleta";
 
 import {
   percepcionApi,
@@ -31,18 +32,18 @@ import { CARD, COLOR_NEG, COLOR_POS, TituloBloque, fmt, nro } from "./Percepcion
 function Rasgo({ f, escala }: { f: CaracteristicaComunicacion; escala: number }) {
   const intra = f.efecto_intra;
   const positivo = (intra ?? 0) > 0;
-  const color = f.solido ? (positivo ? COLOR_POS : COLOR_NEG) : "#64748b";
+  const color = f.solido ? (positivo ? COLOR_POS : COLOR_NEG) : PALETA.subtle;
   const ancho = intra !== null && escala > 0 ? Math.min(100, (Math.abs(intra) / escala) * 100) : 0;
 
   return (
     <div className="border-b border-white/5 py-2 last:border-0">
       <div className="flex flex-wrap items-baseline gap-2">
-        <span className={`text-[13px] ${f.solido ? "text-slate-200" : "text-slate-400"}`}>
+        <span className={`text-sm ${f.solido ? "text-slate-100" : "text-slate-400"}`}>
           {f.etiqueta}
         </span>
         {f.solido ? (
           <span
-            className="rounded-full border border-[#51c28c]/30 bg-[#51c28c]/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-[#51c28c]"
+            className="rounded border border-[var(--ucn-azul-borde)] bg-[var(--ucn-azul-suave)] px-1.5 py-0.5 text-xs uppercase tracking-wide text-dato-favorable"
             title="Supera las dos pruebas: el efecto crudo supera su margen de error Y se sostiene comparando cada cuenta consigo misma."
           >
             sólido
@@ -57,14 +58,14 @@ function Rasgo({ f, escala }: { f: CaracteristicaComunicacion; escala: number })
         <div className="h-full rounded-full" style={{ width: `${ancho}%`, background: color }} />
       </div>
 
-      <div className="mt-1 text-[10px] leading-4 text-slate-500">
+      <div className="mt-1 text-sm leading-4 text-slate-500">
         Comparando cada cuenta consigo misma: gana en{" "}
         <strong className="text-slate-400">
           {nro(f.cuentas_a_favor)} de {nro(f.cuentas_comparables)}
         </strong>{" "}
         cuentas que publican de las dos formas.
         {f.cuentas_comparables === 0 ? (
-          <span className="text-[#e0aa4e]">
+          <span className="text-ucn-tierra-clara">
             {" "}Ninguna cuenta usa ambas formas: no hay con qué controlar.
           </span>
         ) : null}
@@ -111,13 +112,13 @@ export function PercepcionComunicacion() {
         <em>cómo</em>.
       </TituloBloque>
 
-      {error ? <p className="text-sm text-[#f2777a]">{error}</p> : null}
+      {error ? <p className="text-sm text-ucn-tierra-clara">{error}</p> : null}
 
       {data ? (
         <>
-          <p className="mb-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] leading-5 text-slate-400">
+          <p className="mb-2 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-sm leading-5 text-slate-400">
             De {nro(data.publicaciones)} publicaciones,{" "}
-            <strong className="text-slate-200">{nro(data.con_conversacion)}</strong>{" "}
+            <strong className="text-slate-100">{nro(data.con_conversacion)}</strong>{" "}
             generaron conversación ({fmt(data.tasa_base)}%). Los puntos de abajo son
             cuánto sube o baja esa probabilidad.
           </p>
@@ -129,7 +130,7 @@ export function PercepcionComunicacion() {
           {data.avisos.length ? (
             <ul className="mt-3 space-y-1 border-t border-white/5 pt-2">
               {data.avisos.map((a) => (
-                <li key={a} className="text-[11px] leading-5 text-slate-500">
+                <li key={a} className="text-sm leading-5 text-slate-500">
                   · {a}
                 </li>
               ))}

@@ -111,14 +111,14 @@ export function PercepcionSimulacion() {
           se puede afirmar hoy y con cuánto respaldo. */}
       <div className={CARD}>
         <div className="mb-1 flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-slate-200">
+          <span className="text-sm font-medium text-slate-100">
             Qué se puede anticipar, y con cuánto respaldo
           </span>
-          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-amber-200">
+          <span className="rounded border border-[var(--alerta-media)] bg-[var(--ucn-tierra-suave)] px-2 py-0.5 text-xs uppercase tracking-wide text-ucn-tierra-clara">
             evidencia preliminar
           </span>
         </div>
-        <p className="text-[11px] leading-5 text-slate-500">
+        <p className="text-sm leading-5 text-slate-500">
           Las demás secciones informan <strong>lo que ocurrió</strong>. Esta responde
           tres preguntas de proyección — si el índice se puede anticipar, qué efecto
           tiene un paro, y qué formatos de comunicación generan más conversación — y{" "}
@@ -150,16 +150,16 @@ export function PercepcionSimulacion() {
           tres por igual, y esconderlos detrás de un clic sería justo lo contrario
           de lo que esta pestaña declara hacer. */}
       <div className={CARD}>
-        <p className="mb-2 text-sm font-medium text-slate-200">
+        <p className="mb-2 text-sm font-medium text-slate-100">
           Qué haría falta para afirmar más
         </p>
-        <p className="text-[11px] leading-5 text-slate-500">
+        <p className="text-sm leading-5 text-slate-500">
           Las tres preguntas están respondidas hasta donde los datos permiten, y las
           tres se topan con el mismo techo: <strong>la cantidad y la cobertura de los
           comentarios, no la técnica de análisis</strong>. Los tres puntos siguientes
           son lo que acota hoy cualquier conclusión de esta sección.
         </p>
-        <ul className="mt-2 space-y-1 text-[11px] leading-5 text-slate-500">
+        <ul className="mt-2 space-y-1 text-sm leading-5 text-slate-500">
           <li>
             · <strong>Falta el 47 % de los comentarios</strong> que Instagram declara
             en las publicaciones ya recolectadas. La ingesta se hizo sin los comentarios

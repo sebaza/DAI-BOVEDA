@@ -108,13 +108,13 @@ function SenalesVigilancia({ data, vidaMedia }: { data: TerminosResponse; vidaMe
   if (!g) return null;
 
   return (
-    <div className={`${CARD} border-amber-400/20`}>
+    <div className={`${CARD} border-[var(--alerta-media)]`}>
       <TituloBloque
         titulo="Señales bajo vigilancia"
         ignoraRecencia
         vidaMedia={vidaMedia}
         extra={
-          <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
+          <span className="rounded border border-[var(--alerta-media)] bg-[var(--ucn-tierra-suave)] px-2 py-0.5 text-xs font-semibold text-ucn-tierra-clara">
             léxico fijo y auditable
           </span>
         }
@@ -133,14 +133,14 @@ function SenalesVigilancia({ data, vidaMedia }: { data: TerminosResponse; vidaMe
         </p>
       ) : (
         <>
-          <p className="mb-3 text-[11px] text-amber-100/80">
+          <p className="mb-3 text-sm text-ucn-tierra-clara">
             {nro(g.n_con_termino)} de {nro(g.n_comentarios)} comentarios ({g.pct}%) mencionan
             alguno de estos términos
             {g.n_humor > 0 ? `, ${g.n_humor} en tono de broma` : ""}.
           </p>
           <ul className="space-y-2">
             {data.familias.map((f) => (
-              <li key={f.clave} className="rounded-2xl border border-white/5 bg-white/[0.02] p-3">
+              <li key={f.clave} className="rounded-md border border-white/5 bg-white/[0.02] p-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -148,24 +148,24 @@ function SenalesVigilancia({ data, vidaMedia }: { data: TerminosResponse; vidaMe
                       <span className="text-lg font-bold tabular-nums" style={{ color: COLOR_COPPER }}>
                         {f.n_serio}
                       </span>
-                      <span className="text-[11px] text-slate-500">
+                      <span className="text-sm text-slate-500">
                         {f.n_serio === 1 ? "mención en serio" : "menciones en serio"}
                       </span>
                       {f.n_humor > 0 ? (
                         <span
-                          className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-slate-500"
+                          className="rounded border border-white/10 px-2 py-0.5 text-xs text-slate-500"
                           title="El modelo las leyó como humor o ironía. No entran en el cálculo, pero se muestran: la ironía se detecta mal y puede ser sarcasmo amargo."
                         >
                           +{f.n_humor} en broma
                         </span>
                       ) : null}
                       {f.es_nuevo ? (
-                        <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
+                        <span className="rounded border border-[var(--ucn-azul-borde)] bg-[var(--ucn-azul-suave)] px-2 py-0.5 text-xs font-semibold text-ucn-azul-claro">
                           nuevo este período
                         </span>
                       ) : null}
                     </div>
-                    <div className="mt-1 text-[11px] text-slate-400">
+                    <div className="mt-1 text-sm text-slate-400">
                       {f.temas.length > 0 ? (
                         <>Se habla en {f.temas.map((t) => `${t.etiqueta} (${t.n})`).join(", ")}</>
                       ) : (
@@ -186,7 +186,7 @@ function SenalesVigilancia({ data, vidaMedia }: { data: TerminosResponse; vidaMe
                 {f.n_serio > 0 ? (
                   <div className="mt-2 flex items-center gap-3">
                     <BarraSentimiento pos={f.n_pos} neu={f.n_neu} neg={f.n_neg} />
-                    <span className="shrink-0 text-[10px] tabular-nums text-slate-500">
+                    <span className="shrink-0 text-xs tabular-nums text-slate-500">
                       {f.n_pos}/{f.n_neu}/{f.n_neg}
                     </span>
                   </div>
@@ -196,7 +196,7 @@ function SenalesVigilancia({ data, vidaMedia }: { data: TerminosResponse; vidaMe
                   <>
                     <button
                       type="button"
-                      className="mt-2 text-[11px] text-[var(--portal-cyan)] hover:underline"
+                      className="mt-2 text-sm text-ucn-azul-claro hover:underline"
                       onClick={() => setAbierta(abierta === f.clave ? null : f.clave)}
                       aria-expanded={abierta === f.clave}
                     >
@@ -207,7 +207,7 @@ function SenalesVigilancia({ data, vidaMedia }: { data: TerminosResponse; vidaMe
                         {f.ejemplos.map((e, i) => (
                           <li
                             key={`${f.clave}-${i}`}
-                            className="rounded-xl border border-white/5 bg-[#0b1424] px-3 py-2 text-[11px] leading-5 text-slate-300"
+                            className="rounded-xl border border-white/5 bg-[var(--boveda-madera)] px-3 py-2 text-sm leading-5 text-slate-400"
                           >
                             <span
                               className="mr-2 font-semibold"
@@ -222,8 +222,8 @@ function SenalesVigilancia({ data, vidaMedia }: { data: TerminosResponse; vidaMe
                             >
                               {e.sentimiento_label}
                             </span>
-                            {e.emocion_label ? <span className="mr-2 rounded-full bg-white/[0.04] px-2 py-0.5">{e.emocion_label}</span> : null}
-                            <span className="text-slate-600">
+                            {e.emocion_label ? <span className="mr-2 rounded bg-white/[0.04] px-2 py-0.5">{e.emocion_label}</span> : null}
+                            <span className="text-slate-500">
                               · {fechaCorta(e.fecha)}
                               {e.tema_label ? ` · ${e.tema_label}` : ""}
                             </span>
@@ -236,7 +236,7 @@ function SenalesVigilancia({ data, vidaMedia }: { data: TerminosResponse; vidaMe
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-[10px] leading-4 text-slate-600">
+          <p className="mt-3 text-sm leading-4 text-slate-500">
             Por privacidad, los comentarios se muestran como etiquetas (sentimiento, tema, emoción), sin texto ni autor. El léxico está versionado en
             el código y se revisa como cualquier otro cambio.
           </p>
@@ -289,7 +289,7 @@ const SUB_ALERTAS = [
 
 function ChipNivel({ a }: { a: AnomaliaItem }) {
   if (!a.nivel_alerta) {
-    return <span className="text-[11px] text-slate-600">—</span>;
+    return <span className="text-sm text-slate-500">—</span>;
   }
   const esAlerta = a.nivel_alerta === "alerta";
   const rango = a.lead_rango_dias;
@@ -312,7 +312,7 @@ function ChipNivel({ a }: { a: AnomaliaItem }) {
   return (
     <span className="flex flex-col gap-0.5" title={ayuda}>
       <span
-        className="w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+        className="w-fit rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide"
         style={{
           color: esAlerta ? COLOR_NEG : COLOR_COPPER,
           background: esAlerta ? `${COLOR_NEG}1f` : `${COLOR_COPPER}1f`,
@@ -322,7 +322,7 @@ function ChipNivel({ a }: { a: AnomaliaItem }) {
         {esAlerta ? "Alerta" : "Atención"}
       </span>
       {a.lead_esperado_dias != null ? (
-        <span className="text-[10px] tabular-nums text-slate-500">
+        <span className="text-xs tabular-nums text-slate-500">
           ~{a.lead_esperado_dias} d antes
         </span>
       ) : null}
@@ -342,11 +342,11 @@ function RendimientoMedido({ cfg }: { cfg?: AnomaliasConfig }) {
   if (!cfg) return null;
   const m = cfg.medicion;
   const base =
-    "mb-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] leading-relaxed text-slate-400";
+    "mb-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm leading-relaxed text-slate-400";
   if (!m) {
     return (
       <p className={base}>
-        Con unidad de {cfg.unidad_semanas} semanas <strong className="text-slate-300">no hay
+        Con unidad de {cfg.unidad_semanas} semanas <strong className="text-slate-400">no hay
         medición propia</strong>: solo se calibraron 1 y 2 semanas contra los episodios del
         calendario. Las alarmas se calculan igual, pero no se puede decir con cuánta
         anticipación ni con qué tasa de acierto.
@@ -355,12 +355,12 @@ function RendimientoMedido({ cfg }: { cfg?: AnomaliasConfig }) {
   }
   return (
     <p className={base}>
-      <strong className="text-slate-300">Medido sobre 4 años</strong> con esta configuración:
-      enciende en <strong className="text-slate-300">{m.detecta} de los {m.evaluables}</strong>{" "}
+      <strong className="text-slate-400">Medido sobre 4 años</strong> con esta configuración:
+      enciende en <strong className="text-slate-400">{m.detecta} de los {m.evaluables}</strong>{" "}
       episodios de conflicto con ventana evaluable, con{" "}
-      <strong className="text-slate-300">{m.lead_mediano} días</strong> de anticipación mediana,{" "}
-      <strong className="text-slate-300">{m.falsas_anio.toFixed(1)}</strong> falsas alarmas por
-      año y <strong className="text-slate-300">{Math.round(100 * m.precision)}%</strong> de
+      <strong className="text-slate-400">{m.lead_mediano} días</strong> de anticipación mediana,{" "}
+      <strong className="text-slate-400">{m.falsas_anio.toFixed(1)}</strong> falsas alarmas por
+      año y <strong className="text-slate-400">{Math.round(100 * m.precision)}%</strong> de
       precisión. Encender no siempre es anticipar: dos de esos episodios se marcan el mismo
       día — un shock externo no se gesta en los comentarios.
     </p>
@@ -414,7 +414,7 @@ function SemanasAnomalas({
             </thead>
             <tbody>
               {items.slice(0, 12).map((a, i) => (
-                <tr key={i} className="border-t border-white/5 text-slate-300">
+                <tr key={i} className="border-t border-white/5 text-slate-400">
                   <td className="py-1.5 pr-4 whitespace-nowrap">
                     {fechaCorta(a.fecha)}
                     {/* El bloque son dos semanas: mostrar solo el lunes hace creer
@@ -438,7 +438,7 @@ function SemanasAnomalas({
                           }}
                         />
                       </span>
-                      <span className="text-[11px] tabular-nums text-slate-400">
+                      <span className="text-xs tabular-nums text-slate-400">
                         {a.severidad.toFixed(2)}
                       </span>
                     </span>
@@ -448,7 +448,7 @@ function SemanasAnomalas({
                       {a.motivos.map((m) => (
                         <span
                           key={m}
-                          className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-300"
+                          className="rounded border border-white/10 bg-white/[0.04] px-2 py-0.5 text-xs text-slate-400"
                           title={MOTIVO_AYUDA[m] ?? m}
                         >
                           {MOTIVO_LABEL[m] ?? m}
@@ -459,7 +459,7 @@ function SemanasAnomalas({
                   <td className="py-1.5 pr-4 tabular-nums" style={{ color: colorIndice(a.indice) }}>
                     {fmt(a.indice)}
                     {a.z_indice != null ? (
-                      <span className="ml-1 text-[10px] text-slate-600">z {fmt(a.z_indice, 1)}</span>
+                      <span className="ml-1 text-sm text-slate-500">z {fmt(a.z_indice, 1)}</span>
                     ) : null}
                   </td>
                   <td className="py-1.5 pr-4 tabular-nums text-slate-400">
@@ -476,7 +476,7 @@ function SemanasAnomalas({
                         <span style={{ color: a.n_terminos_neg > 0 ? COLOR_NEG : undefined }}>
                           {a.n_terminos_neg} neg.
                         </span>
-                        <span className="ml-1 text-[10px] text-slate-600">de {a.n_terminos}</span>
+                        <span className="ml-1 text-sm text-slate-500">de {a.n_terminos}</span>
                       </>
                     )}
                   </td>
@@ -535,7 +535,7 @@ export function PercepcionAlertas({ filtro }: { filtro: Filtro }) {
   if (error && !terminos) {
     return (
       <div className={CARD}>
-        <p className="text-sm text-[#f2777a]">{error}</p>
+        <p className="text-sm text-ucn-tierra-clara">{error}</p>
       </div>
     );
   }
@@ -550,17 +550,17 @@ export function PercepcionAlertas({ filtro }: { filtro: Filtro }) {
       aria-busy={cargando}
     >
       {error ? (
-        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-200">
+        <div className="rounded-md border border-[var(--alerta-media)] bg-[var(--ucn-tierra-suave)] px-4 py-2 text-sm text-ucn-tierra-clara">
           {error}
           {cargando ? " · reintentando…" : ""}
         </div>
       ) : null}
 
       {nAlertas === 0 && nFamilias === 0 ? (
-        <div className={`${CARD} border-emerald-400/20`}>
+        <div className={`${CARD} border-[var(--ucn-azul-borde)]`}>
           <div className="py-6 text-center">
-            <p className="text-sm font-medium text-slate-200">Sin alertas en este período</p>
-            <p className="mt-1 text-[11px] text-slate-500">
+            <p className="text-sm font-medium text-slate-100">Sin alertas en este período</p>
+            <p className="mt-1 text-sm text-slate-500">
               Ninguna semana se apartó de su historia reciente y no hay menciones del léxico
               crítico. Amplía el rango si quieres revisar más atrás.
             </p>

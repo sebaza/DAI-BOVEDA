@@ -1,0 +1,23 @@
+// Hex mirror of the CSS tokens in globals.css (ECharts options cannot read CSS variables).
+export const PALETA = {
+  fg: "#EDEDEF",
+  muted: "#A8ABB1",
+  subtle: "#888C93",
+  linea: "rgba(237,237,239,0.08)",
+  lineaFuerte: "rgba(237,237,239,0.14)",
+  panel: "#1B1C1F",
+  azul: "#759CC0",
+  azulClaro: "#9DBAD6",
+  tierra: "#C06125",
+  tierraClara: "#E2B49A",
+  favorable: "#759CC0",
+  favorableClaro: "#9DBAD6",
+  neutro: "#8C9097",
+  adverso: "#D27A45",
+  adversoClaro: "#E2B49A",
+  serie3: "#C9A25E",
+  serie4: "#A8ABB1",
+  alertaBaja: "rgba(192,97,37,0.14)",
+  alertaMedia: "rgba(192,97,37,0.32)",
+  alertaAlta: "#C06125",
+} as const;

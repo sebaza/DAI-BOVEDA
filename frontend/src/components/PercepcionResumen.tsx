@@ -17,6 +17,7 @@
 // pesa igual; la temperatura reciente vive en Conversación, donde el tiempo importa.
 
 import { useCallback, useEffect, useState } from "react";
+import { PALETA } from "@/lib/paleta";
 
 import type {
   AnomaliaItem,
@@ -85,10 +86,10 @@ function ComoFueCambiando({ meses }: { meses: MesSerie[] }) {
   return (
     <div className="mt-4 border-t border-white/5 pt-3">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
           Cómo fue cambiando
         </span>
-        <span className="text-[11px] text-slate-500">
+        <span className="text-sm text-slate-500">
           {mesCorto(primero.mes)} → {mesCorto(ultimo.mes)} ·{" "}
           <strong style={{ color: delta > 0 ? COLOR_POS : delta < 0 ? COLOR_NEG : COLOR_NEU }}>
             {delta > 0 ? "▲ +" : delta < 0 ? "▼ " : "— "}
@@ -117,7 +118,7 @@ function ComoFueCambiando({ meses }: { meses: MesSerie[] }) {
           );
         })}
       </div>
-      <div className="mt-1 flex justify-between text-[10px] text-slate-600">
+      <div className="mt-1 flex justify-between text-sm text-slate-500">
         <span>{mesCorto(ultimos[0]?.mes)}</span>
         <span>escala {min.toFixed(0)}–{max.toFixed(0)}</span>
         <span>{mesCorto(ultimos[ultimos.length - 1]?.mes)}</span>
@@ -152,7 +153,7 @@ function ComoFueCambiando({ meses }: { meses: MesSerie[] }) {
 function QueCambio({ data }: { data: ImpactoPalabrasResponse }) {
   if (!data.hay_datos || !data.palabras.length) {
     return (
-      <p className="text-xs text-slate-500">
+      <p className="text-sm text-slate-500">
         {data.motivo ?? "Sin período anterior comparable en esta ventana."}
       </p>
     );
@@ -164,12 +165,12 @@ function QueCambio({ data }: { data: ImpactoPalabrasResponse }) {
         {data.palabras.map((p) => {
           const subio = p.delta > 0;
           return (
-            <li key={p.texto} className="flex items-center gap-2 text-xs">
-              <span className="w-28 shrink-0 truncate text-slate-200">{p.texto}</span>
+            <li key={p.texto} className="flex items-center gap-2 text-sm">
+              <span className="w-28 shrink-0 truncate text-slate-100">{p.texto}</span>
               <span className="h-2 flex-1 overflow-hidden rounded-full bg-white/[0.05]">
                 <span
                   className={`block h-full rounded-full ${
-                    subio ? "bg-[var(--portal-cyan)]/70" : "bg-[var(--portal-copper)]/70"
+                    subio ? "bg-[color-mix(in_srgb,var(--portal-cyan)_70%,transparent)]" : "bg-[color-mix(in_srgb,var(--portal-copper)_70%,transparent)]"
                   }`}
                   style={{ width: `${(Math.abs(p.impacto) / max) * 100}%` }}
                 />
@@ -179,7 +180,7 @@ function QueCambio({ data }: { data: ImpactoPalabrasResponse }) {
               </span>
               <span
                 className={`w-10 shrink-0 text-right font-semibold ${
-                  subio ? "text-[var(--portal-cyan)]" : "text-[var(--portal-copper)]"
+                  subio ? "text-ucn-azul-claro" : "text-ucn-tierra-clara"
                 }`}
               >
                 {subio ? "+" : ""}{p.delta}
@@ -188,7 +189,7 @@ function QueCambio({ data }: { data: ImpactoPalabrasResponse }) {
           );
         })}
       </ul>
-      <p className="mt-1.5 text-[10px] leading-4 text-slate-500">
+      <p className="mt-1.5 text-sm leading-4 text-slate-500">
         Sobre {nro(data.vocabulario)} palabras presentes en los dos períodos
         {data.similitud === null ? null : ` · parecido entre períodos ${data.similitud.toFixed(2)}`}.
         Solo entran las que se dicen en ambos: una palabra que aparece de la nada
@@ -222,11 +223,11 @@ function PalabrasQuePesan({
             <span className="min-w-[120px] flex-1">
               <BarraSentimiento pos={p.n_pos} neu={p.n_neu} neg={p.n_neg} />
             </span>
-            <span className="shrink-0 text-[11px] tabular-nums text-slate-500">
+            <span className="shrink-0 text-xs tabular-nums text-slate-500">
               {nro(p.n)} comentarios
             </span>
             <span
-              className="w-24 shrink-0 text-right text-[11px] font-semibold tabular-nums"
+              className="w-24 shrink-0 text-right text-xs font-semibold tabular-nums"
               style={{ color: p.pct_neg >= 30 ? COLOR_NEG : COLOR_NEU }}
             >
               {p.pct_neg}% negativo
@@ -256,18 +257,18 @@ function AlertasActivas({
   const hay = anomalias.length > 0 || nFamilias > 0;
   const top = [...anomalias].sort((a, b) => b.severidad - a.severidad).slice(0, 2);
   return (
-    <div className={`${CARD} ${hay ? "border-amber-400/25" : "border-emerald-400/20"}`}>
+    <div className={`${CARD} ${hay ? "border-[var(--alerta-media)]" : "border-[var(--ucn-azul-borde)]"}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-sm font-medium text-slate-200">
+          <div className="text-sm font-medium text-slate-100">
             {hay ? "Hay señales para revisar" : "Sin alertas en este período"}
           </div>
-          <div className="mt-1 text-[11px] leading-5 text-slate-400">
+          <div className="mt-1 text-sm leading-5 text-slate-400">
             {hay ? (
               <>
                 {anomalias.length > 0 ? (
                   <>
-                    <strong className="text-amber-200">{anomalias.length}</strong>{" "}
+                    <strong className="text-ucn-tierra-clara">{anomalias.length}</strong>{" "}
                     {anomalias.length === 1 ? "semana se apartó" : "semanas se apartaron"} de su
                     historia reciente
                   </>
@@ -275,7 +276,7 @@ function AlertasActivas({
                 {anomalias.length > 0 && nFamilias > 0 ? " · " : ""}
                 {nFamilias > 0 ? (
                   <>
-                    <strong className="text-amber-200">{nro(nMenciones)}</strong> menciones de
+                    <strong className="text-ucn-tierra-clara">{nro(nMenciones)}</strong> menciones de
                     términos bajo vigilancia en {nFamilias}{" "}
                     {nFamilias === 1 ? "categoría" : "categorías"}
                   </>
@@ -293,7 +294,7 @@ function AlertasActivas({
           <button
             type="button"
             onClick={onVerAlertas}
-            className="shrink-0 rounded-full border border-[var(--portal-cyan)]/40 bg-[var(--portal-cyan)]/10 px-4 py-1.5 text-sm font-semibold text-[var(--portal-cyan)] transition hover:bg-[var(--portal-cyan)]/20"
+            className="shrink-0 rounded border border-[color-mix(in_srgb,var(--portal-cyan)_40%,transparent)] bg-[color-mix(in_srgb,var(--portal-cyan)_10%,transparent)] px-4 py-1.5 text-sm font-semibold text-ucn-azul-claro transition hover:bg-[color-mix(in_srgb,var(--portal-cyan)_20%,transparent)]"
           >
             Ver alertas →
           </button>
@@ -327,9 +328,9 @@ function PosturaInstitucional({
   // De yapa, azul-naranja es un par seguro para daltonismo rojo-verde, que es
   // precisamente el que la paleta de sentimiento no cubre.
   const COLOR: Record<string, string> = {
-    favorable: "#4d9de0",
-    neutral: "#8895a8",
-    adverso: "#f0a04b",
+    favorable: PALETA.favorable,
+    neutral: PALETA.neutro,
+    adverso: PALETA.adverso,
   };
   return (
     <div className={CARD}>
@@ -345,21 +346,21 @@ function PosturaInstitucional({
           d.pct > 0 ? (
             <div
               key={d.postura}
-              style={{ width: `${d.pct}%`, background: COLOR[d.postura] ?? "#8aa0c0" }}
+              style={{ width: `${d.pct}%`, background: COLOR[d.postura] ?? PALETA.neutro }}
               title={`${d.etiqueta}: ${nro(d.n)} (${d.pct}%)`}
             />
           ) : null,
         )}
       </div>
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
         {data.distribucion.map((d) => (
           <span key={d.postura} className="flex items-center gap-1.5 text-slate-400">
             <span
               className="inline-block h-2 w-2 rounded-full"
-              style={{ background: COLOR[d.postura] ?? "#8aa0c0" }}
+              style={{ background: COLOR[d.postura] ?? PALETA.neutro }}
             />
-            {d.etiqueta} <span className="text-slate-200">{d.pct}%</span>
-            <span className="text-slate-600">({nro(d.n)})</span>
+            {d.etiqueta} <span className="text-slate-100">{d.pct}%</span>
+            <span className="text-slate-500">({nro(d.n)})</span>
           </span>
         ))}
       </div>
@@ -368,10 +369,10 @@ function PosturaInstitucional({
         <div className="mt-3 border-t border-slate-800 pt-2">
           {/* La pregunta que sigue SIEMPRE al titular es «¿de dónde sale lo adverso?».
               Sin esto habría que abrir la lista de comentarios para contestarla. */}
-          <p className="text-[11px] text-slate-500">
+          <p className="text-sm text-slate-500">
             De dónde sale lo adverso
             {/* Sin voseo: español latinoamericano neutro (regla de Alberto, 2026-08-07). */}
-            {onIrA ? <span className="text-slate-600"> · toca un tema para leerlo</span> : null}
+            {onIrA ? <span className="text-slate-500"> · toca un tema para leerlo</span> : null}
           </p>
           {/* CADA TEMA ES UN SALTO a la conversación que lo sostiene.
               Es la pregunta que sigue siempre a este bloque —«¿y qué dicen?»— y
@@ -383,7 +384,7 @@ function PosturaInstitucional({
             {data.temas_adversos.map((t) => {
               const fila = (
                 <>
-                  <span className="text-slate-300 group-hover:text-white">{t.etiqueta}</span>
+                  <span className="text-slate-400 group-hover:text-slate-100">{t.etiqueta}</span>
                   <span className="text-slate-500">{nro(t.n)} comentarios</span>
                   {/* Mismo naranja que la barra: el número habla de lo adverso y
                       tiene que leerse como parte de esa serie, no como un acento suelto. */}
@@ -394,7 +395,7 @@ function PosturaInstitucional({
               );
               if (!onIrA) {
                 return (
-                  <li key={t.tema} className="flex items-baseline gap-2 text-[11px]">{fila}</li>
+                  <li key={t.tema} className="flex items-baseline gap-2 text-sm">{fila}</li>
                 );
               }
               return (
@@ -409,11 +410,11 @@ function PosturaInstitucional({
                         desde: `${t.etiqueta} · ${t.pct}% adverso`,
                       })
                     }
-                    className="group -mx-1.5 flex w-[calc(100%+0.75rem)] items-baseline gap-2 rounded-lg px-1.5 py-1 text-left text-[11px] transition hover:bg-white/[0.06]"
+                    className="group -mx-1.5 flex w-[calc(100%+0.75rem)] items-baseline gap-2 rounded-lg px-1.5 py-1 text-left text-sm transition hover:bg-white/[0.06]"
                     title={`Ver de qué se habla en «${t.etiqueta}»`}
                   >
                     {fila}
-                    <span className="text-slate-600 transition group-hover:text-slate-300">→</span>
+                    <span className="text-slate-500 transition group-hover:text-slate-400">→</span>
                   </button>
                 </li>
               );
@@ -427,7 +428,7 @@ function PosturaInstitucional({
             <button
               type="button"
               onClick={() => onIrA({ vista: "comparar", sub: "temas" })}
-              className="mt-2 text-[11px] text-slate-500 underline decoration-slate-700 underline-offset-2 transition hover:text-slate-300 hover:decoration-slate-500"
+              className="mt-2 text-sm text-slate-500 underline decoration-slate-700 underline-offset-2 transition hover:text-slate-400 hover:decoration-slate-500"
             >
               Ver cómo se reparte entre áreas →
             </button>
@@ -538,7 +539,7 @@ export function PercepcionResumen({
   if (error && !data) {
     return (
       <div className={CARD}>
-        <p className="text-sm text-[#f2777a]">{error}</p>
+        <p className="text-sm text-ucn-tierra-clara">{error}</p>
       </div>
     );
   }
@@ -565,7 +566,7 @@ export function PercepcionResumen({
       aria-busy={cargando}
     >
       {error ? (
-        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-200">
+        <div className="rounded-md border border-[var(--alerta-media)] bg-[var(--ucn-tierra-suave)] px-4 py-2 text-sm text-ucn-tierra-clara">
           {error}
           {cargando ? " · reintentando…" : ""}
         </div>
@@ -596,15 +597,15 @@ export function PercepcionResumen({
           <span className="text-4xl font-bold" style={{ color: colorIndice(g.indice) }}>
             {fmt(g.indice)}
           </span>
-          <span className="text-base text-slate-300">{lecturaIndice(g.indice)}</span>
+          <span className="text-base text-slate-400">{lecturaIndice(g.indice)}</span>
         </div>
-        <div className="mt-1 text-[11px] text-slate-500">
+        <div className="mt-1 text-sm text-slate-500">
           {nro(g.n_comentarios)} comentarios · {fechaCorta(data.periodo?.desde)} –{" "}
           {fechaCorta(data.periodo?.hasta)}
           {g.emocion_dominante ? (
             <>
               {" "}· emoción predominante:{" "}
-              <strong className="text-slate-300">
+              <strong className="text-slate-400">
                 {labelEmocion(g.emocion_dominante.emocion, g.emocion_dominante.etiqueta)}
               </strong>{" "}
               ({g.emocion_dominante.pct}%)
@@ -618,7 +619,7 @@ export function PercepcionResumen({
             neg={g.distribucion.negativo}
             alta
           />
-          <div className="mt-2 flex flex-wrap items-center gap-4 text-[11px] text-slate-400">
+          <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-slate-400">
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full" style={{ background: COLOR_POS }} />
               Positivo ({nro(g.distribucion.positivo)})
@@ -679,7 +680,7 @@ export function PercepcionResumen({
             pregunta (¿qué se movió?) mirada por otro lado. El bloque de temas
             responde "en qué se habla distinto"; esta línea, "con qué ánimo". */}
         {dest?.emocion_cambio ? (
-          <p className="mb-3 rounded-2xl border border-white/5 bg-white/[0.02] px-3 py-2 text-[11px] leading-5 text-slate-300">
+          <p className="mb-3 rounded-md border border-white/5 bg-white/[0.02] px-3 py-2 text-sm leading-5 text-slate-400">
             La emoción que más ganó terreno es{" "}
             <strong style={{ color: COLOR_COPPER }}>
               {labelEmocion(dest.emocion_cambio.emocion, dest.emocion_cambio.etiqueta)}
@@ -695,18 +696,18 @@ export function PercepcionResumen({
             {data.cambios.map((c) => (
               <li
                 key={c.tema}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/5 bg-white/[0.02] px-3 py-2"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-white/5 bg-white/[0.02] px-3 py-2"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-slate-100">{c.etiqueta}</span>
                     {c.es_nuevo ? (
-                      <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2 py-0.5 text-[10px] font-semibold text-cyan-200">
+                      <span className="rounded border border-[var(--ucn-azul-borde)] bg-[var(--ucn-azul-suave)] px-2 py-0.5 text-xs font-semibold text-ucn-azul-claro">
                         nuevo este período
                       </span>
                     ) : null}
                   </div>
-                  <div className="mt-0.5 text-[11px] text-slate-400">
+                  <div className="mt-0.5 text-sm text-slate-400">
                     {nro(c.n_comentarios)} comentarios
                     {!c.es_nuevo ? ` (antes ${nro(c.n_anterior)})` : ""}
                     {c.emocion_dominante
@@ -748,8 +749,8 @@ export function PercepcionResumen({
         <div className={CARD}>
           <TituloBloque titulo="Qué cambió respecto del período anterior">
             Palabras que más movieron la conversación: las que, si se quitaran, harían
-            que los dos períodos se parecieran más. En <span className="text-[var(--portal-cyan)]">cian</span>{" "}
-            las que crecieron, en <span className="text-[var(--portal-copper)]">cobre</span> las que se retrajeron.
+            que los dos períodos se parecieran más. En <span className="text-ucn-azul-claro">cian</span>{" "}
+            las que crecieron, en <span className="text-ucn-tierra-clara">cobre</span> las que se retrajeron.
           </TituloBloque>
           <QueCambio data={impacto} />
         </div>
@@ -769,12 +770,12 @@ export function PercepcionResumen({
               ? onIrA({ vista: "comparar", sub: "estado" })
               : onVerComparar?.()
           }
-          className="w-full rounded-3xl border border-white/10 bg-white/[0.02] px-4 py-3 text-left transition hover:border-white/20 hover:bg-white/[0.05]"
+          className="w-full rounded-md border border-white/10 bg-white/[0.02] px-4 py-3 text-left transition hover:border-white/20 hover:bg-white/[0.05]"
         >
-          <span className="text-sm font-medium text-slate-200">
+          <span className="text-sm font-medium text-slate-100">
             ¿Dónde está el problema? →
           </span>
-          <span className="mt-0.5 block text-[11px] text-slate-500">
+          <span className="mt-0.5 block text-sm text-slate-500">
             El desglose por tema y por facultad, departamento o sede está en{" "}
             <strong className="text-slate-400">Comparar</strong>.
           </span>

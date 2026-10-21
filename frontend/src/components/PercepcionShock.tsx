@@ -42,16 +42,16 @@ function Caso({ e }: { e: EpisodioShock }) {
   return (
     <div className="border-b border-white/5 py-2.5 last:border-0">
       <div className="flex flex-wrap items-baseline gap-2">
-        <span className="font-mono text-[11px] text-slate-500">
+        <span className="font-mono text-sm text-slate-500">
           {e.desde}
           {e.hasta && e.hasta !== e.desde ? ` → ${e.hasta}` : ""}
         </span>
-        <span className="text-[13px] text-slate-200">{e.nombre}</span>
+        <span className="text-sm text-slate-100">{e.nombre}</span>
         {e.ambito && e.ambito !== "global" ? (
-          <span className="text-[10px] text-slate-500">· {e.ambito}</span>
+          <span className="text-sm text-slate-500">· {e.ambito}</span>
         ) : null}
         <span
-          className={`text-[10px] ${medible ? "text-[#51c28c]" : "text-slate-500"}`}
+          className={`text-sm ${medible ? "text-dato-favorable" : "text-slate-500"}`}
           title={
             medible
               ? "Tiene volumen suficiente antes y durante para medir el efecto."
@@ -62,7 +62,7 @@ function Caso({ e }: { e: EpisodioShock }) {
         </span>
         {estimado ? (
           <span
-            className="text-[10px] text-[#e0aa4e]"
+            className="text-sm text-ucn-tierra-clara"
             title="Fechas aproximadas: la caída se puede leer con cuidado, la duración y la recuperación no."
           >
             fechas estimadas
@@ -71,7 +71,7 @@ function Caso({ e }: { e: EpisodioShock }) {
       </div>
 
       {e.componentes.length > 1 ? (
-        <p className="mt-0.5 text-[10px] text-slate-500">
+        <p className="mt-0.5 text-sm text-slate-500">
           Un solo shock, cargado en {e.componentes.length} partes: {e.componentes.join(" + ")}
         </p>
       ) : null}
@@ -79,10 +79,10 @@ function Caso({ e }: { e: EpisodioShock }) {
       {medible ? (
         <>
           <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-            <span className="text-[11px] text-slate-400">
-              antes <strong className="text-slate-200">{fmt(e.indice_previo)}</strong>
+            <span className="text-sm text-slate-400">
+              antes <strong className="text-slate-100">{fmt(e.indice_previo)}</strong>
               {" → "}
-              durante <strong className="text-slate-200">{fmt(e.indice_durante)}</strong>
+              durante <strong className="text-slate-100">{fmt(e.indice_durante)}</strong>
             </span>
             <span
               className="text-lg font-semibold"
@@ -91,13 +91,13 @@ function Caso({ e }: { e: EpisodioShock }) {
               {(e.caida ?? 0) > 0 ? "+" : ""}
               {fmt(e.caida)}
             </span>
-            {e.dias ? <span className="text-[10px] text-slate-500">{nro(e.dias)} días</span> : null}
+            {e.dias ? <span className="text-sm text-slate-500">{nro(e.dias)} días</span> : null}
           </div>
-          <p className="mt-0.5 text-[11px] leading-5 text-slate-400">
+          <p className="mt-0.5 text-sm leading-5 text-slate-400">
             {e.recuperado_en_semanas ? (
               <>
                 Volvió al nivel previo y se sostuvo a partir de la semana{" "}
-                <strong className="text-slate-200">{e.recuperado_en_semanas}</strong>.
+                <strong className="text-slate-100">{e.recuperado_en_semanas}</strong>.
               </>
             ) : (
               <span className="text-slate-500">{e.motivo_recuperacion}</span>
@@ -121,14 +121,14 @@ function Caso({ e }: { e: EpisodioShock }) {
 function TablaEpisodios({ episodios }: { episodios: EpisodioShock[] }) {
   if (!episodios.length) return null;
   return (
-    <div className="mb-3 overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.02]">
-      <table className="w-full text-[11px]">
+    <div className="mb-3 overflow-x-auto rounded-md border border-white/10 bg-white/[0.02]">
+      <table className="w-full text-sm">
         <thead>
           <tr className="text-slate-500">
             <th className="px-3 py-2 text-left font-medium uppercase tracking-wide">Episodio</th>
             <th className="px-2 py-2 text-right font-medium uppercase tracking-wide">n</th>
             <th
-              className="bg-white/[0.06] px-2 py-2 text-right font-semibold uppercase tracking-wide text-slate-300"
+              className="bg-white/[0.06] px-2 py-2 text-right font-semibold uppercase tracking-wide text-slate-400"
               title="Índice de la ventana con el peso por tema. Es el principal. El crédito de un tema que no es mérito de la UCN (mascotas, vida estudiantil, organización estudiantil) cuenta la mitad; el daño de un negativo cuenta entero."
             >
               Índice
@@ -166,7 +166,7 @@ function TablaEpisodios({ episodios }: { episodios: EpisodioShock[] }) {
             const flaco = (e.n_adversos ?? 0) < 3;
             return (
               <tr key={e.nombre} className="border-t border-white/5" style={{ opacity: flaco ? 0.5 : 1 }}>
-                <td className="px-3 py-2 text-left text-slate-300">{e.nombre}</td>
+                <td className="px-3 py-2 text-left text-slate-400">{e.nombre}</td>
                 <td className="px-2 py-2 text-right tabular-nums text-slate-500">
                   {e.n_adversos !== null && e.pct_adversos !== null && e.pct_adversos > 0
                     ? nro(Math.round((e.n_adversos * 100) / e.pct_adversos))
@@ -213,7 +213,7 @@ function TablaEpisodios({ episodios }: { episodios: EpisodioShock[] }) {
           })}
         </tbody>
       </table>
-      <p className="px-3 pb-2 pt-1 text-[10px] leading-4 text-slate-500">
+      <p className="px-3 pb-2 pt-1 text-sm leading-4 text-slate-500">
         Las filas atenuadas tienen menos de 3 comentarios adversos: su variación no mide
         el conflicto, mide el posteo normal de esas semanas.
       </p>
@@ -255,29 +255,29 @@ export function PercepcionShock() {
         medir nada.
       </TituloBloque>
 
-      {error ? <p className="text-sm text-[#f2777a]">{error}</p> : null}
+      {error ? <p className="text-sm text-ucn-tierra-clara">{error}</p> : null}
 
       {data ? (
         <>
           <div className="mb-2 flex flex-wrap gap-2">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-              <p className="text-[10px] uppercase tracking-wide text-slate-500">
+            <div className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2">
+              <p className="text-xs uppercase tracking-wide text-slate-500">
                 Episodios del calendario
               </p>
-              <p className="text-lg font-semibold text-slate-200">{nro(data.total)}</p>
+              <p className="text-lg font-semibold text-slate-100">{nro(data.total)}</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-              <p className="text-[10px] uppercase tracking-wide text-slate-500">Medibles</p>
+            <div className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Medibles</p>
               <p className="text-lg font-semibold" style={{ color: COLOR_POS }}>
                 {nro(data.medibles)}
               </p>
-              <p className="max-w-[16rem] text-[10px] leading-4 text-slate-500">
+              <p className="max-w-[16rem] text-sm leading-4 text-slate-500">
                 con {data.n_min_por_semana}+ comentarios por semana antes y durante
               </p>
             </div>
             {data.caida_rango ? (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-                <p className="text-[10px] uppercase tracking-wide text-slate-500">
+              <div className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2">
+                <p className="text-xs uppercase tracking-wide text-slate-500">
                   Rango de caída
                 </p>
                 <p className="text-lg font-semibold" style={{ color: COLOR_NEG }}>
@@ -298,7 +298,7 @@ export function PercepcionShock() {
               <button
                 type="button"
                 onClick={() => setVerTodos((v) => !v)}
-                className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-slate-400 transition hover:border-white/25 hover:text-white"
+                className="rounded border border-white/10 px-2.5 py-1 text-sm text-slate-400 transition hover:border-white/25 hover:text-slate-100"
               >
                 {verTodos ? "Ocultar" : `Ver los ${resto.length} episodios sin datos alrededor`}
               </button>
@@ -315,7 +315,7 @@ export function PercepcionShock() {
           {data.avisos.length ? (
             <ul className="mt-3 space-y-1 border-t border-white/5 pt-2">
               {data.avisos.map((a) => (
-                <li key={a} className="text-[11px] leading-5 text-slate-500">
+                <li key={a} className="text-sm leading-5 text-slate-500">
                   · {a}
                 </li>
               ))}

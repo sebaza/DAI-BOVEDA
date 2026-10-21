@@ -18,6 +18,7 @@
 // en Conversación, que es donde el tiempo importa.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { PALETA } from "@/lib/paleta";
 
 import { EChartsChart } from "./EChartsChart";
 import { PercepcionVolatilidad } from "./PercepcionVolatilidad";
@@ -69,7 +70,7 @@ function opcionAreas(areas: SintesisArea[], minimo: number): Record<string, unkn
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
     grid: { left: 8, right: 34, top: 10, bottom: 10, containLabel: true },
     xAxis: { type: "value", min: 0, max: 100 },
-    yAxis: { type: "category", data: orden.map((a) => a.nombre), axisLabel: { fontSize: 10 } },
+    yAxis: { type: "category", data: orden.map((a) => a.nombre), axisLabel: { fontSize: 12 } },
     series: [
       {
         type: "bar",
@@ -80,11 +81,11 @@ function opcionAreas(areas: SintesisArea[], minimo: number): Record<string, unkn
           value: a.indice == null ? null : Number(a.indice.toFixed(1)),
           itemStyle: {
             color: colorIndice(a.indice),
-            borderRadius: [0, 4, 4, 0],
+            borderRadius: [0, 1, 1, 0],
             opacity: a.evidencia_suficiente ? 1 : 0.35,
           },
         })),
-        label: { show: true, position: "right", formatter: "{c}", color: "#cbd5e1" },
+        label: { show: true, position: "right", formatter: "{c}", color: PALETA.muted },
         barMaxWidth: 20,
       },
     ],
@@ -96,8 +97,8 @@ function opcionAreas(areas: SintesisArea[], minimo: number): Record<string, unkn
         top: 0,
         style: {
           text: `atenuadas: menos de ${minimo} comentarios`,
-          fill: "#64748b",
-          fontSize: 10,
+          fill: PALETA.subtle,
+          fontSize: 12,
         },
       },
     ],
@@ -117,10 +118,10 @@ function opcionTemas(temas: SintesisTema[]): Record<string, unknown> {
   });
   return {
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
-    legend: { top: 0, itemWidth: 10, itemHeight: 10, textStyle: { color: "#94a3b8" } },
+    legend: { top: 0, itemWidth: 10, itemHeight: 10, textStyle: { color: PALETA.muted } },
     grid: { left: 8, right: 16, top: 28, bottom: 8, containLabel: true },
     xAxis: { type: "value" },
-    yAxis: { type: "category", data: orden.map((t) => t.etiqueta), axisLabel: { fontSize: 10 } },
+    yAxis: { type: "category", data: orden.map((t) => t.etiqueta), axisLabel: { fontSize: 12 } },
     series: [
       serie("n_pos", COLOR_POS, "Positivo"),
       serie("n_neu", COLOR_NEU, "Neutral"),
@@ -145,7 +146,7 @@ function Palabras({ palabras }: { palabras: PalabraDestacada[] }) {
   if (palabras.length === 0) {
     return (
       <span
-        className="text-[11px] text-slate-600"
+        className="text-sm text-slate-500"
         title={
           "Ninguna palabra de esta área alcanza el mínimo. Se exige un piso de " +
           "apariciones en todo el período (que además evita mostrar nombres de " +
@@ -163,11 +164,11 @@ function Palabras({ palabras }: { palabras: PalabraDestacada[] }) {
         return (
           <span
             key={p.texto}
-            className="rounded-full border px-2 py-0.5 text-[10px]"
+            className="rounded border px-2 py-0.5 text-xs"
             style={{
-              borderColor: cargada ? `${COLOR_NEG}55` : "rgba(255,255,255,0.10)",
-              background: cargada ? `${COLOR_NEG}14` : "rgba(255,255,255,0.03)",
-              color: cargada ? COLOR_NEG : "#cbd5e1",
+              borderColor: cargada ? `${COLOR_NEG}55` : PALETA.lineaFuerte,
+              background: cargada ? `${COLOR_NEG}14` : PALETA.linea,
+              color: cargada ? COLOR_NEG : PALETA.muted,
             }}
             title={`${p.n} comentarios · ${p.n_pos} positivos, ${p.n_neu} neutrales, ${p.n_neg} negativos (${p.pct_neg}% negativo)`}
           >
@@ -198,20 +199,20 @@ function Palabras({ palabras }: { palabras: PalabraDestacada[] }) {
  * lo necesite; en la celda no.
  */
 const COLOR_POSTURA: Record<string, string> = {
-  favorable: "#4d9de0",
-  neutral: "#8895a8",
-  adverso: "#f0a04b",
+  favorable: PALETA.favorable,
+  neutral: PALETA.neutro,
+  adverso: PALETA.adverso,
 };
 
 function PosturaCelda({ tramos }: { tramos: PosturaTramo[] | null }) {
-  if (!tramos) return <span className="text-slate-600">—</span>;
+  if (!tramos) return <span className="text-slate-500">—</span>;
   const pct = (k: string) => tramos.find((t) => t.postura === k)?.pct ?? 0;
   const saldo = Math.round(pct("favorable") - pct("adverso"));
   // Bajo ±3 puntos la dirección no significa nada: se muestra plano en vez de
   // dibujar una flecha que insinúa una tendencia inexistente.
   const plano = Math.abs(saldo) < 3;
   const color = plano
-    ? "#94a3b8"
+    ? PALETA.muted
     : saldo > 0
       ? COLOR_POSTURA.favorable
       : COLOR_POSTURA.adverso;
@@ -229,7 +230,7 @@ function PosturaCelda({ tramos }: { tramos: PosturaTramo[] | null }) {
             : `Adverso a la UCN, saldo ${saldo}`
       }
     >
-      <span aria-hidden="true" className="text-xs leading-none">
+      <span aria-hidden="true" className="text-sm leading-none">
         {plano ? "—" : saldo > 0 ? "▲" : "▼"}
       </span>
       <span className="text-sm">{saldo > 0 ? `+${saldo}` : saldo}</span>
@@ -252,7 +253,7 @@ function PosturaCelda({ tramos }: { tramos: PosturaTramo[] | null }) {
 function Concentracion({ data }: { data: ConcentracionResponse }) {
   if (!data.hay_datos) {
     return data.motivo ? (
-      <p className="text-[11px] leading-5 text-slate-500">{data.motivo}</p>
+      <p className="text-sm leading-5 text-slate-500">{data.motivo}</p>
     ) : null;
   }
   return (
@@ -261,12 +262,12 @@ function Concentracion({ data }: { data: ConcentracionResponse }) {
         {data.items.map((i) => (
           <li key={i.tema} className="flex flex-col gap-1.5">
             <div className="flex flex-wrap items-baseline gap-2">
-              <span className="text-sm text-slate-200">{i.etiqueta}</span>
+              <span className="text-sm text-slate-100">{i.etiqueta}</span>
               <span
                 className={
                   i.concentrado
-                    ? "rounded-full bg-[var(--portal-copper)]/15 px-2 py-0.5 text-[11px] font-medium text-[var(--portal-copper)]"
-                    : "rounded-full bg-slate-700/40 px-2 py-0.5 text-[11px] font-medium text-slate-400"
+                    ? "rounded bg-[color-mix(in_srgb,var(--portal-copper)_15%,transparent)] px-2 py-0.5 text-xs font-medium text-ucn-tierra-clara"
+                    : "rounded bg-slate-700/40 px-2 py-0.5 text-xs font-medium text-slate-400"
                 }
               >
                 {i.reparto}
@@ -276,14 +277,14 @@ function Concentracion({ data }: { data: ConcentracionResponse }) {
             {/* LA FRASE ES EL DATO. Antes acá decía «Gini 0,70», que no le dice nada
                 a quien tiene que decidir algo con esto. Un porcentaje sobre el total
                 de la unidad, comparado con el promedio, se lee sin glosario. */}
-            <p className="text-[11px] leading-5 text-slate-400">
-              En <span className="text-slate-200">{i.unidad_top}</span> es el{" "}
-              <span className="text-slate-200">{i.prevalencia_top}%</span> de lo que se
+            <p className="text-sm leading-5 text-slate-400">
+              En <span className="text-slate-100">{i.unidad_top}</span> es el{" "}
+              <span className="text-slate-100">{i.prevalencia_top}%</span> de lo que se
               comenta
               {i.veces_sobre_promedio ? (
                 <>
                   {" "}—{" "}
-                  <span className="text-slate-200">{i.veces_sobre_promedio}×</span> más
+                  <span className="text-slate-100">{i.veces_sobre_promedio}×</span> más
                   que en una unidad promedio ({i.prevalencia_media}%)
                 </>
               ) : null}
@@ -298,7 +299,7 @@ function Concentracion({ data }: { data: ConcentracionResponse }) {
                 { et: "Promedio de unidades", v: i.prevalencia_media, fuerte: false },
               ].map((b) => (
                 <div key={b.et} className="flex items-center gap-2">
-                  <span className="w-40 flex-none truncate text-[10px] text-slate-500">
+                  <span className="w-40 flex-none truncate text-sm text-slate-500">
                     {b.et}
                   </span>
                   <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-800">
@@ -310,11 +311,11 @@ function Concentracion({ data }: { data: ConcentracionResponse }) {
                           ? i.concentrado
                             ? "var(--portal-copper)"
                             : "var(--portal-cyan)"
-                          : "#64748b",
+                          : PALETA.subtle,
                       }}
                     />
                   </span>
-                  <span className="w-10 flex-none text-right text-[10px] tabular-nums text-slate-500">
+                  <span className="w-10 flex-none text-right text-xs tabular-nums text-slate-500">
                     {b.v}%
                   </span>
                 </div>
@@ -323,7 +324,7 @@ function Concentracion({ data }: { data: ConcentracionResponse }) {
           </li>
         ))}
       </ul>
-      <p className="mt-4 border-t border-slate-800 pt-2 text-[11px] leading-5 text-slate-500">
+      <p className="mt-4 border-t border-slate-800 pt-2 text-sm leading-5 text-slate-500">
         Se comparan {data.unidades} unidades con {data.minimo_por_unidad} o más
         comentarios ({nro(data.n_comentarios)} comentarios, el {data.cobertura_pct}% del
         período). El resto viene de cuentas sin unidad asignada —agrupaciones, centros
@@ -421,7 +422,7 @@ export function PercepcionComparar({
   if (error && !data) {
     return (
       <div className={CARD}>
-        <p className="text-sm text-[#f2777a]">{error}</p>
+        <p className="text-sm text-ucn-tierra-clara">{error}</p>
       </div>
     );
   }
@@ -445,21 +446,21 @@ export function PercepcionComparar({
       aria-busy={cargando}
     >
       {error ? (
-        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-200">
+        <div className="rounded-md border border-[var(--alerta-media)] bg-[var(--ucn-tierra-suave)] px-4 py-2 text-sm text-ucn-tierra-clara">
           {error}
           {cargando ? " · reintentando…" : ""}
         </div>
       ) : null}
 
       {/* Controles del corte. Van arriba porque afectan a los DOS bloques. */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-2.5">
-        <p className="text-[11px] leading-5 text-slate-400">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-white/10 bg-white/[0.03] px-4 py-2.5">
+        <p className="text-sm leading-5 text-slate-400">
           El gráfico y la tabla de cada bloque salen de la{" "}
-          <strong className="text-slate-300">misma consulta</strong>: no pueden mostrar números
+          <strong className="text-slate-400">misma consulta</strong>: no pueden mostrar números
           distintos.
         </p>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-xs text-slate-400">
+          <label className="flex items-center gap-2 text-sm text-slate-400">
             Ordenar por
             <select
               className={SELECT}
@@ -471,7 +472,7 @@ export function PercepcionComparar({
               <option value="volumen">Más comentado primero</option>
             </select>
           </label>
-          <label className="flex items-center gap-2 text-xs text-slate-400">
+          <label className="flex items-center gap-2 text-sm text-slate-400">
             Agrupar áreas por
             <select
               className={SELECT}
@@ -497,7 +498,7 @@ export function PercepcionComparar({
           vidaMedia={filtro.vidaMedia}
           extra={
             data.tema_filtrado ? (
-              <span className="rounded-full border border-[var(--portal-cyan)]/30 bg-[var(--portal-cyan)]/10 px-2 py-0.5 text-[10px] font-semibold text-[var(--portal-cyan)]">
+              <span className="rounded border border-[color-mix(in_srgb,var(--portal-cyan)_30%,transparent)] bg-[color-mix(in_srgb,var(--portal-cyan)_10%,transparent)] px-2 py-0.5 text-xs font-semibold text-ucn-azul-claro">
                 solo tema:{" "}
                 {data.temas.find((t) => t.tema === data.tema_filtrado)?.etiqueta ?? data.tema_filtrado}
               </span>
@@ -542,7 +543,7 @@ export function PercepcionComparar({
                 </thead>
                 <tbody>
                   {data.areas.map((a: SintesisArea) => (
-                    <tr key={a.nombre} className="border-t border-white/5 text-slate-300">
+                    <tr key={a.nombre} className="border-t border-white/5 text-slate-400">
                       <td className="py-1.5 pr-4">
                         <span className={a.evidencia_suficiente ? "" : "opacity-60"}>{a.nombre}</span>
                         {!a.evidencia_suficiente ? (
@@ -594,7 +595,7 @@ export function PercepcionComparar({
                 confianza baja no es una unidad "sin opinión" — suele ser una
                 cuenta que falta capturar en la ingesta. */}
             {areasSinCobertura.length > 0 ? (
-              <p className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2 text-[11px] leading-5 text-amber-100/90">
+              <p className="mt-3 rounded-md border border-[var(--alerta-media)] bg-[var(--ucn-tierra-suave)] px-3 py-2 text-sm leading-5 text-ucn-tierra-clara">
                 <strong>
                   Cobertura insuficiente en {areasSinCobertura.length}{" "}
                   {areasSinCobertura.length === 1 ? "área" : "áreas"}:
@@ -646,23 +647,23 @@ export function PercepcionComparar({
             />
             <div className="mt-3 space-y-2">
               {data.temas.map((t: SintesisTema) => (
-                <div key={t.tema} className="rounded-2xl border border-white/5 bg-white/[0.02] p-3">
+                <div key={t.tema} className="rounded-md border border-white/5 bg-white/[0.02] p-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-semibold text-slate-100">{t.etiqueta}</span>
-                        <span className="text-[11px] text-slate-400">
+                        <span className="text-sm text-slate-400">
                           {nro(t.n_comentarios)} · {t.share_pct}% de la conversación
                         </span>
                         {!t.evidencia_suficiente ? (
                           <SinEvidencia n={t.n_comentarios} minimo={min} />
                         ) : null}
                       </div>
-                      <div className="mt-1 text-[11px] text-slate-400">
+                      <div className="mt-1 text-sm text-slate-400">
                         {t.emocion_dominante ? (
                           <>
                             Predomina{" "}
-                            <strong className="text-slate-300">
+                            <strong className="text-slate-400">
                               {labelEmocion(
                                 t.emocion_dominante.emocion,
                                 t.emocion_dominante.etiqueta,
@@ -684,7 +685,7 @@ export function PercepcionComparar({
                       ) : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
-                      <span className="text-[10px] tabular-nums text-slate-500">
+                      <span className="text-xs tabular-nums text-slate-500">
                         {t.n_pos}/{t.n_neu}/{t.n_neg}
                       </span>
                       <Indice valor={t.indice} evidencia={t.evidencia_suficiente} />

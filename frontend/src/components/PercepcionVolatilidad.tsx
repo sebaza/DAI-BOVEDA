@@ -46,12 +46,12 @@ function Fila({ u, maximo }: { u: UnidadVolatilidad; maximo: number }) {
     <div className="grid grid-cols-[1fr_auto] items-center gap-3 border-b border-white/5 py-2 last:border-0">
       <div className="min-w-0">
         <div className="flex items-baseline gap-2">
-          <span className="truncate text-[13px] text-slate-200" title={u.nombre}>
+          <span className="truncate text-sm text-slate-100" title={u.nombre}>
             {u.nombre}
           </span>
           {!u.evidencia_suficiente ? (
             <span
-              className="shrink-0 text-[10px] text-slate-500"
+              className="shrink-0 text-sm text-slate-500"
               title={`Mediana de ${u.n_mediana} comentarios por semana. El ruido ya está descontado, pero la cifra tiene más incertidumbre.`}
             >
               volumen bajo
@@ -66,7 +66,7 @@ function Fila({ u, maximo }: { u: UnidadVolatilidad; maximo: number }) {
             />
           ) : null}
         </div>
-        <div className="mt-1 text-[10px] text-slate-500">
+        <div className="mt-1 text-sm text-slate-500">
           {nro(u.semanas)} semanas · mediana {nro(u.n_mediana)} comentarios · índice{" "}
           {fmt(u.indice_medio)} · variación observada {fmt(u.sd_observada)}, de la cual{" "}
           {fmt(u.sd_ruido)} es ruido de muestreo
@@ -79,7 +79,7 @@ function Fila({ u, maximo }: { u: UnidadVolatilidad; maximo: number }) {
           </span>
         ) : (
           <span
-            className="text-[11px] text-slate-500"
+            className="text-sm text-slate-500"
             title="Su variación no supera al ruido de muestreo. No significa que sea estable: significa que con este volumen no se puede afirmar ni una cosa ni la otra."
           >
             sin señal
@@ -139,7 +139,7 @@ export function PercepcionVolatilidad() {
         volatilidad. La barra es lo que queda después de restar ese ruido.
       </TituloBloque>
 
-      {error ? <p className="text-sm text-[#f2777a]">{error}</p> : null}
+      {error ? <p className="text-sm text-ucn-tierra-clara">{error}</p> : null}
 
       {data && !data.unidades.length && !cargando ? (
         <p className="py-4 text-center text-sm text-slate-500">
@@ -155,7 +155,7 @@ export function PercepcionVolatilidad() {
       {data?.avisos.length ? (
         <ul className="mt-3 space-y-1 border-t border-white/5 pt-3">
           {data.avisos.map((a) => (
-            <li key={a} className="text-[11px] leading-5 text-slate-500">
+            <li key={a} className="text-sm leading-5 text-slate-500">
               · {a}
             </li>
           ))}
@@ -164,10 +164,10 @@ export function PercepcionVolatilidad() {
 
       {data?.sin_evidencia.length ? (
         <details className="mt-2">
-          <summary className="cursor-pointer text-[11px] text-slate-500 hover:text-slate-300">
+          <summary className="cursor-pointer text-sm text-slate-500 hover:text-slate-400">
             Ver las {data.sin_evidencia.length} unidades que quedaron fuera
           </summary>
-          <p className="mt-1 text-[11px] leading-5 text-slate-500">
+          <p className="mt-1 text-sm leading-5 text-slate-500">
             {data.sin_evidencia.join(" · ")}
           </p>
         </details>

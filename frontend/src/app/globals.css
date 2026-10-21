@@ -5,29 +5,67 @@
 @tailwind utilities;
 
 /* ===========================================================================
- * Design tokens of the Percepcion module (--portal-*), dark theme only.
- * Values copied from the Torre's index.css so the module looks the same.
+ * Design tokens of the Boveda (dark vault theme) and of the Percepcion module
+ * (--portal-*, names kept so the module keeps reading them).
  * ========================================================================= */
 :root {
   color-scheme: dark;
-  --accent: #4f9cf0;
-  --portal-bg: #081120;
-  --portal-bg-soft: #11213a;
-  --portal-panel: rgba(17, 30, 50, 0.82);
-  --portal-panel-strong: rgba(14, 26, 44, 0.94);
-  --portal-fg: #e9f0fb;
-  --portal-muted: #9db2d2;
-  --portal-line: rgba(255, 255, 255, 0.12);
-  --portal-cyan: var(--accent);
-  --portal-cyan-soft: rgba(79, 156, 240, 0.18);
-  --portal-copper: #e0aa4e;
-  --portal-copper-soft: rgba(224, 170, 78, 0.2);
-  --portal-emerald: #51c28c;
-  --portal-glow: 0 0 26px rgba(79, 156, 240, 0.26);
+  /* Official UCN colours (2023 brand manual): azul ~209deg and tierra ~23deg are near-complementary */
+  --ucn-azul: #759cc0;
+  --ucn-azul-claro: #9dbad6;    /* text on dark */
+  --ucn-azul-suave: rgba(117, 156, 192, 0.14);
+  --ucn-azul-borde: rgba(117, 156, 192, 0.32);
+  --ucn-tierra: #c06125;
+  --ucn-tierra-clara: #e2b49a;  /* text on dark */
+  --ucn-tierra-suave: rgba(192, 97, 37, 0.16);
+  /* Near-hueless graphite base so both brand hues read true */
+  --boveda-fondo: #121314;
+  --boveda-fondo-2: #161719;
+  --boveda-madera: #1b1c1f;     /* panel surface (legacy name) */
+  --boveda-madera-2: #232528;   /* raised surface (legacy name) */
+  --boveda-hierro: #0c0d0e;     /* iron straps */
+  --boveda-hierro-2: #18191b;
+  --boveda-acero: var(--boveda-madera);
+  --boveda-acero-2: var(--boveda-madera-2);
+  /* Brass: chest ornaments only (straps, rivets, lock emblem, kicker) */
+  --boveda-laton: #c9a25e;
+  --boveda-laton-oscuro: #8e6e3a;
+  --boveda-linea: rgba(237, 237, 239, 0.08);
+  --boveda-linea-fuerte: rgba(237, 237, 239, 0.14);
+
+  --accent: var(--ucn-azul);
+  --portal-bg: var(--boveda-fondo);
+  --portal-bg-soft: var(--boveda-fondo-2);
+  --portal-panel: rgba(27, 28, 31, 0.95);
+  --portal-panel-strong: #1b1c1f;
+  /* Text: only three levels */
+  --portal-fg: #ededef;
+  --portal-muted: #a8abb1;
+  --portal-subtle: #888c93;
+  --portal-line: var(--boveda-linea);
+
+  /* Data: blue <-> orange diverging pair (colour-blind safe) */
+  --dato-favorable: #759cc0;
+  --dato-favorable-claro: #9dbad6;
+  --dato-neutro: #8c9097;
+  --dato-adverso: #d27a45;
+  --dato-adverso-claro: #e2b49a;
+  --dato-serie-3: #c9a25e;
+  --dato-serie-4: #a8abb1;
+  --alerta-baja: rgba(192, 97, 37, 0.14);
+  --alerta-media: rgba(192, 97, 37, 0.32);
+  --alerta-alta: #c06125;
+
+  /* Legacy aliases */
+  --portal-cyan: var(--ucn-azul);
+  --portal-cyan-soft: var(--ucn-azul-suave);
+  --portal-copper: var(--ucn-tierra);
+  --portal-copper-soft: var(--ucn-tierra-suave);
+  --portal-emerald: var(--dato-favorable);
+  --portal-glow: 0 0 26px rgba(117, 156, 192, 0.14);
   --portal-bg-gradient:
-    radial-gradient(circle at top, color-mix(in srgb, var(--accent) 16%, transparent), transparent 30%),
-    radial-gradient(circle at 12% 82%, rgba(224, 170, 78, 0.08), transparent 26%),
-    linear-gradient(135deg, #070f1c 0%, #0c1a30 46%, #070f1c 100%);
+    radial-gradient(circle at top, rgba(117, 156, 192, 0.04), transparent 34%),
+    #121314;
 }
 
 html {
@@ -41,6 +79,8 @@ body {
   background: var(--portal-bg-gradient);
   background-attachment: fixed;
   color: var(--portal-fg);
+  font-size: 14px;
+  line-height: 1.55;
 }
 
 * {
@@ -50,8 +90,8 @@ body {
 }
 
 *::-webkit-scrollbar { width: 8px; height: 8px; }
-*::-webkit-scrollbar-track { background: color-mix(in srgb, var(--portal-fg) 3%, transparent); border-radius: 999px; }
-*::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--accent) 26%, transparent); border-radius: 999px; }
+*::-webkit-scrollbar-track { background: color-mix(in srgb, var(--portal-fg) 3%, transparent); border-radius: 2px; }
+*::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--accent) 26%, transparent); border-radius: 2px; }
 *::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--accent) 42%, transparent); }
 
 /* Native form controls: the OS paints the <select> popup, so give it opaque colours. */
@@ -59,29 +99,154 @@ select, input, textarea { accent-color: var(--accent); }
 select {
   color: var(--portal-fg);
   color-scheme: dark;
-  background-color: rgba(255, 255, 255, 0.05);
-  border-color: rgba(233, 240, 251, 0.14);
+  background-color: var(--boveda-madera);
+  border-color: var(--boveda-linea-fuerte);
 }
 select option, select optgroup {
-  background-color: #0e1b2f;
-  color: #e9f0fb;
+  background-color: var(--boveda-madera);
+  color: var(--portal-fg);
+}
+
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--ucn-azul);
+  outline-offset: 2px;
 }
 
 @layer components {
   .portal-panel-strong {
-    @apply rounded-[1.75rem] shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl;
+    @apply shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl;
+    border-radius: 6px;
     border: 1px solid var(--portal-line);
     background: var(--portal-panel-strong);
   }
 
   .portal-pill {
-    @apply inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em];
-    border: 1px solid var(--portal-line);
-    background: color-mix(in srgb, var(--portal-fg) 6%, transparent);
+    @apply inline-flex items-center px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em];
+    border-radius: 3px;
+    border: 1px solid var(--boveda-linea-fuerte);
+    background: transparent;
     color: var(--portal-muted);
   }
 
   .portal-title {
     font-family: "Space Grotesk", sans-serif;
   }
+
+  /* Iron strap with brass rivets along its bottom edge (header, login top band). */
+  .boveda-banda {
+    position: relative;
+    background: linear-gradient(180deg, var(--boveda-hierro-2), var(--boveda-hierro));
+    border-bottom: 1px solid #000;
+    box-shadow: inset 0 1px 0 rgba(237, 237, 239, 0.06), 0 6px 18px rgba(0, 0, 0, 0.45);
+  }
+  .boveda-banda::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: 3px; height: 6px;
+    background: radial-gradient(circle at 50% 50%, #e0c58d 0 1px, var(--boveda-laton) 1.5px, var(--boveda-laton-oscuro) 3px, transparent 3.5px) 0 0 / 22px 6px repeat-x;
+    opacity: 0.9;
+    pointer-events: none;
+  }
+
+  /* Decorative raised charcoal surface (lobby, cards, login). Data panels do not use it. */
+  .boveda-madera {
+    position: relative;
+    border-radius: 6px;
+    border: 1px solid rgba(201, 162, 94, 0.28);
+    background: var(--boveda-madera-2);
+    box-shadow: inset 0 1px 0 rgba(237, 237, 239, 0.07),
+      0 14px 36px rgba(0, 0, 0, 0.5);
+  }
+  /* Chest front: straps, rivets, corner caps, lock plate. */
+  .boveda-baul { padding: 3.6rem 1.5rem 1.5rem; overflow: hidden; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+  .boveda-baul-interno { position: relative; z-index: 1; padding: 0 1.75rem; }
+  .boveda-faja {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 14px;
+    background:
+      radial-gradient(circle at 50% 50%, #e0c58d 0 1px, var(--boveda-laton) 1.5px, var(--boveda-laton-oscuro) 3px, transparent 3.5px) 0 8px / 14px 26px repeat-y,
+      linear-gradient(90deg, #070808, var(--boveda-hierro) 40%, var(--boveda-hierro-2));
+    box-shadow: 0 0 0 1px rgba(201, 162, 94, 0.18), 2px 0 6px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+  }
+  .boveda-esquina {
+    position: absolute;
+    width: 22px; height: 22px;
+    background: var(--boveda-hierro);
+    pointer-events: none;
+  }
+  .boveda-esquina::after {
+    content: "";
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 5px; height: 5px; border-radius: 999px;
+    background: radial-gradient(circle at 35% 30%, #e0c58d, var(--boveda-laton) 55%, var(--boveda-laton-oscuro));
+  }
+  .boveda-placa {
+    position: absolute;
+    top: 0.9rem; left: 50%;
+    transform: translateX(-50%);
+    width: 54px; height: 40px;
+    z-index: 2;
+    pointer-events: none;
+    filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.55));
+  }
+  a.boveda-baul:hover, .boveda-baul-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: inset 0 1px 0 rgba(237, 237, 239, 0.09), inset 0 0 0 1px rgba(201, 162, 94, 0.3),
+      0 22px 44px rgba(0, 0, 0, 0.62);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .boveda-baul { transition: none; }
+    a.boveda-baul:hover { transform: none; }
+  }
+
+  .boveda-remache {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: radial-gradient(circle at 35% 30%, #e0c58d, var(--boveda-laton) 55%, var(--boveda-laton-oscuro));
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+  }
+  /* Engraved plate card: hairline border, faint sheen, brass corner ticks (no extra DOM). */
+  .boveda-placa-card {
+    --tick: rgba(201, 162, 94, 0.35);
+    position: relative;
+    border-radius: 6px;
+    border: 1px solid var(--portal-line);
+    background-color: var(--boveda-madera);
+    background-image:
+      linear-gradient(var(--tick), var(--tick)), linear-gradient(var(--tick), var(--tick)),
+      linear-gradient(var(--tick), var(--tick)), linear-gradient(var(--tick), var(--tick)),
+      linear-gradient(var(--tick), var(--tick)), linear-gradient(var(--tick), var(--tick)),
+      linear-gradient(var(--tick), var(--tick)), linear-gradient(var(--tick), var(--tick)),
+      linear-gradient(180deg, rgba(237, 237, 239, 0.025), transparent 40%);
+    background-size: 8px 1px, 1px 8px, 8px 1px, 1px 8px, 8px 1px, 1px 8px, 8px 1px, 1px 8px, 100% 100%;
+    background-position:
+      5px 5px, 5px 5px,
+      calc(100% - 5px) 5px, calc(100% - 5px) 5px,
+      5px calc(100% - 5px), 5px calc(100% - 5px),
+      calc(100% - 5px) calc(100% - 5px), calc(100% - 5px) calc(100% - 5px),
+      0 0;
+    background-repeat: no-repeat;
+    box-shadow: inset 0 1px 0 rgba(237, 237, 239, 0.04);
+  }
+  button.boveda-placa-card:hover, a.boveda-placa-card:hover { border-color: var(--boveda-linea-fuerte); }
+  .boveda-kicker {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--boveda-laton);
+  }
+  .boveda-cta {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2 text-sm font-bold transition;
+    border-radius: 3px;
+    background: var(--ucn-tierra);
+    color: #120e0b;
+  }
+  .boveda-cta:hover { filter: brightness(1.1); }
 }

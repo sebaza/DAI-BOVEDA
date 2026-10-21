@@ -86,12 +86,12 @@ function BotonSemana({
       disabled={!destino || ocupado}
       title={titulo}
       aria-label={titulo}
-      className="relative rounded-full border border-white/10 px-2 py-0.5 text-[11px] leading-4 text-slate-300 transition hover:border-white/25 hover:text-white disabled:opacity-30"
+      className="relative rounded border border-white/10 px-2 py-0.5 text-xs leading-4 text-slate-400 transition hover:border-white/25 hover:text-slate-100 disabled:opacity-30"
     >
       {atras ? "‹" : "›"}
       {generara ? (
         <span
-          className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-[var(--portal-copper,#e0aa4e)]"
+          className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-[var(--ucn-tierra-clara)]"
           aria-hidden
         />
       ) : null}
@@ -107,6 +107,7 @@ export function PercepcionResumenSemanal() {
   const [cargando, setCargando] = useState(false);
   const [regenerando, setRegenerando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [leerMas, setLeerMas] = useState(false);
 
   // El catálogo se pide UNA vez: es lectura pura, no gasta tokens, y sin él la
   // navegación tendría que adivinar a qué semanas puede saltar.
@@ -169,7 +170,7 @@ export function PercepcionResumenSemanal() {
   if (error && !data) {
     return (
       <div className={CARD}>
-        <p className="text-sm text-[#f2777a]">{error}</p>
+        <p className="text-sm text-ucn-tierra-clara">{error}</p>
       </div>
     );
   }
@@ -186,7 +187,7 @@ export function PercepcionResumenSemanal() {
         titulo="Resumen semanal"
         extra={
           <>
-            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-400">
+            <span className="rounded border border-white/10 bg-white/5 px-2 py-0.5 text-xs uppercase tracking-wide text-slate-400">
               redactado por IA
             </span>
             {semanas.length > 1 ? (
@@ -203,7 +204,7 @@ export function PercepcionResumenSemanal() {
                   type="button"
                   onClick={() => setSemana(null)}
                   disabled={idx === 0 || cargando || regenerando}
-                  className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-slate-400 transition hover:border-white/25 hover:text-white disabled:opacity-30"
+                  className="rounded border border-white/10 px-2 py-0.5 text-xs text-slate-400 transition hover:border-white/25 hover:text-slate-100 disabled:opacity-30"
                   title="Volver a la última semana con datos"
                 >
                   hoy
@@ -234,7 +235,21 @@ export function PercepcionResumenSemanal() {
       </TituloBloque>
 
       {data.texto ? (
-        <p className="whitespace-pre-line text-[13px] leading-6 text-slate-200">{data.texto}</p>
+        <div>
+          <p className={`whitespace-pre-line text-base leading-7 text-slate-100 ${leerMas ? "" : "line-clamp-4"}`}>
+            {data.texto}
+          </p>
+          {data.texto.length > 280 ? (
+            <button
+              type="button"
+              onClick={() => setLeerMas((v) => !v)}
+              aria-expanded={leerMas}
+              className="mt-1 rounded text-sm font-semibold text-ucn-azul-claro hover:underline"
+            >
+              {leerMas ? "Leer menos" : "Leer más"}
+            </button>
+          ) : null}
+        </div>
       ) : (
         <p className="py-2 text-sm text-slate-500">
           {data.aviso ?? "Todavía no hay resumen para esta semana."}
@@ -243,20 +258,20 @@ export function PercepcionResumenSemanal() {
 
       {/* Avisos que cambian cómo hay que leer el texto. */}
       {data.cifras_dudosas?.length ? (
-        <p className="mt-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] leading-5 text-rose-200">
+        <p className="mt-3 rounded-md border border-[var(--alerta-media)] bg-[var(--ucn-tierra-suave)] px-3 py-2 text-sm leading-5 text-ucn-tierra-clara">
           <strong>Revisa antes de citar.</strong> El texto menciona cifras que no están
           en los datos de la semana ({data.cifras_dudosas.slice(0, 5).join(", ")}). El
           resto del tablero no está afectado: es este párrafo el que hay que verificar.
         </p>
       ) : null}
       {data.desactualizado ? (
-        <p className="mt-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] leading-5 text-amber-200">
+        <p className="mt-3 rounded-md border border-[var(--alerta-media)] bg-[var(--ucn-tierra-suave)] px-3 py-2 text-sm leading-5 text-ucn-tierra-clara">
           Llegaron datos nuevos pero no se pudo regenerar el texto, así que esto es el
           resumen anterior: no refleja lo último. {data.aviso}
         </p>
       ) : null}
       {pocaEvidencia ? (
-        <p className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] leading-5 text-slate-400">
+        <p className="mt-3 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm leading-5 text-slate-400">
           Solo {nro(data.n_comentarios)} comentarios en la semana (el módulo pide{" "}
           {N_MIN_EVIDENCIA} para afirmar algo de una unidad). Léelo como indicio, no
           como medición.
@@ -264,7 +279,7 @@ export function PercepcionResumenSemanal() {
       ) : null}
 
       {/* Trazabilidad: de cuándo es, con qué modelo y cuánto costó. */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/5 pt-3 text-[10px] text-slate-500">
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/5 pt-3 text-sm text-slate-500">
         {data.hay_datos ? <span>{nro(data.n_comentarios)} comentarios</span> : null}
         {data.generado_en ? <span>· generado {cuandoLegible(data.generado_en)}</span> : null}
         {data.modelo ? <span>· {data.modelo}</span> : null}
@@ -282,7 +297,7 @@ export function PercepcionResumenSemanal() {
             type="button"
             onClick={() => void cargar(true)}
             disabled={regenerando}
-            className="ml-auto rounded-full border border-white/10 px-2.5 py-1 text-[10px] text-slate-300 transition hover:border-white/25 hover:text-white disabled:opacity-40"
+            className="ml-auto rounded border border-white/10 px-2.5 py-1 text-sm text-slate-400 transition hover:border-white/25 hover:text-slate-100 disabled:opacity-40"
             title="Vuelve a llamar al modelo aunque los datos no hayan cambiado. Tiene costo."
           >
             {regenerando ? "Regenerando…" : "Regenerar"}
@@ -290,7 +305,7 @@ export function PercepcionResumenSemanal() {
         ) : null}
       </div>
 
-      {error ? <p className="mt-2 text-[11px] text-[#f2777a]">{error}</p> : null}
+      {error ? <p className="mt-2 text-sm text-ucn-tierra-clara">{error}</p> : null}
     </div>
   );
 }

@@ -86,7 +86,7 @@ export function PercepcionBaselines() {
           series distintas. Declararlo es lo que impide que vuelva a pasar sin que
           nadie se entere. Mismo criterio que el rótulo de método del resto del panel. */}
       {data ? (
-        <p className="mb-3 text-[11px] text-slate-500">
+        <p className="mb-3 text-sm text-slate-500">
           Medido sobre{" "}
           <strong className="text-slate-400">
             {data.serie === "ponderada"
@@ -99,7 +99,7 @@ export function PercepcionBaselines() {
         </p>
       ) : null}
 
-      {error ? <p className="text-sm text-[#f2777a]">{error}</p> : null}
+      {error ? <p className="text-sm text-ucn-tierra-clara">{error}</p> : null}
 
       {data && piso !== null ? (
         <>
@@ -112,28 +112,28 @@ export function PercepcionBaselines() {
                 hacía parecer que quedaba cuatro veces más margen del que hay, que es
                 justo la clase de número que sostiene un proyecto que no va a ningún
                 lado. Ver INFORME_PLAN_SIMULACION_PERCEPCION_20260824.md §0. */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-              <p className="text-[10px] uppercase tracking-wide text-slate-500">
+            <div className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2">
+              <p className="text-xs uppercase tracking-wide text-slate-500">
                 Ruido del propio dato
               </p>
               <p className="text-xl font-semibold" style={{ color: COLOR_POS }}>
                 {fmt(piso)}
               </p>
-              <p className="text-[11px] leading-5 text-slate-500">
+              <p className="text-sm leading-5 text-slate-500">
                 Lo que el índice oscila <strong>solo por muestreo</strong>: con 40 a 165
                 comentarios por semana, el dato ya trae este margen. No es una meta
                 alcanzable —lo impredecible pesa mucho más que el ruido—, es el punto por
                 debajo del cual un número dejaría de significar nada.
               </p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-              <p className="text-[10px] uppercase tracking-wide text-slate-500">
+            <div className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2">
+              <p className="text-xs uppercase tracking-wide text-slate-500">
                 Sin modelo, usando el promedio
               </p>
               <p className="text-xl font-semibold" style={{ color: COLOR_NEG }}>
                 {fmt(promedio)}
               </p>
-              <p className="text-[11px] leading-5 text-slate-500">
+              <p className="text-sm leading-5 text-slate-500">
                 Lo que se erra respondiendo siempre «como el promedio». Un modelo que
                 no baje de acá <strong>no justifica construirse</strong>.
               </p>
@@ -143,7 +143,7 @@ export function PercepcionBaselines() {
           {data.modelos.map((m) => (
             <div key={m.nombre} className="border-b border-white/5 py-2 last:border-0">
               <div className="flex items-baseline justify-between gap-3">
-                <span className="text-[13px] text-slate-200">{m.descripcion}</span>
+                <span className="text-sm text-slate-100">{m.descripcion}</span>
                 <span className="shrink-0 text-base font-semibold" style={{ color: COLOR_COPPER }}>
                   {fmt(m.mae)}
                 </span>
@@ -162,7 +162,7 @@ export function PercepcionBaselines() {
                   />
                 ) : null}
               </div>
-              <div className="mt-1 text-[10px] text-slate-500">
+              <div className="mt-1 text-sm text-slate-500">
                 {m.nombre} · RMSE {fmt(m.rmse)} · {nro(m.n_predicciones)} predicciones
                 {m.indistinguible_del_techo ? " · ya tocó el piso de ruido" : ""}
                 {m.peor_que_no_hacer_nada ? " · peor que el promedio" : ""}
@@ -175,7 +175,7 @@ export function PercepcionBaselines() {
               impredecible: daba ~4 puntos de margen donde lo medido es 0,6. La fase 2
               se construyó y se cerró contra el número correcto, no contra este. */}
           {margen !== null ? (
-            <p className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] leading-5 text-slate-300">
+            <p className="mt-3 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm leading-5 text-slate-400">
               <strong>Distancia al ruido: {fmt(margen)} puntos</strong> — entre el mejor
               método ({fmt(mejor?.mae)}) y el ruido del dato ({fmt(piso)}). Es un límite
               teórico, <strong>no el margen real</strong>: casi todo lo que varía el
@@ -188,7 +188,7 @@ export function PercepcionBaselines() {
             </p>
           ) : null}
 
-          <p className="mt-2 text-[10px] text-slate-500">
+          <p className="mt-2 text-sm text-slate-500">
             {nro(data.evaluadas)} semanas evaluadas de {nro(data.semanas_con_datos)} con{" "}
             {data.n_min_semana}+ comentarios.
           </p>
@@ -196,7 +196,7 @@ export function PercepcionBaselines() {
           {data.avisos.length ? (
             <ul className="mt-2 space-y-1 border-t border-white/5 pt-2">
               {data.avisos.map((a) => (
-                <li key={a} className="text-[11px] leading-5 text-slate-500">
+                <li key={a} className="text-sm leading-5 text-slate-500">
                   · {a}
                 </li>
               ))}

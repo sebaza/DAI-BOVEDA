@@ -43,6 +43,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { PALETA } from "@/lib/paleta";
 
 import type { EventoItem } from "../lib/percepcion";
 
@@ -62,6 +63,7 @@ type Categoria = {
 };
 
 export const CATEGORIAS_EVENTO: Categoria[] = [
+  // Original per-category hues, kept outside the brand palette so each category stays distinct.
   { clave: "paro", etiqueta: "Paro o toma", color: "#f2777a", forma: "barra", z: 5, tipos: ["paro", "toma"] },
   { clave: "emergencia", etiqueta: "Emergencia", color: "#fb923c", forma: "marcador", simbolo: "rombo", z: 6, tipos: ["emergencia"] },
   { clave: "sinclases", etiqueta: "Recesos", color: "#4f9cf0", forma: "barra", z: 3, tipos: ["receso", "fiestas_patrias"] },
@@ -303,7 +305,7 @@ export function PercepcionFranjaEventos({
               <li key={c.clave}>
                 <span
                   title={`${c.etiqueta} · se apaga desde «Marcas», debajo del gráfico`}
-                  className="flex items-center gap-1 rounded px-1 py-px text-[10px] leading-4"
+                  className="flex items-center gap-1 rounded px-1 py-px text-sm leading-4"
                   style={{ color: c.color }}
                 >
                   {/* La muestra usa la MISMA forma que la banda: barra o rombo/tick.
@@ -400,7 +402,7 @@ export function PercepcionFranjaEventos({
                   {m.simbolo === "rombo" ? (
                     <span
                       className="relative block h-1.5 w-1.5 rotate-45 rounded-[1px]"
-                      style={{ background: m.color, boxShadow: `0 0 0 1px #0b1424` }}
+                      style={{ background: m.color, boxShadow: `0 0 0 1px ${PALETA.panel}` }}
                     />
                   ) : null}
                   {/* Un grupo se distingue con un punto extra, no con un número: a
@@ -420,7 +422,7 @@ export function PercepcionFranjaEventos({
       <button
         type="button"
         onClick={() => setAbierta((v) => !v)}
-        className="mt-1 rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-slate-400 transition hover:border-white/25 hover:text-white"
+        className="mt-1 rounded border border-white/10 px-2 py-0.5 text-xs text-slate-400 transition hover:border-white/25 hover:text-slate-100"
         aria-expanded={abierta}
       >
         {abierta ? "▾" : "▸"} calendario ({total})

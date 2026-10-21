@@ -102,7 +102,7 @@ function Barra({ hecho, meta }: { hecho: number; meta: number }) {
     <span className="h-1.5 w-24 overflow-hidden rounded-full bg-white/[0.08]">
       <span
         className={`block h-full rounded-full ${
-          hecho >= meta ? "bg-emerald-400/70" : "bg-[var(--portal-cyan)]/70"
+          hecho >= meta ? "bg-[var(--dato-favorable)]" : "bg-[color-mix(in_srgb,var(--portal-cyan)_70%,transparent)]"
         }`}
         style={{ width: `${pct}%` }}
       />
@@ -185,27 +185,27 @@ function Ficha({
   };
 
   return (
-    <li className="rounded-2xl border border-white/5 bg-white/[0.02] p-3">
+    <li className="rounded-md border border-white/5 bg-white/[0.02] p-3">
       {/* EL CAPTION VA PRIMERO, y no es decoración: la mediana del corpus es de 3
           palabras. "Q paso con los de geología" no se puede clasificar sin saber que
           responde a una convocatoria a pleno extraordinario. */}
       {c.caption ? (
-        <p className="mb-1.5 border-l-2 border-white/10 pl-2 text-[11px] leading-4 text-slate-500">
-          <span className="font-semibold text-slate-600">responde a: </span>
+        <p className="mb-1.5 border-l-2 border-white/10 pl-2 text-sm leading-4 text-slate-500">
+          <span className="font-semibold text-slate-500">responde a: </span>
           {c.caption}
         </p>
       ) : null}
 
       <p className="text-sm text-slate-100">{c.texto}</p>
 
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-500">
         <span>{c.fecha}</span>
         {c.cuenta ? <span>· @{c.cuenta}</span> : null}
-        <span className="rounded-full bg-white/[0.04] px-2 py-0.5 text-slate-400">
+        <span className="rounded bg-white/[0.04] px-2 py-0.5 text-slate-400">
           {c.sentimiento_label}
         </span>
         {c.emocion_label ? (
-          <span className="rounded-full bg-white/[0.04] px-2 py-0.5 text-slate-400">
+          <span className="rounded bg-white/[0.04] px-2 py-0.5 text-slate-400">
             {labelEmocion(c.emocion, c.emocion_label)}
           </span>
         ) : null}
@@ -217,7 +217,7 @@ function Ficha({
         </span>
       </div>
 
-      <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+      <div className="mt-2.5 flex flex-wrap items-center gap-2 text-sm text-slate-400">
         <label className="flex items-center gap-1">
           Sentimiento:
           <select className={SELECT} value={sent} onChange={(e) => setSent(e.target.value)}>
@@ -236,7 +236,7 @@ function Ficha({
         </label>
         {c.motivo_pendiente && (
           <span
-            className="rounded-full bg-[var(--portal-copper)]/15 px-2 py-0.5 text-[11px] text-[var(--portal-copper)]"
+            className="rounded bg-[color-mix(in_srgb,var(--portal-copper)_15%,transparent)] px-2 py-0.5 text-xs text-ucn-tierra-clara"
             title="Ya lo revisaste antes, pero esa revisión dejó de ser válida. Volver a guardarlo lo saca de la cola."
           >
             a rehacer · {c.motivo_pendiente}
@@ -254,7 +254,7 @@ function Ficha({
             {temas.map((t) => <option key={t.tema} value={t.tema}>{t.etiqueta}</option>)}
           </select>
           <span
-            className={c.tema_confianza < 0.5 ? "text-[var(--portal-copper)]" : "text-slate-500"}
+            className={c.tema_confianza < 0.5 ? "text-ucn-tierra-clara" : "text-slate-500"}
             title="Confianza del clasificador de temas. Mediana del corpus: 0,45."
           >
             {c.tema_confianza.toFixed(2)}
@@ -267,8 +267,8 @@ function Ficha({
           comentarios sobre publicaciones de conflicto, 33 (23%) están marcados POS.
           Arranca con la suposición ingenua (tono→postura) para que cambiarla sea
           justamente el dato: cuánto se equivoca esa suposición. */}
-      <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-2.5 py-1.5 text-xs text-slate-400">
-        <span className="font-semibold text-slate-300">¿Postura hacia la UCN?</span>
+      <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-2.5 py-1.5 text-sm text-slate-400">
+        <span className="font-semibold text-slate-400">¿Postura hacia la UCN?</span>
         {opciones.posturas.map((p) => (
           <button
             key={p.valor}
@@ -276,15 +276,15 @@ function Ficha({
             onClick={() => setPostura(p.valor)}
             className={
               postura === p.valor
-                ? "rounded-full border border-[var(--portal-cyan)]/40 bg-[var(--portal-cyan)]/15 px-2.5 py-0.5 font-semibold text-[var(--portal-cyan)]"
-                : "rounded-full border border-white/10 px-2.5 py-0.5 transition hover:bg-white/[0.06]"
+                ? "rounded border border-[color-mix(in_srgb,var(--portal-cyan)_40%,transparent)] bg-[color-mix(in_srgb,var(--portal-cyan)_15%,transparent)] px-2.5 py-0.5 font-semibold text-ucn-azul-claro"
+                : "rounded border border-white/10 px-2.5 py-0.5 transition hover:bg-white/[0.06]"
             }
           >
             {p.etiqueta}
           </button>
         ))}
         {cambioPostura ? (
-          <span className="text-[10px] text-[var(--portal-copper)]">
+          <span className="text-sm text-ucn-tierra-clara">
             ≠ tono ({c.sentimiento_label})
           </span>
         ) : null}
@@ -301,7 +301,7 @@ function Ficha({
           <button
             onClick={() => void enviar(false)}
             disabled={guardando}
-            className="rounded-xl border border-[var(--portal-copper)]/40 bg-[var(--portal-copper)]/15 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-[var(--portal-copper)]/25 disabled:opacity-40"
+            className="rounded-xl border border-[color-mix(in_srgb,var(--portal-copper)_40%,transparent)] bg-[color-mix(in_srgb,var(--portal-copper)_15%,transparent)] px-3 py-1.5 text-sm font-semibold text-slate-100 transition hover:bg-[color-mix(in_srgb,var(--portal-copper)_25%,transparent)] disabled:opacity-40"
           >
             Guardar corrección
           </button>
@@ -309,7 +309,7 @@ function Ficha({
           <button
             onClick={() => void enviar(true)}
             disabled={guardando}
-            className="rounded-xl border border-emerald-400/40 bg-emerald-400/15 px-3 py-1.5 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-400/25 disabled:opacity-40"
+            className="rounded-xl border border-[var(--ucn-azul-borde)] bg-[var(--ucn-azul-suave)] px-3 py-1.5 text-sm font-semibold text-ucn-azul-claro transition hover:bg-[var(--ucn-azul-suave)] disabled:opacity-40"
             title="Registra que el modelo acertó. Sin estos aciertos no hay denominador y el accuracy no se puede calcular."
           >
             Está bien ✓
@@ -344,19 +344,19 @@ function GuiaTema() {
   ];
   return (
     <details className="mt-2 rounded-md border border-slate-800 bg-slate-900/40 px-3 py-2">
-      <summary className="cursor-pointer text-[11px] font-medium text-slate-400">
+      <summary className="cursor-pointer text-sm font-medium text-slate-400">
         Criterio de tema (vigente desde 19-08-2026)
       </summary>
       <ul className="mt-2 space-y-1">
         {reglas.map(([caso, regla]) => (
-          <li key={caso} className="flex flex-wrap gap-x-2 text-[11px] leading-5">
+          <li key={caso} className="flex flex-wrap gap-x-2 text-sm leading-5">
             <span className="text-slate-500">{caso}</span>
-            <span className="text-slate-600">→</span>
-            <span className="text-slate-300">{regla}</span>
+            <span className="text-slate-500">→</span>
+            <span className="text-slate-400">{regla}</span>
           </li>
         ))}
       </ul>
-      <p className="mt-2 text-[11px] leading-5 text-slate-500">
+      <p className="mt-2 text-sm leading-5 text-slate-500">
         «Otros» significa <em>no hay señal</em>, no «no encaja del todo».
       </p>
     </details>
@@ -423,10 +423,10 @@ export function PercepcionRevision({ onCambio }: { onCambio?: () => void }) {
   return (
     <div className={CARD}>
       <button onClick={() => setAbierto((a) => !a)} className="flex w-full items-center justify-between gap-3">
-        <div className="text-sm font-medium text-slate-200">
+        <div className="text-sm font-medium text-slate-100">
           Cola de revisión · anotar para medir el modelo
         </div>
-        <span className="text-xs text-slate-500">{abierto ? "▲ ocultar" : "▼ abrir"}</span>
+        <span className="text-sm text-slate-500">{abierto ? "▲ ocultar" : "▼ abrir"}</span>
       </button>
 
       {abierto ? (
@@ -438,9 +438,9 @@ export function PercepcionRevision({ onCambio }: { onCambio?: () => void }) {
 
           {/* SELECTOR DE MUESTRA. Cada orden sirve para algo distinto y eso se dice:
               elegir mal acá invalida la medición sin que se note. */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+          <div className="rounded-md border border-white/10 bg-white/[0.03] p-3">
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 De qué muestra
               </span>
               {ORDENES.map((o) => (
@@ -451,34 +451,34 @@ export function PercepcionRevision({ onCambio }: { onCambio?: () => void }) {
                   title={o.hint}
                   className={
                     orden === o.id
-                      ? "rounded-full border border-[var(--portal-cyan)]/40 bg-[var(--portal-cyan)]/10 px-3 py-1 text-xs font-semibold text-[var(--portal-cyan)]"
-                      : "rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-slate-400 transition hover:bg-white/[0.07]"
+                      ? "rounded border border-[color-mix(in_srgb,var(--portal-cyan)_40%,transparent)] bg-[color-mix(in_srgb,var(--portal-cyan)_10%,transparent)] px-3 py-1 text-sm font-semibold text-ucn-azul-claro"
+                      : "rounded border border-white/10 bg-white/[0.03] px-3 py-1 text-sm text-slate-400 transition hover:bg-white/[0.07]"
                   }
                 >
                   {o.label}
                 </button>
               ))}
-              <span className="ml-auto flex items-center gap-2 text-[11px] text-slate-400">
+              <span className="ml-auto flex items-center gap-2 text-sm text-slate-400">
                 <Barra hecho={progreso} meta={OBJETIVO} />
                 {nro(progreso)}/{OBJETIVO}
                 {progreso >= MIN_ANCLA ? (
-                  <span className="text-emerald-400">· ancla ✓</span>
+                  <span className="text-dato-favorable">· ancla ✓</span>
                 ) : (
-                  <span className="text-slate-600">· mínimo {MIN_ANCLA}</span>
+                  <span className="text-slate-500">· mínimo {MIN_ANCLA}</span>
                 )}
                 {porRevisar > 0 && (
-                  <span className="text-slate-600">
+                  <span className="text-slate-500">
                     · quedan {nro(porRevisar)} sin revisar
                   </span>
                 )}
               </span>
             </div>
-            <p className="text-[11px] leading-5 text-slate-500">{meta?.sirve}</p>
+            <p className="text-sm leading-5 text-slate-500">{meta?.sirve}</p>
             <GuiaTema />
           </div>
 
-          {msg ? <div className="rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-300">{msg}</div> : null}
-          {error ? <div className="rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs text-rose-200">{error}</div> : null}
+          {msg ? <div className="rounded-lg bg-[var(--ucn-azul-suave)] px-3 py-1.5 text-sm text-ucn-azul-claro">{msg}</div> : null}
+          {error ? <div className="rounded-lg bg-[var(--ucn-tierra-suave)] px-3 py-1.5 text-sm text-ucn-tierra-clara">{error}</div> : null}
 
           {cargando ? (
             <p className="py-6 text-center text-sm text-slate-500">Cargando…</p>
@@ -503,7 +503,7 @@ export function PercepcionRevision({ onCambio }: { onCambio?: () => void }) {
           )}
 
           {pendientes.length > 25 ? (
-            <p className="text-center text-[11px] text-slate-600">
+            <p className="text-center text-sm text-slate-500">
               Se muestran 25 de {nro(pendientes.length)}; a medida que anotas aparecen los siguientes.
             </p>
           ) : null}
