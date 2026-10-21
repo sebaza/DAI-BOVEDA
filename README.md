@@ -43,6 +43,7 @@ fallback: si siguen en tu `.env`, se ignoran.
 - **Auditoría:** cada vez que un administrador recibe texto crudo de comentarios (`/curacion/comentarios`,
   `/curacion/scoring`) se guarda quién, qué comentarios, qué endpoint y cuándo. Si no se puede registrar, la
   petición falla y no se entrega el texto.
+- **Anonimización de la API:** el texto de los comentarios y los captions de las publicaciones se guardan tal cual, pero ninguna respuesta de `/percepcion` los entrega fuera de la Curación (solo administradores). Las demás vistas muestran fichas de etiquetas (tema, sentimiento, emoción, cuenta, fecha, likes) y pueden derivar agregados del texto (nube de palabras, términos, impacto de palabras) sin mostrarlo. `backend/tests/test_anonimizacion_api.py` recorre todos los GET del módulo y falla si alguno devuelve texto crudo.
 - `GET /auth/me` (y la respuesta del login) devuelve `is_admin` y `modulos: [{id, nombre, rol}]`.
 - Con `APP_ENV` distinto de `dev` la app **no arranca** si `APP_SESSION_SECRET` es el valor por defecto o está
   vacío, ni si `BOVEDA_DATABASE_URL` está vacía. En dev con la URL vacía todos son rechazados (el dev-login emite

@@ -108,7 +108,9 @@ export function PercepcionDominantes({ filtro }: { filtro: Filtro }) {
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                   <span className="min-w-0 flex-1 text-[12.5px] leading-5 text-slate-300">
-                    {p.caption || <em className="text-slate-600">(publicación sin texto)</em>}
+                    {p.cuenta ?? "(cuenta sin nombre)"}
+                    {p.cuenta_tipo ? <span className="ml-2 rounded-full bg-white/[0.04] px-2 py-0.5 text-[10.5px] text-slate-400">{p.cuenta_tipo}</span> : null}
+                    {p.desde ? <span className="ml-2 text-slate-500">{p.desde === p.hasta || !p.hasta ? p.desde : `${p.desde} → ${p.hasta}`}</span> : null}
                   </span>
                   <span className="flex shrink-0 items-baseline gap-3">
                     <span className="text-[11px] tabular-nums text-slate-500">
@@ -123,7 +125,6 @@ export function PercepcionDominantes({ filtro }: { filtro: Filtro }) {
                   </span>
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-slate-500">
-                  <span>{p.cuenta ?? "—"}</span>
                   {p.pct_neg !== null ? <span>{p.pct_neg}% negativos</span> : null}
                   {/* Barra de PESO en la muestra, no de índice: es la variable que
                       decide si el promedio del período se puede leer. */}

@@ -300,7 +300,7 @@ def get_terminos(f: Filtro = Depends(), db: Session = Depends(get_db)):
     `services/percepcion/lexico.py`) que hoy queda repartido entre "académico",
     "organización estudiantil" y "otros" y por eso no se ve. Por familia devuelve
     cuántas menciones, separando lo dicho EN SERIO de lo dicho en broma, con qué
-    carga, en qué temas, cómo evolucionó y unos ejemplos textuales para auditar.
+    carga, en qué temas, cómo evolucionó y unas fichas de ejemplo (etiquetas, sin texto) para auditar.
 
     NO toca el índice: la fórmula canónica queda intacta. Ignora `vida_media`
     (es un conteo del período, no una serie decaída), igual que `/nube`.
@@ -373,7 +373,7 @@ def get_comentarios(
     emocion: str | None = None,
     db: Session = Depends(get_db),
 ):
-    # Comentarios reales recientes que más afectan la percepción (texto anónimo).
+    # Fichas (solo etiquetas, sin texto) de los comentarios recientes que más afectan la percepción.
     # Acota por sentimiento (POS/NEU/NEG) y/o emoción (joy/anger/…) si se piden.
     # fecha_desde/fecha_hasta llegan por el Filtro (la regla): día puntual o rango.
     return repository.comentarios_recientes(

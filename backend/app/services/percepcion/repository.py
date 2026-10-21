@@ -1868,15 +1868,15 @@ def publicaciones_dominantes(db, *, dias=30, campus=None, facultad=None,
                         departamento=departamento, tema=tema,
                         fecha_desde=fecha_desde, fecha_hasta=fecha_hasta)
     filas = db.execute(
-        _select_corpus(P.id, P.caption, Cu.handle, Cu.nombre, Cu.tipo,
+        _select_corpus(P.id, Cu.handle, Cu.nombre, Cu.tipo,
                        S.sentimiento, S.prob_pos, S.prob_neg, C.fecha_comentario)
         .where(*cond)
     ).all()
 
     acc: dict = {}
-    for pid, caption, handle, nombre, ctipo, sent, ppos, pneg, fecha in filas:
+    for pid, handle, nombre, ctipo, sent, ppos, pneg, fecha in filas:
         a = acc.setdefault(pid, {
-            "caption": caption, "handle": handle, "cuenta": nombre, "cuenta_tipo": ctipo,
+            "handle": handle, "cuenta": nombre, "cuenta_tipo": ctipo,
             "n": 0, "n_neg": 0, "spos": 0.0, "sneg": 0.0, "desde": fecha, "hasta": fecha,
         })
         a["n"] += 1
@@ -1894,7 +1894,6 @@ def publicaciones_dominantes(db, *, dias=30, campus=None, facultad=None,
     items = [
         {
             "publicacion_id": pid,
-            "caption": _cap_corto(a["caption"]),
             "cuenta": a["cuenta"] or a["handle"],
             "cuenta_tipo": a["cuenta_tipo"],
             "n_comentarios": a["n"],
@@ -1916,11 +1915,6 @@ def publicaciones_dominantes(db, *, dias=30, campus=None, facultad=None,
         # publicación en vez del promedio: fue el caso del sorteo del 18.
         "concentracion": round(100.0 * orden[0][1]["n"] / total, 1) if orden and total else None,
     }
-
-
-def _cap_corto(caption: str | None, n: int = 140) -> str:
-    c = " ".join((caption or "").split())
-    return c[:n] + ("…" if len(c) > n else "")
 
 
 def nube_palabras(db, *, dias=30, campus=None, facultad=None, departamento=None,
@@ -2100,7 +2094,7 @@ def terminos_vigilancia(db, *, dias=30, campus=None, facultad=None, departamento
     sentimiento y el índice de los serios, los TEMAS donde aparece, la evolución
     semanal, la variación contra el período anterior y unos EJEMPLOS textuales.
 
-    Los ejemplos no son decoración: un contador que no se puede auditar no lo
+    Los ejemplos (fichas, sin texto crudo) no son decoración: un contador que no se puede auditar no lo
     cree nadie, y con razón. Van anónimos (el `autor_hash` jamás sale de la BD).
     """
     fmax = _fmax_comentario(db)
@@ -2212,7 +2206,7 @@ def terminos_vigilancia(db, *, dias=30, campus=None, facultad=None, departamento
             # recientes: es el orden en que un directivo quiere leerlos.
             "ejemplos": [
                 {
-                    "texto": texto, "fecha": f,
+                    "fecha": f,
                     "sentimiento": sent,
                     "sentimiento_label": _SENT_LABEL.get(sent, sent),
                     "emocion": emo,
@@ -2776,9 +2770,9 @@ def comentarios_recientes(
 
     stmt = (
         select(
-            C.id, C.texto, C.fecha_comentario, C.n_likes, C.tema,
+            C.id, C.fecha_comentario, C.n_likes, C.tema,
             S.sentimiento, S.prob_pos, S.prob_neg, S.emocion,
-            Cu.nombre, Cu.campus, Cu.facultad, Cu.departamento,
+            Cu.nombre, Cu.tipo, Cu.campus, Cu.facultad, Cu.departamento,
         )
         .join(S, S.comentario_id == C.id)
         .join(P, P.id == C.publicacion_id)
@@ -2791,11 +2785,10 @@ def comentarios_recientes(
 
     etq = etiquetas_tema(db)
     items = []
-    for cid, texto, fecha, likes, tm, sent, ppos, pneg, emo, nombre, camp, fac, depto in db.execute(stmt):
+    for cid, fecha, likes, tm, sent, ppos, pneg, emo, nombre, ctipo, camp, fac, depto in db.execute(stmt):
         neto = float(ppos or 0) - float(pneg or 0)
         items.append({
             "id": cid,
-            "texto": texto,
             "fecha": fecha.date() if isinstance(fecha, datetime) else fecha,
             "sentimiento": sent,
             "sentimiento_label": _SENT_LABEL.get(sent, sent),
@@ -2807,6 +2800,7 @@ def comentarios_recientes(
             "emocion_label": ETIQUETAS_EMOCION.get(emo, emo) if emo else None,
             "unidad": fac or depto or camp,
             "cuenta": nombre,
+            "cuenta_tipo": ctipo,
             "impacto": round(abs(neto) * _peso_likes(likes), 3),
         })
     # De los recientes, mostramos primero los que más afectan (impacto), y a igual

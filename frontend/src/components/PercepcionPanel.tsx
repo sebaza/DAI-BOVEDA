@@ -2100,6 +2100,9 @@ python -m percepcion.cli agregar`}
               )}
             </div>
 
+            <p className="mt-2 text-[11px] text-slate-500">
+              Por privacidad, los comentarios se muestran como etiquetas.
+            </p>
             {comentarios.length > 0 ? (
               <ul className="mt-2 space-y-2">
                 {comentarios.map((c) => {
@@ -2117,19 +2120,18 @@ python -m percepcion.cli agregar`}
                         >
                           {c.sentimiento_label}
                         </span>
-                        <p className="flex-1 text-sm leading-relaxed text-slate-200">{c.texto}</p>
+                        <div className="flex flex-1 flex-wrap items-center gap-2 text-sm text-slate-200">
+                          {c.tema_label ? <span className="rounded-full bg-white/[0.06] px-2 py-0.5">{c.tema_label}</span> : <span className="text-slate-500">(sin tema)</span>}
+                          {c.emocion_label ? <span className="rounded-full bg-white/[0.06] px-2 py-0.5">{labelEmocion(c.emocion, c.emocion_label)}</span> : null}
+                          <span className="text-[11px] text-slate-500">neto {c.neto.toFixed(2)}</span>
+                        </div>
                         <span className="mt-0.5 shrink-0 text-[11px] text-slate-500">{editando ? "▲" : "✎"}</span>
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
                         <span>{c.fecha}</span>
                         {c.cuenta ? <span>· @{c.cuenta}</span> : null}
                         {c.unidad ? <span>· {c.unidad}</span> : null}
-                        {c.tema_label ? (
-                          <span className="rounded-full bg-white/[0.04] px-2 py-0.5 text-slate-400">{c.tema_label}</span>
-                        ) : null}
-                        {c.emocion_label ? (
-                          <span className="rounded-full bg-white/[0.04] px-2 py-0.5 text-slate-400">{labelEmocion(c.emocion, c.emocion_label)}</span>
-                        ) : null}
+                        {c.cuenta_tipo ? <span className="rounded-full bg-white/[0.04] px-2 py-0.5 text-slate-400">{c.cuenta_tipo}</span> : null}
                         {c.n_likes > 0 ? <span>· ♥ {c.n_likes.toLocaleString("es-CL")}</span> : null}
                         <span className="ml-auto text-slate-600">impacto {c.impacto.toFixed(2)}</span>
                       </div>

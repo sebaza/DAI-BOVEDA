@@ -222,8 +222,8 @@ function SenalesVigilancia({ data, vidaMedia }: { data: TerminosResponse; vidaMe
                             >
                               {e.sentimiento_label}
                             </span>
-                            {e.texto}
-                            <span className="ml-2 text-slate-600">
+                            {e.emocion_label ? <span className="mr-2 rounded-full bg-white/[0.04] px-2 py-0.5">{e.emocion_label}</span> : null}
+                            <span className="text-slate-600">
                               · {fechaCorta(e.fecha)}
                               {e.tema_label ? ` · ${e.tema_label}` : ""}
                             </span>
@@ -237,7 +237,7 @@ function SenalesVigilancia({ data, vidaMedia }: { data: TerminosResponse; vidaMe
             ))}
           </ul>
           <p className="mt-3 text-[10px] leading-4 text-slate-600">
-            Los comentarios son públicos y se muestran sin autor. El léxico está versionado en
+            Por privacidad, los comentarios se muestran como etiquetas (sentimiento, tema, emoción), sin texto ni autor. El léxico está versionado en
             el código y se revisa como cualquier otro cambio.
           </p>
         </>

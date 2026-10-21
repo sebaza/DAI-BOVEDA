@@ -233,7 +233,6 @@ export interface EventoPayload {
  *  mismo sorteo juntaban el 88,8 % de la muestra con indice 50,5. */
 export interface PublicacionDominante {
   publicacion_id: number;
-  caption: string;
   cuenta: string | null;
   cuenta_tipo: string | null;
   n_comentarios: number;
@@ -314,7 +313,6 @@ export interface AnomaliasResponse {
 
 export interface ComentarioReciente {
   id: number;
-  texto: string;
   fecha: string;
   sentimiento: string; // POS | NEU | NEG
   sentimiento_label: string;
@@ -326,6 +324,7 @@ export interface ComentarioReciente {
   emocion_label: string | null;
   unidad: string | null;
   cuenta: string | null;
+  cuenta_tipo: string | null;
   impacto: number;
 }
 
@@ -794,7 +793,6 @@ export interface TerminoSemana {
 
 /** Comentario que disparo la familia. SIN autor: el hash nunca sale del backend. */
 export interface TerminoEjemplo {
-  texto: string;
   fecha: string;
   sentimiento: string;
   sentimiento_label: string;

@@ -1776,7 +1776,8 @@ class TestTerminosVigilancia(unittest.TestCase):
         ])
         f = self._familia(repository.terminos_vigilancia(self.db, dias=3650), "paro")
         self.assertEqual(len(f["ejemplos"]), 1)
-        self.assertEqual(f["ejemplos"][0]["texto"], "No yapo no tiren paro")
+        # Ficha de etiquetas: el texto crudo no sale (solo la curación admin lo muestra).
+        self.assertNotIn("texto", f["ejemplos"][0])
         self.assertEqual(f["ejemplos"][0]["sentimiento"], "NEG")
         # NUNCA el autor: el hash no sale del backend.
         self.assertNotIn("autor_hash", f["ejemplos"][0])

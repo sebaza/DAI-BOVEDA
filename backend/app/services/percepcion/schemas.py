@@ -308,7 +308,6 @@ class PublicacionDominante(BaseModel):
     """Una publicación y cuánto de la conversación del período concentra."""
 
     publicacion_id: int
-    caption: str
     cuenta: str | None = None
     cuenta_tipo: str | None = None
     n_comentarios: int = 0
@@ -365,13 +364,12 @@ class TerminoSemana(BaseModel):
 
 
 class TerminoEjemplo(BaseModel):
-    """Comentario que disparó la familia. SIN autor: el hash no sale de la BD.
+    """Ficha de un comentario que disparó la familia: solo etiquetas, SIN texto ni autor.
 
-    Los ejemplos no son decoración: un contador que no se puede auditar no lo
-    cree nadie, y con razón.
+    El texto crudo solo sale por la curación (admin, auditada). Acá queda la ficha
+    para dimensionar el caso: cuándo, con qué ánimo y en qué tema.
     """
 
-    texto: str
     fecha: date
     sentimiento: str
     sentimiento_label: str
@@ -556,10 +554,9 @@ class AnomaliasResponse(BaseModel):
 
 
 class ComentarioReciente(BaseModel):
-    """Comentario real que afecta la percepción. SIN autor (dato público, anónimo)."""
+    """Ficha de un comentario que afecta la percepción: SOLO etiquetas, sin texto ni autor."""
 
     id: int
-    texto: str
     fecha: date
     sentimiento: str                 # POS | NEU | NEG
     sentimiento_label: str
@@ -571,6 +568,7 @@ class ComentarioReciente(BaseModel):
     emocion_label: str | None = None
     unidad: str | None = None        # facultad/departamento/campus de la cuenta
     cuenta: str | None = None        # nombre de la cuenta pública (no una persona)
+    cuenta_tipo: str | None = None   # institucional | facultad | …
     impacto: float = 0.0             # |neto| · peso_likes
 
 
