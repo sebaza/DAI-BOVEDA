@@ -1,0 +1,9 @@
+# Subtopic clustering (scripts/agrupar_subtemas_percepcion.py). NOT needed by the API runtime.
+# Install torch (CPU wheel) first, then this file:
+#   python -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.7.1
+#   python -m pip install -r requirements-ml.txt
+-r requirements-dev.txt
+# torch 2.14.x failed to load c10.dll on the dev machine (WinError 1114); 2.7.1 works.
+torch==2.7.1
+sentence-transformers==6.2.0
+scikit-learn==1.9.1

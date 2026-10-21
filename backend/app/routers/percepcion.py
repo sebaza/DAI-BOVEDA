@@ -386,6 +386,12 @@ def get_comentarios(
     )
 
 
+@router.get("/subtemas", response_model=schemas.SubtemasResponse)
+def get_subtemas(tema: str | None = None, db: Session = Depends(get_db)):
+    # Subtemas agrupados por un modelo local: solo etiqueta/términos anonimizados, sin texto.
+    return repository.subtemas(db, tema=tema)
+
+
 # --------------------------------------------------------------------------- #
 # Curación manual de temas (asignar a mano lo que quedó en "otros").
 # GET = lectura; POST = escritura sobre la base del worker + reagregado.

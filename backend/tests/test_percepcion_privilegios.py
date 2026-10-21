@@ -30,12 +30,14 @@ MODULOS_PRIVILEGIADOS = {
 
 # Quién puede nombrar las columnas crudas. `derivados` las lee para precalcular,
 # `curacion` es la cola de revisión de administradores, `resumen_llm` envía captions
-# truncadas al modelo y `models` las define.
+# truncadas al modelo, `subtemas` embebe el texto (solo lo corre el script, con el rol de proceso)
+# y `models` las define.
 MODULOS_CON_TEXTO_CRUDO = {
     "services/percepcion/models.py",
     "services/percepcion/derivados.py",
     "services/percepcion/curacion.py",
     "services/percepcion/resumen_llm.py",
+    "services/percepcion/subtemas.py",
 }
 _PATRON_CRUDO = re.compile(
     r"\b(?:C|P|PercepcionComentario|PercepcionPublicacion)\.(?:texto|caption)\b")

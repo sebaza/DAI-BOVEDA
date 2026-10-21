@@ -28,14 +28,16 @@ import re
 from datetime import date, datetime, timedelta
 from statistics import median
 
-from sqlalchemy import func, select
+from sqlalchemy import func, inspect, null, select, text
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.services.percepcion import derivados, lexico, ponderacion
 from app.services.percepcion.models import PercepcionComentario as C
 from app.services.percepcion.models import PercepcionComentarioFamilia as Fam
+from app.services.percepcion.models import PercepcionComentarioSubtema as CSub
 from app.services.percepcion.models import PercepcionComentarioToken as Tok
+from app.services.percepcion.models import PercepcionSubtema as Sub
 from app.services.percepcion.models import PercepcionCuenta as Cu
 from app.services.percepcion.models import PercepcionEvento as Evento
 from app.services.percepcion.models import PercepcionHechoDiario as H
@@ -2679,6 +2681,26 @@ def _peso_likes(n_likes: int) -> float:
     return 1.0 + math.log1p(max(0, int(n_likes or 0)))
 
 
+def _hay_subtemas(db) -> bool:
+    """Las tablas de subtemas las crea un script aparte: sin él, la API sigue sin ellas.
+
+    En Postgres además exige que ESTE rol pueda leerlas: el script las crea antes de que se
+    re-corra 003, y en esa ventana un SELECT daría InsufficientPrivilege (500 y transacción
+    envenenada). Una sola consulta sobre la misma conexión; sin caché, así aparecen apenas
+    se otorgan los permisos.
+    """
+    conn = db.connection()
+    if conn.dialect.name == "postgresql":
+        sql = text(
+            "SELECT bool_and(CASE WHEN to_regclass(t) IS NULL THEN false "
+            "ELSE has_table_privilege(to_regclass(t), 'SELECT') END) "
+            "FROM unnest(CAST(:tablas AS text[])) AS t"
+        )
+        return bool(conn.execute(sql, {"tablas": [Sub.__tablename__, CSub.__tablename__]}).scalar())
+    insp = inspect(conn)
+    return insp.has_table(Sub.__tablename__) and insp.has_table(CSub.__tablename__)
+
+
 def comentarios_recientes(
     db, *, dias=30, campus=None, facultad=None, departamento=None, tema=None,
     limite=20, incluir_neutrales=False, sentimiento=None, emocion=None,
@@ -2723,11 +2745,13 @@ def comentarios_recientes(
     if emocion:
         cond.append(S.emocion == emocion)
 
+    con_subtemas = _hay_subtemas(db)
     stmt = (
         select(
             C.id, C.fecha_comentario, C.n_likes, C.tema,
             S.sentimiento, S.prob_pos, S.prob_neg, S.emocion,
             Cu.nombre, Cu.tipo, Cu.campus, Cu.facultad, Cu.departamento,
+            *((Sub.id, Sub.etiqueta) if con_subtemas else (null(), null())),
         )
         .join(S, S.comentario_id == C.id)
         .join(P, P.id == C.publicacion_id)
@@ -2737,10 +2761,14 @@ def comentarios_recientes(
         .order_by(C.fecha_comentario.desc())
         .limit(max(limite * 5, 100))  # candidatos recientes; luego priorizamos impacto
     )
+    if con_subtemas:
+        stmt = (stmt.outerjoin(CSub, CSub.comentario_id == C.id)
+                .outerjoin(Sub, Sub.id == CSub.subtema_id))
 
     etq = etiquetas_tema(db)
     items = []
-    for cid, fecha, likes, tm, sent, ppos, pneg, emo, nombre, ctipo, camp, fac, depto in db.execute(stmt):
+    for (cid, fecha, likes, tm, sent, ppos, pneg, emo, nombre, ctipo, camp, fac, depto,
+         sub_id, sub_etq) in db.execute(stmt):
         neto = float(ppos or 0) - float(pneg or 0)
         items.append({
             "id": cid,
@@ -2757,11 +2785,35 @@ def comentarios_recientes(
             "cuenta": nombre,
             "cuenta_tipo": ctipo,
             "impacto": round(abs(neto) * _peso_likes(likes), 3),
+            "subtema": sub_id,
+            "subtema_label": sub_etq,
         })
     # De los recientes, mostramos primero los que más afectan (impacto), y a igual
     # impacto los más nuevos. Así "recientes que están afectando".
     items.sort(key=lambda x: (x["impacto"], x["fecha"]), reverse=True)
     return {"items": items[:limite]}
+
+
+def subtemas(db, *, tema: str | None = None) -> dict:
+    """Subtemas por tema (agrupación local): etiquetas y términos anonimizados, sin texto."""
+    if not _hay_subtemas(db):
+        return {"generado_en": None, "modelo": None, "temas": []}
+    stmt = select(Sub).order_by(Sub.tema, Sub.orden)
+    if tema:
+        stmt = stmt.where(Sub.tema == tema)
+    filas = db.execute(stmt).scalars().all()
+    etq = etiquetas_tema(db) if filas else {}
+    temas: dict[str, dict] = {}
+    for f in filas:
+        t = temas.setdefault(f.tema, {"tema": f.tema, "tema_label": etq.get(f.tema, f.tema),
+                                      "subtemas": []})
+        t["subtemas"].append({"id": f.id, "etiqueta": f.etiqueta, "terminos": list(f.terminos or []),
+                              "n_comentarios": int(f.n_comentarios or 0)})
+    return {
+        "generado_en": max((f.generado_en for f in filas), default=None),
+        "modelo": filas[0].modelo if filas else None,
+        "temas": list(temas.values()),
+    }
 
 
 def filtros(db) -> dict:

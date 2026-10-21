@@ -570,6 +570,8 @@ class ComentarioReciente(BaseModel):
     cuenta: str | None = None        # nombre de la cuenta pública (no una persona)
     cuenta_tipo: str | None = None   # institucional | facultad | …
     impacto: float = 0.0             # |neto| · peso_likes
+    subtema: int | None = None       # id en percepcion_subtema (agrupación local), si existe
+    subtema_label: str | None = None  # etiqueta anonimizada del subtema
 
 
 class ComentariosResponse(BaseModel):
@@ -1155,3 +1157,24 @@ class ConflictoResponse(BaseModel):
     delta_tipico: float | None = None
     explicacion: str | None = None
     avisos: list[str] = []
+
+
+class SubtemaItem(BaseModel):
+    """Un subtema: etiqueta y términos anonimizados (umbrales anti-PII), nunca texto."""
+
+    id: int
+    etiqueta: str
+    terminos: list[str] = []
+    n_comentarios: int = 0
+
+
+class SubtemasTema(BaseModel):
+    tema: str
+    tema_label: str | None = None
+    subtemas: list[SubtemaItem] = []
+
+
+class SubtemasResponse(BaseModel):
+    generado_en: datetime | None = None
+    modelo: str | None = None
+    temas: list[SubtemasTema] = []

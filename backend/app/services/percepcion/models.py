@@ -432,3 +432,34 @@ class PercepcionPublicacionRasgo(Base):
     hace_una_pregunta: Mapped[bool] = mapped_column(Boolean, default=False)
     texto_largo: Mapped[bool] = mapped_column(Boolean, default=False)
     sin_texto: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+# --------------------------------------------------------------------------- #
+# SUBTEMAS (Fase 3c): agrupación local por embeddings dentro de cada `tema`.
+# --------------------------------------------------------------------------- #
+# Los llena `scripts/agrupar_subtemas_percepcion.py` (rol de proceso, lee el texto crudo).
+# La API solo guarda/lee la etiqueta anonimizada (`subtemas.etiquetar`), nunca texto.
+class PercepcionSubtema(Base):
+    """Un subtema (grupo de comentarios parecidos) de un tema."""
+
+    __tablename__ = "percepcion_subtema"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tema: Mapped[str] = mapped_column(String(40), index=True)
+    orden: Mapped[int] = mapped_column(Integer)
+    etiqueta: Mapped[str] = mapped_column(String(120))
+    terminos: Mapped[list] = mapped_column(JSON, default=list)
+    n_comentarios: Mapped[int] = mapped_column(Integer, default=0)
+    modelo: Mapped[str] = mapped_column(String(120))
+    generado_en: Mapped[datetime] = mapped_column(DateTime)
+
+
+class PercepcionComentarioSubtema(Base):
+    """Subtema asignado a UN comentario."""
+
+    __tablename__ = "percepcion_comentario_subtema"
+
+    comentario_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("percepcion_comentario.id", ondelete="CASCADE"), primary_key=True)
+    subtema_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("percepcion_subtema.id", ondelete="CASCADE"), index=True)

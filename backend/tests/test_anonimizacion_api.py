@@ -10,9 +10,11 @@ solo, y si no se sabe llamar el test FALLA en vez de saltárselo.
 """
 from __future__ import annotations
 
+import importlib.util
 import re
 from datetime import datetime
 
+import numpy as np
 import pytest
 from fastapi.dependencies.utils import get_flat_dependant
 from fastapi.routing import APIRoute
@@ -27,7 +29,7 @@ from app.schemas import AuthUser
 from app.services import accesos
 from app.services import auth as auth_service
 from app.services.accesos import InMemoryAccessRepository
-from app.services.percepcion import models
+from app.services.percepcion import derivados, models, subtemas
 from app.services.percepcion.db import (
     get_percepcion_db,
     get_percepcion_proceso_db,
@@ -41,6 +43,11 @@ ADMIN = "admin@ucn.cl"
 
 # Valores por defecto para los query params obligatorios que aparezcan en el futuro.
 _DEFECTOS_QUERY = {"int": 1, "float": 1.0, "bool": False, "str": "x"}
+
+
+def _embedder_falso(textos):
+    """Dos grupos artificiales (pares/impares por longitud) para que haya más de un subtema."""
+    return np.array([[1.0, 0.0] if len(t) % 2 else [0.0, 1.0] for t in textos])
 
 
 def _h(email: str) -> dict:
@@ -75,6 +82,13 @@ def cliente():
             prob_pos=1.0 if sent == "POS" else 0.0, prob_neu=0.0,
             prob_neg=1.0 if sent == "NEG" else 0.0, emocion="anger", prob_emocion=0.9))
     db.commit()
+    # Subtemas construidos DESDE los comentarios centinela (embedder falso): las etiquetas
+    # salen de los tokens y los umbrales anti-PII no pueden dejar pasar el texto.
+    derivados.reconstruir(db)
+    subtemas.reconstruir_subtemas(db, _embedder_falso, modelo="fake", ahora=datetime(2026, 2, 1),
+                                  min_tamano=2 if importlib.util.find_spec("sklearn") else 999)
+    db.commit()
+    assert db.query(models.PercepcionSubtema).count() >= 1
 
     def _sesion():
         s = Sesion()

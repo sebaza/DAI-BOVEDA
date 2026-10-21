@@ -175,6 +175,8 @@ def test_app_si_lee_el_resto(con_app):
     assert _ok(con_app, "SELECT token FROM percepcion_comentario_token LIMIT 1")
     assert _ok(con_app, "SELECT familia FROM percepcion_comentario_familia LIMIT 1")
     assert _ok(con_app, "SELECT emojis_3_o_mas FROM percepcion_publicacion_rasgo")
+    assert _ok(con_app, "SELECT count(*) FROM percepcion_subtema") is not None
+    assert _ok(con_app, "SELECT count(*) FROM percepcion_comentario_subtema") is not None
     assert _ok(con_app, "SELECT sentimiento FROM percepcion_score")
     assert _ok(con_app, "SELECT count(*) FROM percepcion_hecho_diario")
 
@@ -232,6 +234,11 @@ def test_app_no_hace_escrituras_de_mas(con_app):
     _denegado(con_app, "DELETE FROM percepcion_score")
     _denegado(con_app, "INSERT INTO percepcion_comentario_token (comentario_id, token) VALUES (1, 'x')")
     _denegado(con_app, "DELETE FROM percepcion_comentario_token")
+    _denegado(con_app, "INSERT INTO percepcion_subtema (tema, orden, etiqueta, terminos, n_comentarios, modelo, "
+                       "generado_en) VALUES ('x', 0, 'x', '[]', 0, 'x', now())")
+    _denegado(con_app, "DELETE FROM percepcion_subtema")
+    _denegado(con_app, "INSERT INTO percepcion_comentario_subtema (comentario_id, subtema_id) VALUES (1, 1)")
+    _denegado(con_app, "DELETE FROM percepcion_comentario_subtema")
     _denegado(con_app, "DELETE FROM percepcion_correccion")
     _denegado(con_app, "CREATE TABLE percepcion_rt.nueva (id int)")
     _denegado(con_app, "TRUNCATE percepcion_hecho_diario")

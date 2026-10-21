@@ -2073,6 +2073,7 @@ python -m percepcion.cli agregar`}
                         </span>
                         <div className="flex flex-1 flex-wrap items-center gap-2 text-sm text-slate-100">
                           {c.tema_label ? <span className="rounded bg-white/[0.06] px-2 py-0.5">{c.tema_label}</span> : <span className="text-slate-500">(sin tema)</span>}
+                          {c.subtema_label ? <span title="Subtema agrupado por un modelo local" className="rounded border border-white/[0.14] px-2 py-0.5 text-slate-300">{c.subtema_label}</span> : null}
                           {c.emocion_label ? <span className="rounded bg-white/[0.06] px-2 py-0.5">{labelEmocion(c.emocion, c.emocion_label)}</span> : null}
                           <span className="text-sm text-slate-500">neto {c.neto.toFixed(2)}</span>
                         </div>

@@ -326,6 +326,8 @@ export interface ComentarioReciente {
   cuenta: string | null;
   cuenta_tipo: string | null;
   impacto: number;
+  subtema?: number | null;
+  subtema_label?: string | null;
 }
 
 export interface ComentariosResponse {

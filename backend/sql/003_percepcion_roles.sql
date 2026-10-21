@@ -49,7 +49,8 @@ DECLARE
                                                        "prob_neg", "emocion", "prob_emocion"]}';
 
     -- Tablas derivadas del texto: solo las reconstruye el rol de proceso.
-    derivadas text[] := ARRAY['percepcion_comentario_token', 'percepcion_comentario_familia',
+    derivadas text[] := ARRAY['percepcion_subtema', 'percepcion_comentario_subtema',
+                              'percepcion_comentario_token', 'percepcion_comentario_familia',
                               'percepcion_publicacion_rasgo'];
     t record;
     cols text;
