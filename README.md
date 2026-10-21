@@ -102,6 +102,56 @@ Sin `PERCEPCION_DATABASE_URL` se usa `backend/percepcion.db`, que se crea vacía
 > **Esa base tiene comentarios reales.** `*.db`, `.env`, `outputs/`, `calibracion.json`,
 > `postura.json` y `tema.json` están en `.gitignore`; no los subas ni los muevas a otro repo.
 
+## Datos en PostgreSQL
+
+La base de Percepción puede vivir en PostgreSQL en vez de SQLite. Las tablas `percepcion_*`
+van en un esquema propio, `percepcion`, de la misma base donde está el esquema `boveda`. El
+esquema se elige por la URL de conexión (el `search_path` viaja en `options`), de modo que
+los modelos siguen siendo un espejo de las tablas del worker y no conocen ningún esquema:
+
+```
+PERCEPCION_DATABASE_URL=postgresql+psycopg://USUARIO:CLAVE@HOST:5432/BASE?options=-csearch_path%3Dpercepcion
+```
+
+Con Postgres, el motor de lectura del dashboard abre cada conexión en modo **solo lectura**
+(`SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY`, el equivalente del `query_only` de
+SQLite); solo la curación, los eventos y el caché de resúmenes escriben, por el motor de escritura.
+
+### Migrar desde SQLite
+
+`scripts/migrar_percepcion_postgres.py` copia `backend/percepcion_real.db` al esquema
+`percepcion` en **una sola transacción** (si algo falla no queda nada a medias). Crea el esquema
+y las tablas desde los modelos, convierte fechas, booleanos y JSON con sus tipos, valida que cada
+texto entre en su columna, reinicia las secuencias y compara el conteo de filas tabla por tabla
+(código de salida distinto de 0 si algo no coincide). Abre el SQLite en solo lectura y nunca
+imprime la URL.
+
+```bat
+set PERCEPCION_DATABASE_URL=postgresql+psycopg://USUARIO:CLAVE@HOST:5432/BASE?options=-csearch_path%3Dpercepcion
+backend\.venv\Scripts\python.exe -I scripts\migrar_percepcion_postgres.py
+```
+
+Opciones: `--origen RUTA.db`, `--destino URL` (en vez de la variable), `--esquema NOMBRE`
+(def. `percepcion`) y `--reemplazar`. Sin `--reemplazar`, si alguna tabla del destino ya tiene
+filas el script se niega y no toca nada.
+
+> **El worker externo sigue escribiendo SQLite.** Para refrescar Postgres con una ingesta nueva hay
+> que volver a correr la migración con `--reemplazar`, que vacía las tablas y las recarga desde el
+> SQLite. **Eso sobrescribe todo lo que la Bóveda haya escrito en Postgres desde la última copia**:
+> correcciones de curación, eventos, temas personalizados y resúmenes semanales. Antes de recargar
+> hay que decidir si ese trabajo se respalda (por ejemplo con `pg_dump -n percepcion`) o se pierde.
+
+Para comprobar que la API responde lo mismo sobre las dos bases (compara los JSON de una batería
+de endpoints, ignora el orden de las claves y usa tolerancia en los números; solo imprime nombres
+de endpoint y rutas, nunca valores):
+
+```bat
+backend\.venv\Scripts\python.exe -I scripts\verificar_paridad_percepcion.py
+```
+
+Un endpoint puede salir como `ORDEN`: mismo contenido, pero distinto orden entre filas empatadas
+(el SQL no garantiza ese orden en ningún motor). Es informativo; solo `DIFF` o `ERROR` fallan.
+
 ## Variables de entorno
 
 Detalle comentado en [`backend/.env.example`](backend/.env.example) y [`frontend/.env.example`](frontend/.env.example).
@@ -113,7 +163,7 @@ Detalle comentado en [`backend/.env.example`](backend/.env.example) y [`frontend
 | `APP_SESSION_TTL_SECONDS` | Duración de la sesión (def. 28800) |
 | `GOOGLE_CLIENT_ID` | Cliente OAuth del botón de Google y *audience* del token |
 | `BOVEDA_DATABASE_URL` | URL de SQLAlchemy de la base con el esquema `boveda` (`postgresql+psycopg://usuario:clave@host:5432/base`). Obligatoria fuera de dev; vacía = nadie entra |
-| `PERCEPCION_DATABASE_URL` | Base de Percepción (SQLite o `postgresql+psycopg2://…`). Vacío → `OPERATIONAL_DATABASE_URL` → `backend/percepcion.db` |
+| `PERCEPCION_DATABASE_URL` | Base de Percepción (SQLite o `postgresql+psycopg://…?options=-csearch_path%3Dpercepcion`, ver «Datos en PostgreSQL»). Vacío → `OPERATIONAL_DATABASE_URL` → `backend/percepcion.db` |
 | `TASKS_TRIGGER_TOKEN` | Secreto del disparador `POST /tasks/run/percepcion-resumen` (vacío = deshabilitado) |
 | `ANTHROPIC_API_KEY` | Resumen semanal por LLM (sin clave degrada solo) |
 | `BACKEND_CORS_ORIGINS` | Orígenes CORS (def. `localhost:3001`) |
@@ -134,7 +184,7 @@ cd frontend && npx tsc --noEmit && npm run build
 `backend/tests/conftest.py` fuerza una base temporal: la suite no toca la base del `.env`.
 `test_auth_gates.py` cubre las compuertas de acceso con un repositorio en memoria. `test_accesos_postgres.py` prueba el
 adaptador contra una PostgreSQL real y se **omite** salvo que definas `BOVEDA_TEST_DATABASE_URL` (con las migraciones 001 y 002
-aplicadas); corre dentro de una transacción que se revierte, así que no deja nada en el esquema `boveda`.
+aplicadas); corre dentro de una transacción que se revierte, así que no deja nada en el esquema `boveda`. Las pruebas contra PostgreSQL del módulo (`test_percepcion_postgres.py`, `test_migrar_percepcion_postgres.py`) también se **omiten** salvo que definas `PERCEPCION_TEST_DATABASE_URL`; trabajan en esquemas descartables (`percepcion_test*`) que crean y eliminan ellas mismas, y nunca tocan el esquema real `percepcion`.
 
 ## Contrato con el worker externo
 

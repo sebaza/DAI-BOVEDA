@@ -15,6 +15,7 @@ acá: no hay `create_all`, la sesión es de lectura.
 from __future__ import annotations
 
 from sqlalchemy import create_engine, event, inspect, text
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
@@ -24,31 +25,59 @@ _settings = get_settings()
 _url = _settings.percepcion_database_url or _settings.operational_database_url
 _is_sqlite = _url.startswith("sqlite")
 
-_connect_args = {"check_same_thread": False} if _is_sqlite else {}
-_engine_kwargs = {"future": True, "connect_args": _connect_args, "pool_pre_ping": True}
-if not _is_sqlite:
-    _engine_kwargs["pool_recycle"] = 1800
 
-percepcion_engine = create_engine(_url, **_engine_kwargs)
+def crear_engine(url: str, *, solo_lectura: bool) -> Engine:
+    """Engine de la base de percepción, blindado según `solo_lectura`.
+
+    * SQLite: WAL + busy_timeout (las lecturas del dashboard no se bloquean si el worker
+      escribe la misma base) y, si es de lectura, `PRAGMA query_only=ON`.
+    * PostgreSQL: el motor de lectura abre cada conexión con
+      `SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY`, el equivalente de
+      `query_only`: cualquier INSERT/UPDATE/DELETE/DDL por esa vía falla en el servidor.
+      Se hace por evento y no por `options=-c default_transaction_read_only=on` porque
+      la URL ya trae `options` (el `search_path` que elige el esquema `percepcion`) y un
+      `options` de `connect_args` lo pisaría. A diferencia del PRAGMA, acá un fallo NO se
+      traga: sin el blindaje la conexión no se entrega.
+    """
+    sqlite = url.startswith("sqlite")
+    kwargs: dict = {
+        "future": True,
+        "pool_pre_ping": True,
+        "connect_args": {"check_same_thread": False} if sqlite else {},
+    }
+    if not sqlite:
+        kwargs["pool_recycle"] = 1800
+    engine = create_engine(url, **kwargs)
+
+    if sqlite:
+        @event.listens_for(engine, "connect")
+        def _sqlite_pragmas(dbapi_conn, _record):  # noqa: ANN001
+            cur = dbapi_conn.cursor()
+            try:
+                cur.execute("PRAGMA journal_mode=WAL")
+                cur.execute("PRAGMA synchronous=NORMAL")
+                cur.execute("PRAGMA busy_timeout=8000")
+                if solo_lectura:
+                    cur.execute("PRAGMA temp_store=MEMORY")
+                    cur.execute("PRAGMA query_only=ON")  # blindaje: esta conexión NO escribe
+            except Exception:
+                pass
+            finally:
+                cur.close()
+    elif solo_lectura:
+        @event.listens_for(engine, "connect")
+        def _pg_solo_lectura(dbapi_conn, _record):  # noqa: ANN001
+            cur = dbapi_conn.cursor()
+            try:
+                cur.execute("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY")
+            finally:
+                cur.close()
+            dbapi_conn.commit()  # el SET de sesión sobrevive solo si la transacción cierra
+
+    return engine
 
 
-if _is_sqlite:
-    # WAL + busy_timeout: las lecturas del dashboard no se bloquean si el worker
-    # está escribiendo la misma base (SQLite) en ese momento.
-    @event.listens_for(percepcion_engine, "connect")
-    def _sqlite_pragmas(dbapi_conn, _record):  # noqa: ANN001
-        cur = dbapi_conn.cursor()
-        try:
-            cur.execute("PRAGMA journal_mode=WAL")
-            cur.execute("PRAGMA synchronous=NORMAL")
-            cur.execute("PRAGMA busy_timeout=8000")
-            cur.execute("PRAGMA temp_store=MEMORY")
-            cur.execute("PRAGMA query_only=ON")  # blindaje: esta conexión NO escribe
-        except Exception:
-            pass
-        finally:
-            cur.close()
-
+percepcion_engine = crear_engine(_url, solo_lectura=True)
 
 PercepcionSessionLocal = sessionmaker(
     bind=percepcion_engine, autoflush=False, autocommit=False, future=True
@@ -58,25 +87,11 @@ PercepcionSessionLocal = sessionmaker(
 # --------------------------------------------------------------------------- #
 # Conexión de ESCRITURA — SOLO para la curación manual de temas.
 # --------------------------------------------------------------------------- #
-# El lector del dashboard es read-only (query_only=ON). La curación manual (asignar
-# un tema a mano) es la ÚNICA operación de la Torre que escribe en la base del
-# worker, así que va por un engine aparte SIN query_only. Se usa con moderación y
-# reconstruye los hechos tras cada cambio.
-percepcion_write_engine = create_engine(_url, **_engine_kwargs)
-
-if _is_sqlite:
-    @event.listens_for(percepcion_write_engine, "connect")
-    def _sqlite_pragmas_write(dbapi_conn, _record):  # noqa: ANN001
-        cur = dbapi_conn.cursor()
-        try:
-            cur.execute("PRAGMA journal_mode=WAL")
-            cur.execute("PRAGMA synchronous=NORMAL")
-            cur.execute("PRAGMA busy_timeout=8000")
-        except Exception:
-            pass
-        finally:
-            cur.close()
-
+# El lector del dashboard es read-only (query_only=ON / READ ONLY en Postgres). La
+# curación manual (asignar un tema a mano) es la ÚNICA operación de la Torre que escribe
+# en la base del worker, así que va por un engine aparte SIN ese blindaje. Se usa con
+# moderación y reconstruye los hechos tras cada cambio.
+percepcion_write_engine = crear_engine(_url, solo_lectura=False)
 
 PercepcionWriteSessionLocal = sessionmaker(
     bind=percepcion_write_engine, autoflush=False, autocommit=False, future=True

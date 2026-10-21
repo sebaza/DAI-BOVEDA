@@ -42,12 +42,16 @@ class TestPostgres(ContratoAccesos):
                 {"i": id, "n": nombre, "a": activo},
             )
 
+        # Only rows written by this test: the local DB may already hold real audit rows.
+        tope = conn.execute(text("SELECT coalesce(max(id), 0) FROM boveda.auditoria_texto")).scalar()
+
         def leer_auditoria() -> list[dict]:
             filas = conn.execute(
                 text(
                     "SELECT admin_email, modulo_id, endpoint, comentario_ids "
-                    "FROM boveda.auditoria_texto ORDER BY id"
-                )
+                    "FROM boveda.auditoria_texto WHERE id > :tope ORDER BY id"
+                ),
+                {"tope": tope},
             ).mappings()
             return [dict(f) for f in filas]
 

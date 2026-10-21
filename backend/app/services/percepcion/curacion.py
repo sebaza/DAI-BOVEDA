@@ -244,7 +244,9 @@ def publicaciones_a_curar(db: Session, *, solo_con_otros: bool = True, limite: i
         select(P.id, P.caption, Cu.nombre, func.count(C.id), n_otros)
         .join(Cu, Cu.id == P.cuenta_id)
         .join(C, C.publicacion_id == P.id)
-        .group_by(P.id)
+        # PG exige agrupar por TODA columna no agregada que no dependa de la clave: `Cu.nombre`
+        # depende de `Cu.id`, no de `P.id`. SQLite lo toleraba (columna "desnuda").
+        .group_by(P.id, Cu.id)
     )
     items = []
     for pid, caption, cuenta, n_com, n_ot in db.execute(stmt):
@@ -258,7 +260,9 @@ def publicaciones_a_curar(db: Session, *, solo_con_otros: bool = True, limite: i
             "n_comentarios": int(n_com or 0),
             "n_otros": n_ot,
         })
-    items.sort(key=lambda x: x["n_otros"], reverse=True)
+    # Desempate por `id`: sin él, qué filas empatadas entran al `limite` lo decide el motor
+    # (SQLite y Postgres elegían distinto) y la cola de curación cambiaba de una base a otra.
+    items.sort(key=lambda x: (-x["n_otros"], x["id"]))
     return {"items": items[:limite]}
 
 
