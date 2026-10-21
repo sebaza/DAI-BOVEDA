@@ -180,6 +180,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--postgres", default=None,
                     help="URL de Postgres (por defecto PERCEPCION_DATABASE_URL); no se imprime")
     ap.add_argument("--esquema", default="percepcion")
+    ap.add_argument("--guardar-referencia", type=Path, default=None, metavar="ARCHIVO",
+                    help="Solo SQLite: guarda las respuestas del código ACTUAL (cálculo sobre texto) "
+                         "en ARCHIVO (JSON local; contiene lo que devuelven los endpoints de curación: "
+                         "bórralo después) y termina. No requiere Postgres.")
+    ap.add_argument("--contra-referencia", type=Path, default=None, metavar="ARCHIVO",
+                    help="Compara el Postgres (cálculo sobre tokens precalculados) contra una referencia "
+                         "guardada antes con --guardar-referencia: prueba que refactorizar no cambió resultados.")
     args = ap.parse_args(argv)
 
     for flujo in (sys.stdout, sys.stderr):
@@ -189,7 +196,7 @@ def main(argv: list[str] | None = None) -> int:
             pass
 
     url_pg = args.postgres or os.environ.get("PERCEPCION_DATABASE_URL", "").strip()
-    if not url_pg.startswith("postgresql"):
+    if not args.guardar_referencia and not url_pg.startswith("postgresql"):
         print("Falta la URL de Postgres: pasa --postgres o define PERCEPCION_DATABASE_URL.", file=sys.stderr)
         return 2
     if not args.sqlite.is_file():
@@ -199,12 +206,14 @@ def main(argv: list[str] | None = None) -> int:
     tmp = _preparar_entorno()  # ← antes de importar la app
     sys.path.insert(0, str(BACKEND))
     try:
-        return _comparar(args.sqlite, url_pg, args.esquema)
+        return _comparar(args.sqlite, url_pg, args.esquema,
+                         guardar=args.guardar_referencia, referencia=args.contra_referencia)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-def _comparar(ruta_sqlite: Path, url_pg: str, esquema: str) -> int:
+def _comparar(ruta_sqlite: Path, url_pg: str, esquema: str, *,
+              guardar: Path | None = None, referencia: Path | None = None) -> int:
     from fastapi.testclient import TestClient
     from sqlalchemy.orm import sessionmaker
 
@@ -214,7 +223,12 @@ def _comparar(ruta_sqlite: Path, url_pg: str, esquema: str) -> int:
     from app.services import accesos
     from app.services import auth as auth_service
     from app.services.accesos import InMemoryAccessRepository
-    from app.services.percepcion.db import crear_engine, get_percepcion_db, get_percepcion_write_db
+    from app.services.percepcion.db import (
+        crear_engine,
+        get_percepcion_db,
+        get_percepcion_proceso_db,
+        get_percepcion_write_db,
+    )
     from app.services.percepcion.pg import url_con_esquema
 
     s = get_settings()
@@ -235,8 +249,9 @@ def _comparar(ruta_sqlite: Path, url_pg: str, esquema: str) -> int:
     motores = {
         "sqlite": crear_engine(
             f"sqlite:///file:{ruta_sqlite.resolve().as_posix()}?mode=ro&uri=true", solo_lectura=True),
-        "postgres": crear_engine(url_con_esquema(url_pg, esquema), solo_lectura=True),
     }
+    if not guardar:
+        motores["postgres"] = crear_engine(url_con_esquema(url_pg, esquema), solo_lectura=True)
     fabricas = {k: sessionmaker(bind=e, autoflush=False, autocommit=False, future=True)
                 for k, e in motores.items()}
     activo = {"motor": "sqlite"}
@@ -250,6 +265,7 @@ def _comparar(ruta_sqlite: Path, url_pg: str, esquema: str) -> int:
 
     app.dependency_overrides[get_percepcion_db] = _sesion
     app.dependency_overrides[get_percepcion_write_db] = _sesion
+    app.dependency_overrides[get_percepcion_proceso_db] = _sesion
     cliente = TestClient(app, raise_server_exceptions=False)
 
     def pedir(motor: str, ruta: str, params: dict):
@@ -267,8 +283,20 @@ def _comparar(ruta_sqlite: Path, url_pg: str, esquema: str) -> int:
         if estado != 200 or not isinstance(filtros, dict):
             print(f"No se pudieron leer los filtros del SQLite (HTTP {estado}).", file=sys.stderr)
             return 1
+        if guardar:
+            volcado = {n: pedir("sqlite", r, p) for n, r, p in _endpoints(filtros)}
+            guardar.write_text(json.dumps(volcado, default=str), encoding="utf-8")
+            malos = [n for n, (e, _) in volcado.items() if e != 200]
+            print(f"Referencia guardada: {len(volcado)} endpoints, {len(malos)} con HTTP != 200.")
+            return 1 if malos else 0
+        previa = json.loads(referencia.read_text(encoding="utf-8")) if referencia else None
         for nombre, ruta, params in _endpoints(filtros):
-            (e1, j1), (e2, j2) = pedir("sqlite", ruta, params), pedir("postgres", ruta, params)
+            if previa is not None:
+                # Referencia (código viejo, texto) vs Postgres (código nuevo, tokens).
+                e1, j1 = previa[nombre]
+                e2, j2 = pedir("postgres", ruta, params)
+            else:
+                (e1, j1), (e2, j2) = pedir("sqlite", ruta, params), pedir("postgres", ruta, params)
             if e1 != 200 or e2 != 200:
                 print(f"{nombre:34s} ERROR  HTTP sqlite={e1} postgres={e2}")
                 fallos += 1

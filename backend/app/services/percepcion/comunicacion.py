@@ -40,14 +40,15 @@ comunicar es útil, y no es lo mismo que un experimento.
 from __future__ import annotations
 
 import math
-import re
 from datetime import datetime
 
 from sqlalchemy import select
 
+from app.services.percepcion import derivados
 from app.services.percepcion.models import PercepcionComentario as C
 from app.services.percepcion.models import PercepcionCuenta as Cu
 from app.services.percepcion.models import PercepcionPublicacion as P
+from app.services.percepcion.models import PercepcionPublicacionRasgo as R
 
 # Mínimos del control intra-cuenta. Una cuenta necesita publicaciones de los DOS
 # lados de la característica para poder compararse consigo misma.
@@ -55,26 +56,26 @@ MIN_POR_LADO = 6
 # Publicaciones mínimas para que una característica se reporte.
 MIN_POR_GRUPO = 30
 
-_EMOJI = re.compile("[\U0001F300-\U0001FAFF☀-➿]")
-
-
-def _caracteristicas(caption: str | None, tipo: str | None,
+def _caracteristicas(rasgos_caption: dict[str, bool], tipo: str | None,
                      fecha: datetime | None) -> dict[str, bool]:
     """Rasgos de la publicación observables ANTES de publicarla.
 
     ⚠️ Nada que dependa de la reacción (likes, comentarios) puede entrar acá. Serían
     fuga de datos: predecirían la conversación porque YA son la conversación, y el
     resultado no serviría para decidir cómo comunicar.
+
+    Los rasgos que salen del TEXTO de la caption no se calculan acá: los precalcula
+    `derivados.rasgos_caption` (con un rol que puede leer la caption) y se leen de
+    `percepcion_publicacion_rasgo`. Esta función solo los junta con `tipo` y `fecha`.
     """
-    cap = caption or ""
     return {
         "es_reel": (tipo or "") == "reel",
-        "emojis_3_o_mas": len(_EMOJI.findall(cap)) >= 3,
-        "menciona_cuentas": "@" in cap,
-        "hashtags_3_o_mas": cap.count("#") >= 3,
-        "hace_una_pregunta": "?" in cap,
-        "texto_largo": len(cap) > 500,
-        "sin_texto": len(cap.strip()) < 20,
+        "emojis_3_o_mas": bool(rasgos_caption["emojis_3_o_mas"]),
+        "menciona_cuentas": bool(rasgos_caption["menciona_cuentas"]),
+        "hashtags_3_o_mas": bool(rasgos_caption["hashtags_3_o_mas"]),
+        "hace_una_pregunta": bool(rasgos_caption["hace_una_pregunta"]),
+        "texto_largo": bool(rasgos_caption["texto_largo"]),
+        "sin_texto": bool(rasgos_caption["sin_texto"]),
         "fin_de_semana": bool(fecha) and fecha.weekday() >= 5,
     }
 
@@ -96,15 +97,20 @@ def _publicaciones(db) -> list[dict]:
     con_comentarios = {
         pid for (pid,) in db.execute(select(C.publicacion_id).distinct()).all()
     }
+    # Inner join con los rasgos: una publicación sin fila derivada (ingestada después del
+    # último precálculo) no se cuenta, en vez de contarse como «sin texto».
     filas = db.execute(
-        select(P.id, P.caption, P.tipo, P.fecha_publicacion, Cu.nombre)
+        select(P.id, P.tipo, P.fecha_publicacion, Cu.nombre,
+               R.emojis_3_o_mas, R.menciona_cuentas, R.hashtags_3_o_mas,
+               R.hace_una_pregunta, R.texto_largo, R.sin_texto)
         .join(Cu, Cu.id == P.cuenta_id)
+        .join(R, R.publicacion_id == P.id)
     ).all()
     return [
         {"id": pid, "cuenta": cuenta or "(sin cuenta)",
          "conversa": pid in con_comentarios,
-         "rasgos": _caracteristicas(caption, tipo, fecha)}
-        for pid, caption, tipo, fecha, cuenta in filas
+         "rasgos": _caracteristicas(dict(zip(derivados.RASGOS_CAPTION, rc)), tipo, fecha)}
+        for pid, tipo, fecha, cuenta, *rc in filas
     ]
 
 

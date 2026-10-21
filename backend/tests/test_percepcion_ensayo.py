@@ -152,7 +152,7 @@ class TestEnsayoContraLaBase(unittest.TestCase):
         from app.services.percepcion.models import (
             PercepcionComentario, PercepcionCuenta, PercepcionPublicacion, PercepcionScore,
         )
-        from tests.test_percepcion import _memoria
+        from tests.test_percepcion import _commit_y_derivar, _memoria
         self.db = _memoria()
         # SEIS cuentas. El rasgo se declara sólido solo si el test de SIGNOS
         # intra-cuenta descarta el azar, y ese test es de DOS COLAS: con cinco
@@ -184,7 +184,7 @@ class TestEnsayoContraLaBase(unittest.TestCase):
                         self.db.add(PercepcionScore(
                             id=n, comentario_id=n, modelo="t", sentimiento="POS",
                             prob_pos=1.0, prob_neu=0.0, prob_neg=0.0))
-        self.db.commit()
+        _commit_y_derivar(self.db)
 
     def tearDown(self):
         self.db.close()
@@ -207,7 +207,7 @@ class TestEnsayoContraLaBase(unittest.TestCase):
             self.assertIn("solido", it)
 
     def test_sin_publicaciones_no_inventa_una_probabilidad(self):
-        from tests.test_percepcion import _memoria
+        from tests.test_percepcion import _commit_y_derivar, _memoria
         vacia = _memoria()
         try:
             self.assertIsNone(comunicacion.ensayar(vacia, {"es_reel"})["probabilidad"])

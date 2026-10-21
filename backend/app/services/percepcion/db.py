@@ -11,6 +11,16 @@ Por qué separada de `app.database.SessionLocal`:
 Config: `PERCEPCION_DATABASE_URL`. Si está vacío, cae a `OPERATIONAL_DATABASE_URL`
 (compat / nube donde el worker escriba al mismo Postgres). La Torre NUNCA escribe
 acá: no hay `create_all`, la sesión es de lectura.
+
+DOS CREDENCIALES (Fase 3b)
+--------------------------
+`PERCEPCION_DATABASE_URL` es la conexión normal de la API y está pensada para el rol
+`boveda_app`, que NO puede leer `percepcion_comentario.texto` ni
+`percepcion_publicacion.caption` (ver `backend/sql/003_percepcion_roles.sql`).
+`PERCEPCION_PROCESO_DATABASE_URL` (opcional) es la del rol `boveda_proceso`, que sí puede:
+la usan SOLO los endpoints de Curación que devuelven texto y la lectura de captions del
+resumen semanal (`percepcion_proceso_engine`). Si no está definida, cae a la normal, así
+que un entorno con una sola variable sigue funcionando igual que antes.
 """
 from __future__ import annotations
 
@@ -77,6 +87,11 @@ def crear_engine(url: str, *, solo_lectura: bool) -> Engine:
     return engine
 
 
+def resolver_url_proceso(url_app: str, url_proceso: str | None) -> str:
+    """URL del rol privilegiado: la propia si está definida; si no, la normal (compat)."""
+    return (url_proceso or "").strip() or url_app
+
+
 percepcion_engine = crear_engine(_url, solo_lectura=True)
 
 PercepcionSessionLocal = sessionmaker(
@@ -96,6 +111,21 @@ percepcion_write_engine = crear_engine(_url, solo_lectura=False)
 PercepcionWriteSessionLocal = sessionmaker(
     bind=percepcion_write_engine, autoflush=False, autocommit=False, future=True
 )
+
+# --------------------------------------------------------------------------- #
+# Conexión PRIVILEGIADA — la única que puede leer texto de comentarios y captions.
+# --------------------------------------------------------------------------- #
+# Es de SOLO LECTURA: leer el texto no requiere escribir. Solo la usan los endpoints de
+# Curación que devuelven texto y el resumen semanal (que manda captions al modelo); un
+# test (`test_percepcion_privilegios.py`) impide importarla desde cualquier otro módulo.
+_url_proceso = resolver_url_proceso(_url, _settings.percepcion_proceso_database_url)
+
+percepcion_proceso_engine = crear_engine(_url_proceso, solo_lectura=True)
+
+PercepcionProcesoSessionLocal = sessionmaker(
+    bind=percepcion_proceso_engine, autoflush=False, autocommit=False, future=True
+)
+
 
 def _asegurar_columnas(tabla) -> list[str]:
     """Agrega por ALTER TABLE las columnas del modelo que falten en la base.
@@ -164,6 +194,11 @@ def _asegurar_unicidad_resumen() -> bool:
         insp = inspect(percepcion_write_engine)
         if not insp.has_table(tabla):
             return False
+        # Con el rol de la API (sin ser dueño de la tabla) el CREATE INDEX fallaría aunque
+        # el índice exista; si ya está, no hay nada que garantizar.
+        if any(ix.get("name") == "uq_percepcion_resumen_semana_alcance"
+               for ix in insp.get_indexes(tabla)):
+            return True
         with percepcion_write_engine.begin() as con:
             con.execute(text(
                 f"UPDATE {tabla} SET dimension = '' WHERE dimension IS NULL"
@@ -216,6 +251,19 @@ except Exception:
 def get_percepcion_db() -> Session:
     """Dependencia FastAPI: sesión de solo lectura sobre la base de percepción."""
     db = PercepcionSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def get_percepcion_proceso_db() -> Session:
+    """Dependencia FastAPI: sesión de LECTURA con el rol que puede leer texto crudo.
+
+    Solo para la Curación (texto de comentarios/captions) y el resumen semanal. Ver el
+    docstring del módulo y `test_percepcion_privilegios.py`.
+    """
+    db = PercepcionProcesoSessionLocal()
     try:
         yield db
     finally:

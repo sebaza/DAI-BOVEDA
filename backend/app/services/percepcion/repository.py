@@ -32,8 +32,10 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.services.percepcion import lexico, ponderacion
+from app.services.percepcion import derivados, lexico, ponderacion
 from app.services.percepcion.models import PercepcionComentario as C
+from app.services.percepcion.models import PercepcionComentarioFamilia as Fam
+from app.services.percepcion.models import PercepcionComentarioToken as Tok
 from app.services.percepcion.models import PercepcionCuenta as Cu
 from app.services.percepcion.models import PercepcionEvento as Evento
 from app.services.percepcion.models import PercepcionHechoDiario as H
@@ -711,16 +713,17 @@ def _terminos_por_semana(db, desde, hasta, *, campus, facultad, departamento, te
         if fmax is None:
             return {}
         filas = db.execute(
-            _select_corpus(C.fecha_comentario, C.texto, S.sentimiento, S.emocion)
+            _select_corpus(C.id, C.fecha_comentario, S.sentimiento, S.emocion)
             .where(*_cond_corpus(
                 fmax, dias=0, campus=campus, facultad=facultad,
                 departamento=departamento, tema=tema,
                 fecha_desde=desde, fecha_hasta=hasta,
             ))
-        )
+        ).all()
+        con_familia = _familias_de(db, [f[0] for f in filas])
         acc: dict = {}
-        for fecha_dt, texto, sent, emo in filas:
-            if emo == EMOCION_HUMOR or not lexico.detectar(texto):
+        for cid, fecha_dt, sent, emo in filas:
+            if emo == EMOCION_HUMOR or not con_familia.get(cid):
                 continue
             a = acc.setdefault(_lunes(_a_fecha(fecha_dt)), {"n": 0, "n_neg": 0})
             a["n"] += 1
@@ -1685,6 +1688,42 @@ def _select_corpus(*columnas):
     )
 
 
+# --------------------------------------------------------------------------- #
+# DERIVADOS DEL TEXTO — la API no lee `texto`, lee tokens/familias precalculados.
+# --------------------------------------------------------------------------- #
+# El rol de base de datos de la API no tiene permiso sobre `percepcion_comentario.texto`.
+# Todo lo que antes se calculaba tokenizando el texto al vuelo sale de
+# `percepcion_comentario_token` / `percepcion_comentario_familia`, que llena
+# `scripts/precalcular_tokens_percepcion.py` con `derivados` (la MISMA lógica). Las
+# consultas siguen trayendo las filas del corpus con su filtro, límite y orden de siempre
+# (sin la columna `texto`) y piden los derivados de ESOS ids: así los filtros y los topes
+# de seguridad se conservan tal cual.
+_LOTE_IDS = 900     # bajo el límite de variables de SQLite de versiones viejas
+
+
+def _derivados_de(db, modelo, columna, ids) -> dict[int, set[str]]:
+    """{comentario_id: {valores}} de una tabla derivada, pidiendo los ids por lotes."""
+    ids = list(ids)
+    salida: dict[int, set[str]] = {}
+    for i in range(0, len(ids), _LOTE_IDS):
+        lote = ids[i:i + _LOTE_IDS]
+        for cid, valor in db.execute(
+            select(modelo.comentario_id, columna).where(modelo.comentario_id.in_(lote))
+        ):
+            salida.setdefault(cid, set()).add(valor)
+    return salida
+
+
+def _tokens_de(db, ids) -> dict[int, set[str]]:
+    """Palabras únicas de cada comentario (lo que antes era `set(_tokenizar(texto))`)."""
+    return _derivados_de(db, Tok, Tok.token, ids)
+
+
+def _familias_de(db, ids) -> dict[int, set[str]]:
+    """Familias del léxico de cada comentario (lo que antes era `lexico.detectar(texto)`)."""
+    return _derivados_de(db, Fam, Fam.familia, ids)
+
+
 def _lunes(d: date) -> date:
     """Lunes de la semana de `d`. Ancla de toda agregación semanal del módulo."""
     return d - timedelta(days=d.weekday())
@@ -1710,104 +1749,11 @@ def _a_fecha(v):
 # vez de tumbar el request.
 MAX_COMENTARIOS_NUBE = 20000
 
-# Stopwords ES/EN mínimas. No se usa una librería a propósito: agregar una
-# dependencia por una lista de palabras no se paga, y acá conviene poder sumar
-# términos propios de la UCN sin pelear con el diccionario de nadie.
-_STOPWORDS = {
-    # Español: artículos, preposiciones, pronombres, verbos vacíos.
-    "a", "al", "algo", "algun", "alguna", "algunas", "alguno", "algunos", "ante",
-    "antes", "aqui", "asi", "aun", "aunque", "bien", "cada", "casi", "como", "con",
-    "contra", "cual", "cuales", "cuando", "cuanto", "de", "del", "desde", "donde",
-    "dos", "el", "ella", "ellas", "ello", "ellos", "en", "entre", "era", "eran",
-    "eres", "es", "esa", "esas", "ese", "eso", "esos", "esta", "estan", "estas",
-    "este", "esto", "estos", "estoy", "fue", "fueron", "ha", "haber", "habia",
-    "hace", "hacen", "hacer", "hasta", "hay", "la", "las", "le", "les", "lo",
-    "los", "mas", "me", "mi", "mis", "mucho", "muy", "nada", "ni", "no", "nos",
-    "nosotros", "o", "otra", "otras", "otro", "otros", "para", "pero", "poco",
-    "por", "porque", "pue", "pues", "que", "se", "sea", "ser", "si", "sido",
-    "sin", "sobre", "solo", "son", "su", "sus", "tambien", "tan", "tanto", "te",
-    "tiene", "tienen", "toda", "todas", "todo", "todos", "tu", "tus", "un", "una",
-    "unas", "uno", "unos", "ya", "yo", "él", "más", "sí", "está", "están", "qué",
-    "cómo", "dónde", "así", "aún", "sólo", "les", "muchas", "muchos", "vez",
-    "ahora", "siempre", "nunca", "puede", "pueden", "va", "van", "hacia", "eso",
-    # Inglés: los comentarios mezclan idioma.
-    "the", "and", "for", "you", "your", "with", "this", "that", "are", "was",
-    "have", "has", "not", "but", "all", "can", "will", "from", "they", "there",
-    "what", "when", "who", "how", "its", "it's", "our", "out", "get", "just",
-    # ARTEFACTOS DE SCRAPING de Instagram. Sin esto encabezan la nube y tapan
-    # todo: aparecen en casi cada comentario largo y NO los escribió nadie.
-    # Visto en datos reales: "…fiestas lujosas si See translation View all 8 replies".
-    "see", "translation", "view", "reply", "replies", "more", "ver", "traduccion",
-    "traducción", "respuestas", "respuesta", "editado", "edited",
-    # Saludos y muletillas sin señal: encabezan la nube y no dicen nada.
-    "hola", "holi", "buenas", "jaja", "jajaja", "jsjs", "wena",
-}
-# OJO: acá NO van "cookie"/"facebook". Se filtraron en una primera versión por
-# parecer chrome del scraper y fue un FALSO POSITIVO: "Cookie" es la mascota de
-# la UCN y aparece en 7 comentarios reales ("Parece todo un caballero el Cookie").
-# Los artefactos de scraping se atacan por FRASE (abajo), no por palabra suelta —
-# borrar una palabra por sospecha se lleva puesto contenido legítimo.
-
-# Frases exactas que el scraper pega al comentario. Se quitan del texto ANTES de
-# tokenizar, así "Seca! comments from Facebook" aporta "seca" y nada más, sin
-# vetar "facebook" para quien lo mencione de verdad.
-#
-# La definición vive en `lexico` (módulo hoja) porque el conteo de términos
-# críticos necesita exactamente la misma limpieza: una sola lista, no dos que se
-# desincronizan en silencio.
-_FRASES_SCRAPER = lexico.FRASES_SCRAPER
-
-# Los handles de Instagram que el scraper deja pegados al texto NO llevan "@"
-# salvo el primero: al etiquetar a varias personas queda
-# "Participando:B tote.mny_ cldliio_" — donde el comentario real es "Participando:B".
-# En español no existen palabras con "_", dígitos ni punto interno, así que ese
-# patrón identifica handles sin falsos positivos. Cubre smacaya_, tote.mny_,
-# av_angamos, vixoo94_, _fab.iu_.
-# NO cubre los handles que son letras puras (ignaciamilann, jmanuuu): para esos
-# está _HANDLES_CONOCIDOS y el clic-para-excluir del panel. El arreglo de fondo
-# es que la ingesta separe las menciones del cuerpo del comentario.
-_PATRON_HANDLE = re.compile(r"[_\d]|\w\.\w")
-
-# Nombres de usuario que el scraper dejó PEGADOS al texto sin "@" (el regex de
-# menciones no los agarra). En datos reales aparecieron "smacaya" (n=9) y
-# "cldliio" (n=6) entre las palabras más frecuentes: son cuentas de personas, o
-# sea PII en pantalla.
-#
-# Deliberadamente NO se filtra con un diccionario español: borraría jerga real y
-# valiosa como "seca" o "porfa", que SÍ son señal. Es una lista curada, y la
-# solución de fondo es que el worker separe el handle del cuerpo al ingestar.
-_HANDLES_CONOCIDOS = {"smacaya", "cldliio"}
-
-
-def _tokenizar(texto: str, excluir: set[str] | None = None) -> list[str]:
-    """Palabras normalizadas de un comentario, listas para contar.
-
-    Descarta, en este orden: URLs, @menciones (son PII — identifican cuentas),
-    emojis/puntuación, tokens de <3 letras, números sueltos y stopwords.
-    Los #hashtags SÍ quedan (sin el #): suelen ser el tema real del comentario.
-    Conserva tildes y ñ: "año" y "ano" no son la misma palabra, y la nube se lee
-    en español.
-    """
-    if not texto:
-        return []
-    limpio = _FRASES_SCRAPER.sub(" ", texto.lower())
-    limpio = re.sub(r"https?://\S+|www\.\S+", " ", limpio)
-    limpio = re.sub(r"@[\w.]+", " ", limpio)          # menciones = PII
-    # Handles pegados SIN "@": se descartan mientras el token conserva "_"/dígitos
-    # /punto, o sea ANTES de la limpieza de caracteres que borraría esa pista.
-    limpio = " ".join(
-        "" if _PATRON_HANDLE.search(tok) else tok
-        for tok in limpio.split()
-    )
-    limpio = limpio.replace("#", " ")
-    limpio = re.sub(r"[^a-záéíóúüñ\s]", " ", limpio)  # deja solo letras ES
-    vetadas = _STOPWORDS | _HANDLES_CONOCIDOS | (excluir or set())
-    salida = []
-    for palabra in limpio.split():
-        if len(palabra) < 3 or palabra in vetadas:
-            continue
-        salida.append(palabra)
-    return salida
+# Tokenizador, stopwords y filtros de PII: viven en `derivados` (módulo hoja) porque el
+# precálculo de tokens (que corre con un rol privilegiado) y esta capa tienen que usar
+# EXACTAMENTE la misma lógica. `_tokenizar` queda como alias por compatibilidad.
+_tokenizar = derivados.tokenizar
+_STOPWORDS = derivados.STOPWORDS
 
 
 # Tildes vocálicas fuera para comparar raíces, pero la Ñ SE RESPETA. Colapsarla
@@ -1938,7 +1884,7 @@ def nube_palabras(db, *, dias=30, campus=None, facultad=None, departamento=None,
         tema=tema, fecha_desde=fecha_desde, fecha_hasta=fecha_hasta,
     )
     stmt = (
-        _select_corpus(C.texto, C.tema, S.sentimiento, S.emocion)
+        _select_corpus(C.id, C.tema, S.sentimiento, S.emocion)
         .where(*cond)
         .order_by(C.fecha_comentario.desc())
         .limit(MAX_COMENTARIOS_NUBE + 1)
@@ -1952,8 +1898,11 @@ def nube_palabras(db, *, dias=30, campus=None, facultad=None, departamento=None,
     # set(): una palabra repetida DENTRO de un comentario cuenta una sola vez. Si
     # no, un comentario que repite "plata" cinco veces la infla como si cinco
     # personas la hubieran dicho. La nube mide CUÁNTA GENTE lo dice.
-    tokenizados = [(set(_tokenizar(texto, veto)), tm, sent, emo)
-                   for texto, tm, sent, emo in filas]
+    # Los tokens vienen del precálculo SIN `excluir`; vetar palabra por palabra acá es
+    # equivalente a haberlo pasado al tokenizador (el veto es por token).
+    tokens_por_id = _tokens_de(db, [f[0] for f in filas])
+    tokenizados = [({p for p in tokens_por_id.get(cid, ()) if p not in veto}, tm, sent, emo)
+                   for cid, tm, sent, emo in filas]
 
     # Agrupar variantes va en DOS PASADAS, y el orden importa:
     #   1ª) contar en crudo para saber cuál variante es la más frecuente — esa se
@@ -2078,11 +2027,15 @@ def _menciones_por_familia(db, cond) -> dict[str, int]:
     Solo el conteo: se usa para la ventana ANTERIOR, donde no hace falta el
     desglose completo y traer todo sería caro al pedo.
     """
-    conteo: dict[str, int] = {}
-    for (texto,) in db.execute(_select_corpus(C.texto).where(*cond)):
-        for clave in lexico.detectar(texto):
-            conteo[clave] = conteo.get(clave, 0) + 1
-    return conteo
+    return {
+        familia: int(n) for familia, n in db.execute(
+            _select_corpus(C.id)
+            .with_only_columns(Fam.familia, func.count(), maintain_column_froms=True)
+            .join(Fam, Fam.comentario_id == C.id)
+            .where(*cond)
+            .group_by(Fam.familia)
+        )
+    }
 
 
 def terminos_vigilancia(db, *, dias=30, campus=None, facultad=None, departamento=None,
@@ -2108,7 +2061,7 @@ def terminos_vigilancia(db, *, dias=30, campus=None, facultad=None, departamento
               "departamento": departamento, "tema": tema}
 
     filas = list(db.execute(
-        _select_corpus(C.texto, C.fecha_comentario, C.tema,
+        _select_corpus(C.id, C.fecha_comentario, C.tema,
                        S.sentimiento, S.prob_pos, S.prob_neg, S.emocion)
         .where(*_cond_corpus(fmax, dias=dias, fecha_desde=fecha_desde,
                              fecha_hasta=fecha_hasta, **filtro))
@@ -2119,8 +2072,9 @@ def terminos_vigilancia(db, *, dias=30, campus=None, facultad=None, departamento
     acc: dict[str, dict] = {}
     n_con_termino = 0
     n_humor_global = 0
-    for i, (texto, fecha_dt, tm, sent, ppos, pneg, emo) in enumerate(filas):
-        familias_del_comentario = lexico.detectar(texto)
+    familias_por_id = _familias_de(db, [f[0] for f in filas])
+    for i, (cid, fecha_dt, tm, sent, ppos, pneg, emo) in enumerate(filas):
+        familias_del_comentario = familias_por_id.get(cid, ())
         if not familias_del_comentario:
             continue
         n_con_termino += 1
@@ -2155,7 +2109,7 @@ def terminos_vigilancia(db, *, dias=30, campus=None, facultad=None, departamento
                 else:
                     a["neu"] += 1
             if len(a["cand"]) < MAX_CANDIDATOS_EJEMPLO:
-                a["cand"].append((es_humor, sent != "NEG", i, texto, f, sent, emo, tm))
+                a["cand"].append((es_humor, sent != "NEG", i, f, sent, emo, tm))
 
     # Ventana INMEDIATAMENTE anterior del mismo largo, para el delta. Sin base
     # previa (o con el rango en "Todo") no hay comparación posible y se informa
@@ -2213,7 +2167,7 @@ def terminos_vigilancia(db, *, dias=30, campus=None, facultad=None, departamento
                     "emocion_label": ETIQUETAS_EMOCION.get(emo, emo) if emo else None,
                     "tema": tm, "tema_label": etq.get(tm, tm) if tm else None,
                 }
-                for _h, _neg, _i, texto, f, sent, emo, tm in cand
+                for _h, _neg, _i, f, sent, emo, tm in cand
             ],
         })
     familias.sort(key=lambda f: (-f["n_menciones"], f["clave"]))
@@ -2278,14 +2232,14 @@ MIN_LOCAL_PALABRA = 2
 
 
 def _acumular_palabras(filas) -> dict:
-    """{palabra: {n, n_pos, n_neu, n_neg}} sobre (texto, sentimiento) del corpus.
+    """{palabra: {n, n_pos, n_neu, n_neg}} sobre (tokens, sentimiento) del corpus.
 
     `set()` por comentario: quien repite una palabra cinco veces cuenta una sola.
     Se mide cuánta GENTE lo dice, igual que la nube.
     """
     acc: dict[str, dict] = {}
-    for texto, sent in filas:
-        for palabra in set(_tokenizar(texto)):
+    for tokens, sent in filas:
+        for palabra in tokens:
             a = acc.setdefault(palabra, {"n": 0, "n_pos": 0, "n_neu": 0, "n_neg": 0})
             a["n"] += 1
             a["n_pos" if sent == "POS" else "n_neg" if sent == "NEG" else "n_neu"] += 1
@@ -2341,16 +2295,16 @@ def _coseno(a: dict[str, int], b: dict[str, int], vocab) -> float:
 
 
 def _conteos(db, desde, hasta, campus, facultad, departamento, tema) -> dict[str, int]:
-    filas = db.execute(
-        _select_corpus(C.texto).where(*_cond_corpus(
+    ids = db.execute(
+        _select_corpus(C.id).where(*_cond_corpus(
             _fmax_comentario(db), dias=None, campus=campus, facultad=facultad,
             departamento=departamento, tema=tema,
             fecha_desde=desde, fecha_hasta=hasta,
         )).limit(MAX_COMENTARIOS_NUBE)
-    ).all()
+    ).scalars().all()
     acc: dict[str, int] = {}
-    for (texto,) in filas:
-        for palabra in set(_tokenizar(texto)):     # una vez por comentario, como la nube
+    for tokens in _tokens_de(db, ids).values():   # una vez por comentario, como la nube
+        for palabra in tokens:
             acc[palabra] = acc.get(palabra, 0) + 1
     return acc
 
@@ -2503,7 +2457,7 @@ def _palabras_por_dimension(db, *, dias, campus, facultad, departamento, tema,
         col_area = {"facultad": Cu.facultad, "campus": Cu.campus,
                     "departamento": Cu.departamento}.get(nivel, Cu.facultad)
         filas = list(db.execute(
-            _select_corpus(C.texto, S.sentimiento, col_area, C.tema).where(*_cond_corpus(
+            _select_corpus(C.id, S.sentimiento, col_area, C.tema).where(*_cond_corpus(
                 fmax, dias=dias, campus=campus, facultad=facultad,
                 departamento=departamento, tema=tema,
                 fecha_desde=fecha_desde, fecha_hasta=fecha_hasta,
@@ -2521,9 +2475,9 @@ def _palabras_por_dimension(db, *, dias, campus, facultad, departamento, tema,
         a["n"] += 1
         a["n_pos" if sent == "POS" else "n_neg" if sent == "NEG" else "n_neu"] += 1
 
-    for texto, sent, area, tm in filas:
-        tokens = set(_tokenizar(texto))
-        for palabra in tokens:
+    tokens_por_id = _tokens_de(db, [f[0] for f in filas])
+    for cid, sent, area, tm in filas:
+        for palabra in tokens_por_id.get(cid, ()):
             _sumar(glob, palabra, sent)
             if area:
                 _sumar(por_area.setdefault(area, {}), palabra, sent)
@@ -2562,13 +2516,14 @@ def destacados(db, *, dias=30, campus=None, facultad=None, departamento=None, te
         fmax = _fmax_comentario(db)
         if fmax is not None:
             filas = db.execute(
-                _select_corpus(C.texto, S.sentimiento).where(*_cond_corpus(
+                _select_corpus(C.id, S.sentimiento).where(*_cond_corpus(
                     fmax, dias=dias, campus=campus, facultad=facultad,
                     departamento=departamento, tema=tema,
                     fecha_desde=fecha_desde, fecha_hasta=fecha_hasta,
                 )).limit(MAX_COMENTARIOS_TERMINOS)
-            )
-            acc = _acumular_palabras(filas)
+            ).all()
+            tokens_por_id = _tokens_de(db, [f[0] for f in filas])
+            acc = _acumular_palabras((tokens_por_id.get(cid, ()), sent) for cid, sent in filas)
             palabras = sorted(
                 (_fila_palabra(p, acc[p]) for p in _vocabulario(acc, min_global)),
                 key=lambda x: (-x["n_neg"], -x["n"], x["texto"]),

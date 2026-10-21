@@ -49,7 +49,11 @@ from app.services.percepcion import (  # noqa: F401
     shock,
     volatilidad,
 )
-from app.services.percepcion.db import get_percepcion_db, get_percepcion_write_db
+from app.services.percepcion.db import (
+    get_percepcion_db,
+    get_percepcion_proceso_db,
+    get_percepcion_write_db,
+)
 
 MODULO = "percepcion"
 _METODOS_SEGUROS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -394,6 +398,7 @@ def get_resumen_semanal(
     forzar: bool = Query(False),
     db: Session = Depends(get_db),
     wdb: Session = Depends(get_percepcion_write_db),
+    tdb: Session = Depends(get_percepcion_proceso_db),   # captions que se envían al modelo
     user: AuthUser = Depends(get_authenticated_user),
 ):
     """Resumen narrativo de UNA semana para UN alcance, escrito por el LLM.
@@ -419,7 +424,7 @@ def get_resumen_semanal(
         check_module_access(user, MODULO, write=True)
     return resumen_llm.resumen_semanal(
         db, wdb, semana_inicio=semana, nivel=nivel,
-        dimension=dimension, forzar=forzar,
+        dimension=dimension, forzar=forzar, db_texto=tdb,
     )
 
 
@@ -604,14 +609,14 @@ def post_curacion_tema(
 
 @router.get("/curacion/publicaciones", dependencies=_SOLO_ADMIN, response_model=schemas.PublicacionesCurarResponse)
 def get_curacion_publicaciones(
-    solo_con_otros: bool = True, db: Session = Depends(get_db)
+    solo_con_otros: bool = True, db: Session = Depends(get_percepcion_proceso_db)
 ):
     return curacion.publicaciones_a_curar(db, solo_con_otros=solo_con_otros)
 
 
 @router.get("/curacion/comentarios", dependencies=_SOLO_ADMIN, response_model=schemas.ComentariosCurarResponse)
 def get_curacion_comentarios(
-    request: Request, db: Session = Depends(get_db),
+    request: Request, db: Session = Depends(get_percepcion_proceso_db),
     user: AuthUser = Depends(get_authenticated_user),
 ):
     # TEXTO CRUDO: solo administradores, y cada vista queda auditada.
@@ -662,7 +667,7 @@ def get_scoring(
     emocion: str | None = None,
     orden: str = Query("duda", pattern="^(duda|reciente|aleatorio|adversos|estratificado)$"),
     solo_pendientes: bool = Query(True),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_percepcion_proceso_db),
 ):
     """Cola de revisión manual, con órdenes que NO sirven para lo mismo.
 

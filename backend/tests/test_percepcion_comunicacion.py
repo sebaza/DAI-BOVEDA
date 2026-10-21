@@ -9,14 +9,14 @@ from __future__ import annotations
 import unittest
 from datetime import datetime
 
-from app.services.percepcion import comunicacion
+from app.services.percepcion import comunicacion, derivados
 from app.services.percepcion.models import (
     PercepcionComentario,
     PercepcionCuenta,
     PercepcionPublicacion,
 )
 
-from tests.test_percepcion import _memoria_completa
+from tests.test_percepcion import _commit_y_derivar, _memoria_completa
 
 
 class TestEfectoDeComunicacion(unittest.TestCase):
@@ -69,7 +69,7 @@ class TestEfectoDeComunicacion(unittest.TestCase):
             self._post("A ruidosa", reel=True, conversa=i < 36)    # 90 %
         for i in range(40):
             self._post("B callada", reel=False, conversa=i < 4)    # 10 %
-        self.db.commit()
+        _commit_y_derivar(self.db)
 
         f, _ = self._rasgo("es_reel")
         self.assertIsNotNone(f)
@@ -84,7 +84,7 @@ class TestEfectoDeComunicacion(unittest.TestCase):
                 self._post(f"cuenta{c}", reel=False, conversa=i < 2)   # 20 %
             for i in range(10):
                 self._post(f"cuenta{c}", reel=True, conversa=i < 8)    # 80 %
-        self.db.commit()
+        _commit_y_derivar(self.db)
 
         f, _ = self._rasgo("es_reel")
         self.assertEqual(f["cuentas_comparables"], 6)
@@ -97,7 +97,7 @@ class TestEfectoDeComunicacion(unittest.TestCase):
             for i in range(20):
                 # La conversación no depende del formato: alterna igual en ambos.
                 self._post(f"cuenta{c}", reel=(i % 2 == 0), conversa=(i % 4 < 2))
-        self.db.commit()
+        _commit_y_derivar(self.db)
         f, _ = self._rasgo("es_reel")
         self.assertFalse(f["solido"])
 
@@ -107,7 +107,7 @@ class TestEfectoDeComunicacion(unittest.TestCase):
                 self._post(f"c{c}", reel=False, conversa=i < 2, caption="corto")
             for i in range(10):
                 self._post(f"c{c}", reel=True, conversa=i < 9, caption="corto")
-        self.db.commit()
+        _commit_y_derivar(self.db)
         _, r = self._rasgo("es_reel")
         intras = [abs(f["efecto_intra"] or 0) for f in r["caracteristicas"]]
         self.assertEqual(intras, sorted(intras, reverse=True))
@@ -117,7 +117,7 @@ class TestEfectoDeComunicacion(unittest.TestCase):
     # ------------------------------------------------------------------ #
     def test_no_usa_nada_que_dependa_de_la_reaccion(self):
         """Likes o comentarios como predictores serían fuga: YA son la reacción."""
-        rasgos = comunicacion._caracteristicas("hola", "post", datetime(2026, 3, 4))
+        rasgos = comunicacion._caracteristicas(derivados.rasgos_caption("hola"), "post", datetime(2026, 3, 4))
         for prohibido in ("like", "comentario", "conversa"):
             self.assertFalse(any(prohibido in k for k in rasgos),
                              f"'{prohibido}' no puede ser un predictor")
@@ -125,21 +125,21 @@ class TestEfectoDeComunicacion(unittest.TestCase):
     def test_una_caracteristica_con_pocos_casos_no_se_reporta(self):
         for i in range(40):
             self._post("unica", reel=(i < 3), conversa=True)   # 3 reels: muy pocos
-        self.db.commit()
+        _commit_y_derivar(self.db)
         f, _ = self._rasgo("es_reel")
         self.assertIsNone(f, "con 3 casos no se puede afirmar nada")
 
     def test_la_tasa_base_es_la_proporcion_que_conversa(self):
         for i in range(100):
             self._post("c", reel=False, conversa=i < 30)
-        self.db.commit()
+        _commit_y_derivar(self.db)
         _, r = self._rasgo("es_reel")
         self.assertEqual(r["publicaciones"], 100)
         self.assertEqual(r["con_conversacion"], 30)
         self.assertEqual(r["tasa_base"], 30.0)
 
     def test_siempre_avisa_que_es_correlacion_y_no_causa(self):
-        self.db.commit()
+        _commit_y_derivar(self.db)
         r = comunicacion.efecto_de_caracteristicas(self.db)
         self.assertTrue(any("no causa" in a for a in r["avisos"]))
 
@@ -148,7 +148,7 @@ class TestEfectoDeComunicacion(unittest.TestCase):
             self._post("A ruidosa", reel=True, conversa=i < 36)
         for i in range(40):
             self._post("B callada", reel=False, conversa=i < 4)
-        self.db.commit()
+        _commit_y_derivar(self.db)
         r = comunicacion.efecto_de_caracteristicas(self.db)
         self.assertTrue(any("quién publica" in a for a in r["avisos"]))
 

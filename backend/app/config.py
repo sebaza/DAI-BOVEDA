@@ -69,6 +69,10 @@ class Settings:
         )
         # Mirror tables written by the external worker (repo Sentiment_Analisys_University).
         self.percepcion_database_url: str = os.getenv("PERCEPCION_DATABASE_URL", "")
+        # Optional second connection with a DB role that CAN read raw comment text/captions
+        # (boveda_proceso). Only the admin Curacion endpoints and the weekly-summary caption
+        # read use it. Empty => falls back to PERCEPCION_DATABASE_URL (single-credential setup).
+        self.percepcion_proceso_database_url: str = os.getenv("PERCEPCION_PROCESO_DATABASE_URL", "").strip()
 
         # --- Percepcion knobs (see the Torre docs / services/percepcion/*) ---
         # Model of the weekly LLM summary. Empty => resumen_llm.MODELO_ANTHROPIC.

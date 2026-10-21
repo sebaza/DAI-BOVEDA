@@ -283,8 +283,13 @@ def _etiqueta_alcance(nivel: str, dimension: str | None) -> str:
 # Insumos — el paquete determinista
 # --------------------------------------------------------------------------- #
 def insumos_semana(db, *, semana_inicio: date, nivel: str = "global",
-                   dimension: str | None = None) -> dict | None:
+                   dimension: str | None = None, db_texto=None) -> dict | None:
     """Todo lo que el redactor necesita saber de una semana, ya calculado.
+
+    `db_texto` es la sesión con el rol que puede leer las CAPTIONS (las que se envían,
+    truncadas, al modelo). Es lo único de todo el paquete que necesita texto crudo; el
+    resto sale de la sesión normal `db`. Si no se pasa, se usa `db` (bases de prueba con
+    una sola conexión).
 
     Devuelve None si esa semana no tuvo un solo comentario en ese alcance: sin datos
     no hay nada que redactar y, sobre todo, nada que pagar.
@@ -352,7 +357,8 @@ def insumos_semana(db, *, semana_inicio: date, nivel: str = "global",
         "postura": dict(postura),
         "temas": temas,
         "emociones": _emociones(db, desde, hasta, alc),
-        "publicaciones": _publicaciones(db, desde, hasta, alc),
+        "publicaciones": _publicaciones(db_texto if db_texto is not None else db,
+                                        desde, hasta, alc),
         "palabras": _palabras(db, plano),
         "eventos_institucionales": _eventos(db, desde, hasta),
         "semana_anterior": _semana_anterior(db, desde, alc),
@@ -940,12 +946,13 @@ def _texto_de(payload: dict) -> str:
 # --------------------------------------------------------------------------- #
 def resumen_semanal(db, write_db, *, semana_inicio: date | None = None,
                     nivel: str = "global", dimension: str | None = None,
-                    forzar: bool = False) -> dict:
+                    forzar: bool = False, db_texto=None) -> dict:
     """Resumen de la semana para un alcance, generándolo SOLO si los datos cambiaron.
 
     `db` es la sesión de lectura del dashboard; `write_db` la de escritura (la curación
     ya usa ese mismo par). Son dos porque la de lectura abre con `PRAGMA query_only=ON`
-    y no puede guardar el caché.
+    y no puede guardar el caché. `db_texto` (opcional) es la sesión del rol que puede leer
+    captions; ver `insumos_semana`.
     """
     if nivel not in NIVELES:
         nivel = "global"
@@ -963,7 +970,8 @@ def resumen_semanal(db, write_db, *, semana_inicio: date | None = None,
         base["aviso"] = "todavía no hay datos de percepción."
         return base
 
-    insumos = insumos_semana(db, semana_inicio=semana, nivel=nivel, dimension=dimension)
+    insumos = insumos_semana(db, semana_inicio=semana, nivel=nivel, dimension=dimension,
+                             db_texto=db_texto)
     periodo = {"desde": semana, "hasta": semana + timedelta(days=6)}
     base["periodo"] = periodo
     if insumos is None:
@@ -1036,10 +1044,15 @@ def generar_tras_ingesta(*, semanas: int = 1, forzar: bool = False) -> dict:
     `semanas` regenera hacia atrás desde la última con datos: 1 = solo la última.
     Útil cuando una ingesta trae comentarios viejos y mueve semanas ya resumidas.
     """
-    from app.services.percepcion.db import PercepcionSessionLocal, PercepcionWriteSessionLocal
+    from app.services.percepcion.db import (
+        PercepcionProcesoSessionLocal,
+        PercepcionSessionLocal,
+        PercepcionWriteSessionLocal,
+    )
 
     db = PercepcionSessionLocal()
     wdb = PercepcionWriteSessionLocal()
+    tdb = PercepcionProcesoSessionLocal()   # captions: la única lectura de texto crudo
     try:
         ultima = ultima_semana(db)
         if ultima is None:
@@ -1049,7 +1062,7 @@ def generar_tras_ingesta(*, semanas: int = 1, forzar: bool = False) -> dict:
         for i in range(max(1, int(semanas))):
             semana = ultima - timedelta(days=7 * i)
             r = resumen_semanal(db, wdb, semana_inicio=semana, nivel="global",
-                                forzar=forzar)
+                                forzar=forzar, db_texto=tdb)
             resultados.append({
                 "semana": str(semana),
                 "hay_datos": r["hay_datos"],
@@ -1071,6 +1084,7 @@ def generar_tras_ingesta(*, semanas: int = 1, forzar: bool = False) -> dict:
     finally:
         db.close()
         wdb.close()
+        tdb.close()
 
 
 def _clave_dimension(dimension: str | None) -> str:

@@ -260,6 +260,8 @@ def migrar(
                 raise MigracionError(
                     "Los conteos no coinciden en: " + ", ".join(diferencias) + ". Se revierte todo."
                 )
+            salida("  Siguiente paso: scripts/precalcular_tokens_percepcion.py (las tablas derivadas "
+                   "del texto no vienen del origen y quedan vacías) y luego crear_roles_percepcion.py.")
     finally:
         eng_origen.dispose()
         eng_destino.dispose()

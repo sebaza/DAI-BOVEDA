@@ -19,6 +19,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     Float,
+    ForeignKey,
     Integer,
     String,
     Text,
@@ -104,7 +105,9 @@ class PercepcionPublicacion(Base):
     external_id: Mapped[str] = mapped_column(String(80), index=True)
     fecha_publicacion: Mapped[datetime] = mapped_column(DateTime, index=True)
     tipo: Mapped[str] = mapped_column(String(20))
-    caption: Mapped[str | None] = mapped_column(Text)
+    # deferred: es dato crudo. Una carga ORM de la entidad (`db.get`, `select(P)`) no lo
+    # pide al servidor salvo que se acceda; el rol de la API no tiene SELECT sobre él.
+    caption: Mapped[str | None] = mapped_column(Text, deferred=True)
     n_comentarios: Mapped[int] = mapped_column(Integer, default=0)
     n_likes: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -122,7 +125,8 @@ class PercepcionComentario(Base):
     publicacion_id: Mapped[int] = mapped_column(Integer, index=True)
     external_id: Mapped[str] = mapped_column(String(80), index=True)
     autor_hash: Mapped[str] = mapped_column(String(64), index=True)
-    texto: Mapped[str] = mapped_column(Text)
+    # deferred: es dato crudo (ver `caption`). Se lee solo con el rol privilegiado.
+    texto: Mapped[str] = mapped_column(Text, deferred=True)
     fecha_comentario: Mapped[datetime] = mapped_column(DateTime, index=True)
     idioma: Mapped[str] = mapped_column(String(8), default="es")
     n_likes: Mapped[int] = mapped_column(Integer, default=0)
@@ -377,3 +381,54 @@ class PercepcionEvento(Base):
     # el archivo). NULL = la cargó una persona desde el ABM del panel, y **nunca se
     # toca**: sin esta distinción, corregir el calendario borraría trabajo ajeno.
     fuente: Mapped[str | None] = mapped_column(String(40), index=True)
+
+
+# --------------------------------------------------------------------------- #
+# DERIVADOS DEL TEXTO CRUDO (Fase 3b).
+# --------------------------------------------------------------------------- #
+# La API normal corre con un rol de base de datos SIN permiso de lectura sobre
+# `percepcion_comentario.texto` ni `percepcion_publicacion.caption`. Lo que necesita de
+# ellos (nube de palabras, términos bajo vigilancia, impacto de palabras, rasgos de las
+# captions) lo lee de estas tablas, que llena `scripts/precalcular_tokens_percepcion.py`
+# con un rol privilegiado y con EXACTAMENTE la misma lógica (`derivados.py`).
+#
+# Son tablas de la Torre (no del worker) y se reconstruyen enteras: no hay que migrar
+# nada al cambiar el tokenizador, basta volver a correr el script. Qué NO guardan: el
+# orden de las palabras ni su repetición, así que el texto no se puede reconstruir.
+class PercepcionComentarioToken(Base):
+    """Palabras (normalizadas, sin stopwords ni PII conocida) de UN comentario, sin repetir."""
+
+    __tablename__ = "percepcion_comentario_token"
+
+    comentario_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("percepcion_comentario.id", ondelete="CASCADE"), primary_key=True)
+    token: Mapped[str] = mapped_column(String(200), primary_key=True)
+
+
+class PercepcionComentarioFamilia(Base):
+    """Familias del léxico de vigilancia (`lexico.FAMILIAS`) que menciona un comentario."""
+
+    __tablename__ = "percepcion_comentario_familia"
+
+    comentario_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("percepcion_comentario.id", ondelete="CASCADE"), primary_key=True)
+    familia: Mapped[str] = mapped_column(String(40), primary_key=True)
+
+
+class PercepcionPublicacionRasgo(Base):
+    """Rasgos binarios de la caption de una publicación (para `comunicacion.py`).
+
+    Solo los que se calculan DE la caption; `es_reel` y `fin_de_semana` salen de la
+    publicación misma y no se guardan acá.
+    """
+
+    __tablename__ = "percepcion_publicacion_rasgo"
+
+    publicacion_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("percepcion_publicacion.id", ondelete="CASCADE"), primary_key=True)
+    emojis_3_o_mas: Mapped[bool] = mapped_column(Boolean, default=False)
+    menciona_cuentas: Mapped[bool] = mapped_column(Boolean, default=False)
+    hashtags_3_o_mas: Mapped[bool] = mapped_column(Boolean, default=False)
+    hace_una_pregunta: Mapped[bool] = mapped_column(Boolean, default=False)
+    texto_largo: Mapped[bool] = mapped_column(Boolean, default=False)
+    sin_texto: Mapped[bool] = mapped_column(Boolean, default=False)

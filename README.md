@@ -153,6 +153,60 @@ backend\.venv\Scripts\python.exe -I scripts\verificar_paridad_percepcion.py
 Un endpoint puede salir como `ORDEN`: mismo contenido, pero distinto orden entre filas empatadas
 (el SQL no garantiza ese orden en ningún motor). Es informativo; solo `DIFF` o `ERROR` fallan.
 
+### Privilegios: la API normal no puede leer texto crudo
+
+El texto de los comentarios (`percepcion_comentario.texto`) y las captions
+(`percepcion_publicacion.caption`) solo los puede leer un segundo rol de base de datos. Son **dos
+credenciales** y dos URLs:
+
+| Rol | Variable | Qué puede |
+|---|---|---|
+| `boveda_app` | `PERCEPCION_DATABASE_URL` | Leer todo **menos** `texto` y `caption` (permiso por columna) y hacer solo las escrituras que la Bóveda hace de verdad (correcciones, eventos, temas personalizados, resúmenes semanales, reasignar `tema`/corregir el score, reconstruir los hechos diarios). En `boveda`: leer las listas de acceso y añadir filas a la auditoría |
+| `boveda_proceso` | `PERCEPCION_PROCESO_DATABASE_URL` | Además, leer `texto` y `caption`. Lo usan **solo** la Curación de administradores (`/percepcion/curacion/*` que devuelve texto), la lectura de captions del resumen semanal y los scripts de precálculo |
+
+```
+PERCEPCION_DATABASE_URL=postgresql+psycopg://boveda_app:CLAVE_APP@HOST:5432/BASE?options=-csearch_path%3Dpercepcion
+PERCEPCION_PROCESO_DATABASE_URL=postgresql+psycopg://boveda_proceso:CLAVE_PROCESO@HOST:5432/BASE?options=-csearch_path%3Dpercepcion
+```
+
+`PERCEPCION_PROCESO_DATABASE_URL` es opcional: si no está, la app usa `PERCEPCION_DATABASE_URL` también
+para el texto (así un entorno con una sola variable sigue funcionando, pero sin la protección).
+
+**Orden de ejecución** (cada paso con el venv del backend):
+
+1. **Migrar** (arriba): `scripts\migrar_percepcion_postgres.py`. Lo corre el dueño de las tablas.
+2. **Precalcular los derivados del texto**: `scripts\precalcular_tokens_percepcion.py`. Llena
+   `percepcion_comentario_token`, `percepcion_comentario_familia` y `percepcion_publicacion_rasgo`,
+   con la misma lógica que el resto del código (`services/percepcion/derivados.py`), en una
+   transacción e idempotente. Hay que **repetirlo cada vez que el worker ingeste datos nuevos**: sin
+   eso, los comentarios nuevos no aparecen en la nube de palabras ni en los términos bajo vigilancia.
+3. **Crear los roles**: `scripts\crear_roles_percepcion.py` aplica
+   [`backend/sql/003_percepcion_roles.sql`](backend/sql/003_percepcion_roles.sql) (idempotente) y fija
+   las contraseñas, que lee **solo del entorno** y que deben ser distintas; si falta alguna, se niega.
+   Se corre con un usuario dueño de las tablas o superusuario:
+
+```bat
+set PERCEPCION_APP_DB_PASSWORD=CLAVE_APP
+set PERCEPCION_PROCESO_DB_PASSWORD=CLAVE_PROCESO
+set PERCEPCION_ADMIN_DATABASE_URL=postgresql+psycopg://DUENO:CLAVE@HOST:5432/BASE
+backend\.venv\Scripts\python.exe -I scripts\precalcular_tokens_percepcion.py
+backend\.venv\Scripts\python.exe -I scripts\crear_roles_percepcion.py
+```
+
+Qué hace el reparto en el código: la nube de palabras, los términos, el impacto de palabras, las
+palabras destacadas, las anomalías y el análisis de comunicación leen las tablas derivadas (los
+resultados son idénticos a calcular sobre el texto: `verificar_paridad_percepcion.py
+--guardar-referencia` / `--contra-referencia` lo comprueba). Solo la Curación y el resumen semanal usan
+la conexión privilegiada, y `test_percepcion_privilegios.py` falla si cualquier otro módulo la importa
+o nombra las columnas crudas. Una tabla nueva **no** es legible por `boveda_app` hasta volver a correr el
+paso 3 (falla cerrado a propósito).
+
+> **Límite honesto de esta protección.** El proceso del servidor guarda **las dos** credenciales (la de
+> proceso la necesita para la Curación). Esto protege contra la exposición **accidental** por los
+> endpoints normales —un bug, una consulta mal escrita, una respuesta que se pase de campos—, no contra
+> un servidor comprometido: quien ejecute código en él puede usar la credencial de proceso y leer el
+> texto. Para ir más lejos habría que sacar la Curación a un proceso aparte con su propia credencial.
+
 ## Variables de entorno
 
 Detalle comentado en [`backend/.env.example`](backend/.env.example) y [`frontend/.env.example`](frontend/.env.example).
@@ -165,6 +219,7 @@ Detalle comentado en [`backend/.env.example`](backend/.env.example) y [`frontend
 | `GOOGLE_CLIENT_ID` | Cliente OAuth del botón de Google y *audience* del token |
 | `BOVEDA_DATABASE_URL` | URL de SQLAlchemy de la base con el esquema `boveda` (`postgresql+psycopg://usuario:clave@host:5432/base`). Obligatoria fuera de dev; vacía = nadie entra |
 | `PERCEPCION_DATABASE_URL` | Base de Percepción (SQLite o `postgresql+psycopg://…?options=-csearch_path%3Dpercepcion`, ver «Datos en PostgreSQL»). Vacío → `OPERATIONAL_DATABASE_URL` → `backend/percepcion.db` |
+| `PERCEPCION_PROCESO_DATABASE_URL` | Opcional. URL del rol `boveda_proceso` (único con acceso al texto crudo; solo Curación, captions del resumen y scripts). Vacío → se usa `PERCEPCION_DATABASE_URL`. Ver «Privilegios» |
 | `TASKS_TRIGGER_TOKEN` | Secreto del disparador `POST /tasks/run/percepcion-resumen` (vacío = deshabilitado) |
 | `ANTHROPIC_API_KEY` | Resumen semanal por LLM (sin clave degrada solo) |
 | `BACKEND_CORS_ORIGINS` | Orígenes CORS (def. `localhost:3001`) |
@@ -185,7 +240,7 @@ cd frontend && npx tsc --noEmit && npm run build
 `backend/tests/conftest.py` fuerza una base temporal: la suite no toca la base del `.env`.
 `test_auth_gates.py` cubre las compuertas de acceso con un repositorio en memoria. `test_accesos_postgres.py` prueba el
 adaptador contra una PostgreSQL real y se **omite** salvo que definas `BOVEDA_TEST_DATABASE_URL` (con las migraciones 001 y 002
-aplicadas); corre dentro de una transacción que se revierte, así que no deja nada en el esquema `boveda`. Las pruebas contra PostgreSQL del módulo (`test_percepcion_postgres.py`, `test_migrar_percepcion_postgres.py`) también se **omiten** salvo que definas `PERCEPCION_TEST_DATABASE_URL`; trabajan en esquemas descartables (`percepcion_test*`) que crean y eliminan ellas mismas, y nunca tocan el esquema real `percepcion`.
+aplicadas); corre dentro de una transacción que se revierte, así que no deja nada en el esquema `boveda`. Las pruebas contra PostgreSQL del módulo (`test_percepcion_postgres.py`, `test_migrar_percepcion_postgres.py`) también se **omiten** salvo que definas `PERCEPCION_TEST_DATABASE_URL`; trabajan en esquemas descartables (`percepcion_test*`, y `percepcion_rt`/`boveda_rt` con roles `rt_boveda_*` en `test_percepcion_roles_postgres.py`) que crean y eliminan ellas mismas, y nunca tocan el esquema ni los roles reales.
 
 ## Contrato con el worker externo
 

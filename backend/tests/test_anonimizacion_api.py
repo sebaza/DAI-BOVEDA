@@ -28,7 +28,11 @@ from app.services import accesos
 from app.services import auth as auth_service
 from app.services.accesos import InMemoryAccessRepository
 from app.services.percepcion import models
-from app.services.percepcion.db import get_percepcion_db, get_percepcion_write_db
+from app.services.percepcion.db import (
+    get_percepcion_db,
+    get_percepcion_proceso_db,
+    get_percepcion_write_db,
+)
 
 CENTINELA_TEXTO = "CENTINELA TEXTO CRUDO 7f3a"
 CENTINELA_CAPTION = "CENTINELA CAPTION 9b2c"
@@ -86,12 +90,14 @@ def cliente():
     accesos.configure(repo)
     app.dependency_overrides[get_percepcion_db] = _sesion
     app.dependency_overrides[get_percepcion_write_db] = _sesion
+    app.dependency_overrides[get_percepcion_proceso_db] = _sesion
     try:
         with TestClient(app) as c:
             yield c
     finally:
         app.dependency_overrides.pop(get_percepcion_db, None)
         app.dependency_overrides.pop(get_percepcion_write_db, None)
+        app.dependency_overrides.pop(get_percepcion_proceso_db, None)
         accesos.reset()
         db.close()
 

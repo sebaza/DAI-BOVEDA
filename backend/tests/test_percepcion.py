@@ -17,15 +17,18 @@ from sqlalchemy import create_engine, func, select, update
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.services.percepcion import calidad, curacion, eventos, lexico, postura, repository
+from app.services.percepcion import calidad, curacion, derivados, eventos, lexico, postura, repository
 from app.services.percepcion.repository import ETIQUETAS_TEMA
 from app.services.percepcion.models import (
     PercepcionComentario,
+    PercepcionComentarioFamilia,
+    PercepcionComentarioToken,
     PercepcionCorreccion,
     PercepcionCuenta,
     PercepcionEvento,
     PercepcionHechoDiario,
     PercepcionPublicacion,
+    PercepcionPublicacionRasgo,
     PercepcionScore,
     PercepcionTemaCustom,
 )
@@ -45,7 +48,8 @@ def _memoria():
     # molestan a quien no las use.
     for m in (PercepcionHechoDiario, PercepcionEvento, PercepcionCuenta,
               PercepcionPublicacion, PercepcionComentario, PercepcionScore,
-              PercepcionCorreccion):
+              PercepcionCorreccion, PercepcionComentarioToken, PercepcionComentarioFamilia,
+              PercepcionPublicacionRasgo):
         m.__table__.create(engine)
     return sessionmaker(bind=engine, future=True)()
 
@@ -62,9 +66,27 @@ def _memoria_completa():
     )
     for m in (PercepcionHechoDiario, PercepcionEvento, PercepcionCuenta,
               PercepcionPublicacion, PercepcionComentario, PercepcionScore,
-              PercepcionCorreccion):
+              PercepcionCorreccion, PercepcionComentarioToken, PercepcionComentarioFamilia,
+              PercepcionPublicacionRasgo):
         m.__table__.create(engine)
     return sessionmaker(bind=engine, future=True)()
+
+
+def _derivar(db):
+    """Llena las tablas derivadas del texto, como el precálculo de producción.
+
+    La API ya no tokeniza el texto: lee `percepcion_comentario_token`/`_familia`. Todo
+    test que siembra comentarios y consulta nube/términos/destacados/impacto debe
+    llamarlo después de sembrar.
+    """
+    derivados.reconstruir(db)
+    db.commit()
+
+
+def _commit_y_derivar(db):
+    db.commit()
+    derivados.reconstruir(db)
+    db.commit()
 
 
 def _sembrar_comentarios(db, comentarios, *, campus="Antofagasta", facultad="Ingeniería"):
@@ -94,6 +116,7 @@ def _sembrar_comentarios(db, comentarios, *, campus="Antofagasta", facultad="Ing
             emocion=emo, prob_emocion=0.9,
         ))
     db.commit()
+    _derivar(db)
 
 
 def _hecho(dia, **kw):
@@ -1071,6 +1094,7 @@ class TestPalabrasPorArea(unittest.TestCase):
                     emocion="anger" if sent == "NEG" else "joy", prob_emocion=0.9,
                 ))
         self.db.commit()
+        _derivar(self.db)
         # `sintesis` lee de la tabla de HECHOS: hay que agregarla desde el corpus,
         # igual que hace el worker tras cada ingesta.
         curacion.reagregar(self.db)
@@ -1128,6 +1152,7 @@ class TestPalabrasPorArea(unittest.TestCase):
                                     sentimiento="NEG", prob_pos=0.0, prob_neu=0.0,
                                     prob_neg=1.0, emocion="anger", prob_emocion=0.9))
         self.db.commit()
+        _derivar(self.db)
         curacion.reagregar(self.db)
         s = repository.sintesis(self.db, dias=3650, nivel="facultad", min_global_palabras=2)
         chica = next(a for a in s["areas"] if a["nombre"] == "Chica")
@@ -2451,6 +2476,7 @@ class TestImpactoPalabras(unittest.TestCase):
                     prob_pos=0.1, prob_neu=0.8, prob_neg=0.1,
                     emocion=None, prob_emocion=None))
         self.db.commit()
+        _derivar(self.db)
 
     def test_la_palabra_que_SE_DISPARA_encabeza_el_ranking(self):
         # "paro" está en las DOS ventanas (si no, la regla de vocabulario compartido
