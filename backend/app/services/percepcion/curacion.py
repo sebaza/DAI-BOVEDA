@@ -1024,3 +1024,78 @@ def correcciones_recientes(db: Session, *, limite: int = 100) -> dict:
         for r in db.execute(stmt).scalars().all()
     ]
     return {"items": items}
+
+
+# --------------------------------------------------------------------------- #
+# Renombrar subtemas (nombre manual sobre la etiqueta automática).
+# --------------------------------------------------------------------------- #
+LARGO_MAX_SUBTEMA = 80
+_ENLACE = re.compile(r"(https?:|www\.)|\S\.[a-zA-Z]{2,}", re.IGNORECASE)
+# Letras "en blanco" (categoría Lo/So, no Cf): dejarían un nombre que se ve vacío.
+_RELLENOS_INVISIBLES = frozenset("ᅟᅠㅤﾠ⠀")
+
+
+class SubtemaDesactualizado(Exception):
+    """La pantalla tenía otra versión del subtema (los ids cambian al reconstruir)."""
+
+
+def normalizar_nombre_subtema(valor: str | None) -> str | None:
+    """Nombre limpio, o None para volver al automático. ValueError con mensaje en español.
+
+    Sin `@` ni enlaces: un nombre puesto a mano sale en pantalla para todo el equipo y no debe
+    poder colar un usuario ni una dirección.
+    """
+    t = (valor or "").strip()
+    if not t:
+        return None
+    # NFKC pliega variantes que se ven igual: ＠ -> @, ． -> . (si no, colarían usuarios y enlaces).
+    t = unicodedata.normalize("NFKC", t)
+    if any(ch in _RELLENOS_INVISIBLES for ch in t):
+        raise ValueError("El nombre no puede tener caracteres invisibles.")
+    if any(unicodedata.category(ch) in ("Cc", "Cf") for ch in t):
+        raise ValueError("El nombre no puede tener saltos de línea, tabulaciones ni caracteres de control.")
+    t = " ".join(t.split())
+    if len(t) > LARGO_MAX_SUBTEMA:
+        raise ValueError(f"El nombre puede tener hasta {LARGO_MAX_SUBTEMA} caracteres.")
+    if "@" in t:
+        raise ValueError("El nombre no puede incluir @ ni usuarios.")
+    if _ENLACE.search(t):
+        raise ValueError("El nombre no puede incluir enlaces ni direcciones web.")
+    return t
+
+
+def renombrar_subtema(db: Session, subtema_id: int, valor: str | None, autor: str | None,
+                      etiqueta_auto: str | None = None) -> dict:
+    """Pone (o quita, con None/blanco) el nombre manual de un subtema. Devuelve el ítem público.
+
+    Solo escribe `etiqueta_manual`, `renombrado_por` y `renombrado_en` (UPDATE por columna del
+    rol de la app). LookupError si el subtema no existe. Con `etiqueta_auto` (la que vio la
+    pantalla) el UPDATE exige que siga igual: si una reconstrucción la cambió entretanto, lanza
+    SubtemaDesactualizado en vez de renombrar otra cosa.
+    """
+    from app.services.percepcion import repository
+    from app.services.percepcion.models import PercepcionSubtema as Sub
+
+    nombre = normalizar_nombre_subtema(valor)
+    if not repository._hay_subtemas(db) or not repository._hay_nombre_manual(db):
+        raise LookupError("Todavía no hay subtemas que renombrar.")
+    existe = db.execute(select(Sub.id).where(Sub.id == subtema_id)).first()
+    if existe is None:
+        raise LookupError("El subtema no existe.")
+    filtro = Sub.id == subtema_id
+    if etiqueta_auto is not None:
+        filtro = filtro & (Sub.etiqueta == etiqueta_auto)
+    hechas = db.execute(update(Sub).where(filtro).values(
+        etiqueta_manual=nombre,
+        renombrado_por=(autor or None) if nombre else None,
+        renombrado_en=datetime.utcnow() if nombre else None)).rowcount
+    if not hechas:
+        # Otra versión (o borrado por una reconstrucción entre el chequeo y el UPDATE).
+        db.rollback()
+        raise SubtemaDesactualizado("Los subtemas cambiaron mientras editabas. Recarga la lista.")
+    db.commit()
+    f = db.execute(select(Sub.id, Sub.etiqueta, Sub.terminos, Sub.n_comentarios, Sub.etiqueta_manual)
+                   .where(Sub.id == subtema_id)).first()
+    if f is None:
+        raise SubtemaDesactualizado("Los subtemas cambiaron mientras editabas. Recarga la lista.")
+    return repository._item_subtema(f, f.etiqueta_manual)

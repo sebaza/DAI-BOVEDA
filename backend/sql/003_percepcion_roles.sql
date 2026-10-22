@@ -42,11 +42,14 @@ DECLARE
                           "percepcion_evento":           "INSERT, UPDATE, DELETE",
                           "percepcion_resumen_semanal":  "INSERT, UPDATE, DELETE"}';
 
-    -- Escrituras por COLUMNA sobre tablas del worker: la curación reasigna tema y corrige el score.
+    -- Escrituras por COLUMNA sobre tablas del worker: la curación reasigna tema, corrige el score y renombra subtemas
+    -- (solo las columnas de nombre manual: la etiqueta automática, los términos y el tema no).
     -- Nada más (en particular, ni texto ni caption).
     escrituras_columna jsonb := '{"percepcion_comentario": ["tema", "tema_confianza"],
                                   "percepcion_score": ["modelo", "sentimiento", "prob_pos", "prob_neu",
-                                                       "prob_neg", "emocion", "prob_emocion"]}';
+                                                       "prob_neg", "emocion", "prob_emocion"],
+                                  "percepcion_subtema": ["etiqueta_manual", "renombrado_por",
+                                                         "renombrado_en"]}';
 
     -- Tablas derivadas del texto: solo las reconstruye el rol de proceso.
     derivadas text[] := ARRAY['percepcion_subtema', 'percepcion_comentario_subtema',

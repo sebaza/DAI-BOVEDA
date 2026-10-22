@@ -25,6 +25,7 @@ from __future__ import annotations
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import Session
 
 from app.schemas import AuthUser
@@ -735,6 +736,28 @@ def post_corregir_tema(
         db, com_id, req.valor, req.justificacion, _email(user),
         autor_tipo=models.AUTOR_HUMANO, origen_muestra=req.origen_muestra,
     )
+
+
+@router.put("/curacion/subtemas/{subtema_id}", dependencies=_SOLO_ADMIN, response_model=schemas.SubtemaItem)
+def put_renombrar_subtema(
+    subtema_id: int, req: schemas.RenombrarSubtemaRequest,
+    db: Session = Depends(get_percepcion_write_db),
+    user=Depends(get_authenticated_user),
+):
+    """Nombre manual de un subtema (null o en blanco = volver al automático)."""
+    try:
+        return curacion.renombrar_subtema(db, subtema_id, req.etiqueta, _email(user), req.etiqueta_auto)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except curacion.SubtemaDesactualizado as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except ProgrammingError:
+        # Columnas creadas pero 003 aún no re-ejecutado: el rol de la app no tiene el UPDATE.
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Falta otorgar permisos para renombrar subtemas "
+                            "(re-ejecuta scripts/crear_roles_percepcion.py).")
 
 
 @router.post("/curacion/postura/{com_id}", dependencies=_SOLO_ADMIN, response_model=schemas.CorregirResponse)

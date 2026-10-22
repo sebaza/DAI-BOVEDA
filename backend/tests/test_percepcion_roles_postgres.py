@@ -208,6 +208,8 @@ def test_app_hace_las_escrituras_legitimas(con_app):
     _ok(con_app, "INSERT INTO percepcion_tema_custom (clave, etiqueta, keywords, creado_en) "
                  "VALUES ('rt_tema', 'Tema', '[]', now())")
     _ok(con_app, "INSERT INTO percepcion_evento (nombre, tipo, fecha_inicio) VALUES ('e', 'paro', '2026-01-02')")
+    _ok(con_app, "UPDATE percepcion_subtema SET etiqueta_manual = 'n', renombrado_por = 'a@ucn.cl', "
+                 "renombrado_en = now()")
     _ok(con_app, "UPDATE percepcion_evento SET nombre = 'f'")
     _ok(con_app, "DELETE FROM percepcion_evento")
     _ok(con_app, "INSERT INTO percepcion_correccion (comentario_id, campo, valor_nuevo) VALUES (3, 'tema', 'otros')")
@@ -237,6 +239,9 @@ def test_app_no_hace_escrituras_de_mas(con_app):
     _denegado(con_app, "INSERT INTO percepcion_subtema (tema, orden, etiqueta, terminos, n_comentarios, modelo, "
                        "generado_en) VALUES ('x', 0, 'x', '[]', 0, 'x', now())")
     _denegado(con_app, "DELETE FROM percepcion_subtema")
+    _denegado(con_app, "UPDATE percepcion_subtema SET etiqueta = 'x'")
+    _denegado(con_app, "UPDATE percepcion_subtema SET terminos = '[]'")
+    _denegado(con_app, "UPDATE percepcion_subtema SET tema = 'x'")
     _denegado(con_app, "INSERT INTO percepcion_comentario_subtema (comentario_id, subtema_id) VALUES (1, 1)")
     _denegado(con_app, "DELETE FROM percepcion_comentario_subtema")
     _denegado(con_app, "DELETE FROM percepcion_correccion")

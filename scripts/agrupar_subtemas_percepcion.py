@@ -27,6 +27,21 @@ DEPENDENCIAS
 `backend/requirements-ml.txt` (torch CPU + sentence-transformers). Solo este script las usa; la
 API no las importa. La primera vez descarga el modelo (~470 MB) a la caché de Hugging Face.
 
+NOMBRES MANUALES (MIGRACIÓN)
+----------------------------
+Los subtemas se pueden renombrar desde Curación (columnas `etiqueta_manual`, `renombrado_por`,
+`renombrado_en` de `percepcion_subtema`). Antes de reconstruir (y solo sin `--dry-run`) el script
+agrega esas columnas si faltan (`ADD COLUMN IF NOT EXISTS`, no hace nada si ya existen). Solo el
+DUEÑO de la tabla puede hacer el ALTER, así que la PRIMERA corrida tras este cambio debe usar la
+URL de administrador:
+
+    ... scripts/agrupar_subtemas_percepcion.py --url $env:PERCEPCION_ADMIN_DATABASE_URL
+
+y luego volver a ejecutar `backend/sql/003_percepcion_roles.sql` (crear_roles) para que
+`boveda_app` pueda actualizar esas tres columnas. Al reconstruir, cada nombre manual pasa al
+subtema nuevo que más se le parece (Jaccard de comentarios >= 0,5); si ninguno alcanza, se
+descarta. Se imprimen solo los conteos.
+
 CONEXIÓN
 --------
 `--url`, o `PERCEPCION_PROCESO_DATABASE_URL`, o `PERCEPCION_DATABASE_URL`, en ese orden (lee
@@ -71,6 +86,25 @@ def crear_embedder(modelo: str):
     return embedder, es_palabra
 
 
+COLUMNAS_NOMBRE_MANUAL = (("etiqueta_manual", "VARCHAR(120)"), ("renombrado_por", "VARCHAR(200)"),
+                          ("renombrado_en", "TIMESTAMP"))
+
+
+def asegurar_columnas_nombre_manual(engine) -> None:
+    """Agrega las columnas de nombre manual si faltan (solo Postgres; SQLite las crea create_all)."""
+    from sqlalchemy import inspect, text
+
+    if engine.dialect.name != "postgresql":
+        return
+    existentes = {c["name"] for c in inspect(engine).get_columns("percepcion_subtema")}
+    faltan = [(c, t) for c, t in COLUMNAS_NOMBRE_MANUAL if c not in existentes]
+    if not faltan:           # el ALTER exige ser dueño aun si la columna existe: así el rol de proceso no falla
+        return
+    with engine.begin() as conn:
+        for col, tipo in faltan:
+            conn.execute(text(f"ALTER TABLE percepcion_subtema ADD COLUMN IF NOT EXISTS {col} {tipo}"))
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Agrupa comentarios en subtemas con embeddings locales.")
     ap.add_argument("--url", default=None, help="URL de la base (por defecto, la del entorno); no se imprime")
@@ -101,6 +135,7 @@ def main(argv: list[str] | None = None) -> int:
         if not args.dry_run:
             for modelo in (PercepcionSubtema, PercepcionComentarioSubtema):
                 modelo.__table__.create(bind=engine, checkfirst=True)
+            asegurar_columnas_nombre_manual(engine)
         embedder, es_palabra = crear_embedder(args.modelo)
         with sessionmaker(bind=engine, future=True)() as db:
             try:
@@ -123,6 +158,8 @@ def main(argv: list[str] | None = None) -> int:
         engine.dispose()
     print(("[dry-run] " if args.dry_run else "") + f"Temas: {r['temas']}  Subtemas: {r['subtemas']}  "
           f"Comentarios asignados: {r['asignados']}")
+    print(f"Nombres manuales conservados: {r['nombres_manuales_conservados']}  "
+          f"descartados: {r['nombres_manuales_descartados']}")
     for tema, n in sorted(r["por_tema"].items()):
         print(f"  {tema}: {n}")
     print(f"Tiempo: {time.monotonic() - t0:.1f} s")

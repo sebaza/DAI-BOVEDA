@@ -2701,6 +2701,17 @@ def _hay_subtemas(db) -> bool:
     return insp.has_table(Sub.__tablename__) and insp.has_table(CSub.__tablename__)
 
 
+def _hay_nombre_manual(db) -> bool:
+    """Las columnas de nombre manual se agregan con el script de subtemas (ALTER del dueño)."""
+    insp = inspect(db.connection())
+    return "etiqueta_manual" in {c["name"] for c in insp.get_columns(Sub.__tablename__)}
+
+
+def _etiqueta_efectiva(db):
+    """Expresión SQL: nombre manual si existe, si no el automático."""
+    return func.coalesce(Sub.etiqueta_manual, Sub.etiqueta) if _hay_nombre_manual(db) else Sub.etiqueta
+
+
 def comentarios_recientes(
     db, *, dias=30, campus=None, facultad=None, departamento=None, tema=None,
     limite=20, incluir_neutrales=False, sentimiento=None, emocion=None,
@@ -2751,7 +2762,7 @@ def comentarios_recientes(
             C.id, C.fecha_comentario, C.n_likes, C.tema,
             S.sentimiento, S.prob_pos, S.prob_neg, S.emocion,
             Cu.nombre, Cu.tipo, Cu.campus, Cu.facultad, Cu.departamento,
-            *((Sub.id, Sub.etiqueta) if con_subtemas else (null(), null())),
+            *((Sub.id, _etiqueta_efectiva(db)) if con_subtemas else (null(), null())),
         )
         .join(S, S.comentario_id == C.id)
         .join(P, P.id == C.publicacion_id)
@@ -2794,21 +2805,30 @@ def comentarios_recientes(
     return {"items": items[:limite]}
 
 
+def _item_subtema(f, manual: str | None) -> dict:
+    return {"id": f.id, "etiqueta": manual or f.etiqueta, "etiqueta_auto": f.etiqueta,
+            "manual": bool(manual), "terminos": list(f.terminos or []),
+            "n_comentarios": int(f.n_comentarios or 0)}
+
+
 def subtemas(db, *, tema: str | None = None) -> dict:
     """Subtemas por tema (agrupación local): etiquetas y términos anonimizados, sin texto."""
     if not _hay_subtemas(db):
         return {"generado_en": None, "modelo": None, "temas": []}
-    stmt = select(Sub).order_by(Sub.tema, Sub.orden)
+    con_manual = _hay_nombre_manual(db)
+    # Columnas explícitas: `select(Sub)` pediría etiqueta_manual aunque la BD todavía no la tenga.
+    stmt = select(Sub.id, Sub.tema, Sub.etiqueta, Sub.terminos, Sub.n_comentarios, Sub.modelo,
+                  Sub.generado_en, Sub.etiqueta_manual if con_manual else null().label("etiqueta_manual")
+                  ).order_by(Sub.tema, Sub.orden)
     if tema:
         stmt = stmt.where(Sub.tema == tema)
-    filas = db.execute(stmt).scalars().all()
+    filas = db.execute(stmt).all()
     etq = etiquetas_tema(db) if filas else {}
     temas: dict[str, dict] = {}
     for f in filas:
         t = temas.setdefault(f.tema, {"tema": f.tema, "tema_label": etq.get(f.tema, f.tema),
                                       "subtemas": []})
-        t["subtemas"].append({"id": f.id, "etiqueta": f.etiqueta, "terminos": list(f.terminos or []),
-                              "n_comentarios": int(f.n_comentarios or 0)})
+        t["subtemas"].append(_item_subtema(f, f.etiqueta_manual))
     return {
         "generado_en": max((f.generado_en for f in filas), default=None),
         "modelo": filas[0].modelo if filas else None,

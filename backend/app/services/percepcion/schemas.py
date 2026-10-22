@@ -1164,8 +1164,15 @@ class SubtemaItem(BaseModel):
 
     id: int
     etiqueta: str
+    etiqueta_auto: str = ""         # la calculada; `etiqueta` es la efectiva (manual si existe)
+    manual: bool = False
     terminos: list[str] = []
     n_comentarios: int = 0
+
+
+class RenombrarSubtemaRequest(BaseModel):
+    etiqueta: str | None = None      # null o en blanco = volver al nombre automático
+    etiqueta_auto: str | None = None  # la automática que vio la pantalla; si cambió, 409
 
 
 class SubtemasTema(BaseModel):

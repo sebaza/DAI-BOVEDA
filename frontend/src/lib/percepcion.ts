@@ -450,6 +450,18 @@ export interface ComentarioCurar {
   cuenta: string | null;
 }
 
+export interface SubtemaItem {
+  id: number;
+  /** Efectiva: el nombre manual si existe, si no la automática. */
+  etiqueta: string;
+  etiqueta_auto: string;
+  manual: boolean;
+  terminos: string[];
+  n_comentarios: number;
+}
+export interface SubtemasTema { tema: string; tema_label?: string | null; subtemas: SubtemaItem[] }
+export interface SubtemasResponse { generado_en?: string | null; modelo?: string | null; temas: SubtemasTema[] }
+
 export interface TemaAsignable {
   tema: string;
   etiqueta: string;
@@ -1211,6 +1223,12 @@ export const percepcionApi = {
   },
 
   // Curación manual
+  subtemas: (opts?: ReqOpts): Promise<SubtemasResponse> =>
+    getJson<SubtemasResponse>("/percepcion/subtemas", opts?.signal),
+  /** `null` (o en blanco) devuelve el subtema a su nombre automático. */
+  /** `etiquetaAuto` is the automatic label on screen: if a rebuild changed it, the API answers 409. */
+  renombrarSubtema: (id: number, etiqueta: string | null, etiquetaAuto?: string): Promise<SubtemaItem> =>
+    sendJson<SubtemaItem>("PUT", `/percepcion/curacion/subtemas/${id}`, { etiqueta, etiqueta_auto: etiquetaAuto }),
   curacionTemas: (opts?: ReqOpts): Promise<{ items: TemaAsignable[] }> =>
     getJson<{ items: TemaAsignable[] }>("/percepcion/curacion/temas", opts?.signal),
   curacionPublicaciones: (opts?: ReqOpts): Promise<{ items: PublicacionCurar[] }> =>

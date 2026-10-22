@@ -17,6 +17,7 @@ import { PercepcionComparar } from "./PercepcionComparar";
 import { PercepcionFranjaEventos, categoriaDeTipo } from "./PercepcionFranjaEventos";
 import { PercepcionSimulacion } from "./PercepcionSimulacion";
 import { PercepcionCuracion } from "./PercepcionCuracion";
+import { PercepcionSubtemas } from "./PercepcionSubtemas";
 import { PercepcionNube } from "./PercepcionNube";
 import { PercepcionResumen } from "./PercepcionResumen";
 import { PercepcionRevision } from "./PercepcionRevision";
@@ -128,6 +129,14 @@ const SUB_CURACION = [
     hint:
       "Asignar a mano el tema de los comentarios y publicaciones que el clasificador dejó " +
       "en «otros», y crear temas nuevos cuando ninguno de los existentes sirve.",
+  },
+  {
+    id: "subtemas",
+    label: "Subtemas",
+    hint:
+      "Ponerle un nombre propio a los subtemas que agrupó el modelo local. El nombre manual " +
+      "se ve en todo el tablero y se conserva cuando los subtemas se recalculan, mientras el " +
+      "grupo siga siendo parecido.",
   },
 ] as const;
 
@@ -821,7 +830,7 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
   // Subsección de Conversación: la línea de tiempo y la nube compiten por la
   // atención, así que se turnan en vez de apilarse.
   const [subConv, setSubConv] = useState<"tiempo" | "palabras" | "publicaciones">("tiempo");
-  const [subCur, setSubCur] = useState<"calidad" | "revisar" | "temas">("calidad");
+  const [subCur, setSubCur] = useState<"calidad" | "revisar" | "temas" | "subtemas">("calidad");
   // Copia del filtro que solo avanza cuando el usuario deja de mover controles
   // (ver el debounce más abajo). Es la que consumen el tablero y la síntesis.
   const [filtroEstable, setFiltroEstable] = useState<Filtro>(FILTRO_INICIAL);
@@ -1634,6 +1643,7 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
           {subCur === "temas" ? (
             <PercepcionCuracion onCambio={() => void cargar(filtro)} />
           ) : null}
+          {subCur === "subtemas" ? <PercepcionSubtemas /> : null}
         </div>
       ) : loading && !resumen ? (
         <div className="py-12 text-center text-slate-500">Cargando percepción…</div>

@@ -452,6 +452,11 @@ class PercepcionSubtema(Base):
     n_comentarios: Mapped[int] = mapped_column(Integer, default=0)
     modelo: Mapped[str] = mapped_column(String(120))
     generado_en: Mapped[datetime] = mapped_column(DateTime)
+    # Nombre puesto a mano desde Curación (UPDATE por columna del rol de la app). La
+    # reconstrucción lo traslada al cluster que más se le parece (`subtemas.reconstruir_subtemas`).
+    etiqueta_manual: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    renombrado_por: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    renombrado_en: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class PercepcionComentarioSubtema(Base):

@@ -26,7 +26,7 @@ from datetime import datetime
 from typing import Callable, Iterable
 
 import numpy as np
-from sqlalchemy import delete, select
+from sqlalchemy import delete, inspect, select
 from sqlalchemy.orm import Session
 
 from app.services.percepcion import derivados
@@ -253,6 +253,59 @@ def _embeber(embedder: Callable[[list[str]], np.ndarray], textos: list[str]) -> 
     return np.vstack(partes) if partes else np.zeros((0, 0))
 
 
+JACCARD_MIN_NOMBRE = 0.5     # parecido mínimo para que un nombre manual pase al cluster nuevo
+
+
+def _nombres_manuales(db: Session) -> dict[str, list[dict]]:
+    """Subtemas con nombre manual (por tema), con los ids de sus comentarios. Sin texto.
+
+    Si la BD todavía no tiene las columnas (antes de la migración), no hay nombres manuales.
+    """
+    from app.services.percepcion.models import PercepcionComentarioSubtema as CS
+    from app.services.percepcion.models import PercepcionSubtema as S
+
+    insp = inspect(db.connection())
+    columnas = ({c["name"] for c in insp.get_columns(S.__tablename__)}
+                if insp.has_table(S.__tablename__) else set())
+    if "etiqueta_manual" not in columnas:
+        return {}
+    viejos: dict[int, dict] = {}
+    tema_de: dict[int, str] = {}
+    for i, tema, n, p, e in db.execute(
+            select(S.id, S.tema, S.etiqueta_manual, S.renombrado_por, S.renombrado_en)
+            .where(S.etiqueta_manual.is_not(None))):
+        viejos[i] = {"nombre": n, "por": p, "en": e, "miembros": set()}
+        tema_de[i] = tema
+    if viejos:
+        for cid, sid in db.execute(select(CS.comentario_id, CS.subtema_id)
+                                   .where(CS.subtema_id.in_(list(viejos)))):
+            viejos[sid]["miembros"].add(cid)
+    por_tema: dict[str, list[dict]] = defaultdict(list)
+    for i, v in viejos.items():
+        por_tema[tema_de[i]].append(v)
+    return por_tema
+
+
+def emparejar_nombres(viejos: list[dict], nuevos: dict[int, set[int]]) -> dict[int, dict]:
+    """Cluster nuevo -> nombre manual viejo, por mayor Jaccard (>= 0.5), cada nombre una vez."""
+    pares = []
+    for c, miembros in nuevos.items():
+        for k, v in enumerate(viejos):
+            union = len(miembros | v["miembros"])
+            j = len(miembros & v["miembros"]) / union if union else 0.0
+            if j >= JACCARD_MIN_NOMBRE:
+                pares.append((j, c, k))
+    pares.sort(key=lambda x: (-x[0], x[1], x[2]))
+    elegido: dict[int, dict] = {}
+    usados: set[int] = set()
+    for _, c, k in pares:
+        if c in elegido or k in usados:
+            continue
+        elegido[c] = viejos[k]
+        usados.add(k)
+    return elegido
+
+
 def reconstruir_subtemas(db: Session, embedder: Callable[[list[str]], np.ndarray], *,
                          modelo: str, ahora: datetime, k_max: int = 8, min_tamano: int = 8,
                          semilla: int = 0, escribir: bool = True,
@@ -270,6 +323,7 @@ def reconstruir_subtemas(db: Session, embedder: Callable[[list[str]], np.ndarray
         PercepcionSubtema as S,
     )
 
+    manuales = _nombres_manuales(db)       # antes de vaciar: los ids viejos dejan de existir
     if escribir:
         db.execute(delete(CS))
         db.execute(delete(S))
@@ -291,7 +345,8 @@ def reconstruir_subtemas(db: Session, embedder: Callable[[list[str]], np.ndarray
     propios |= {v.strip().lower() for v in vetar if v.strip()}   # vetos a mano (apodos)
     del crudos
 
-    resumen = {"temas": 0, "subtemas": 0, "asignados": 0, "por_tema": {}}
+    resumen = {"temas": 0, "subtemas": 0, "asignados": 0, "por_tema": {},
+               "nombres_manuales_conservados": 0, "nombres_manuales_descartados": 0}
     for tema in sorted(por_tema):
         filas = por_tema[tema]
         emb = _embeber(embedder, [t for _, _, t in filas])
@@ -306,16 +361,29 @@ def reconstruir_subtemas(db: Session, embedder: Callable[[list[str]], np.ndarray
         resumen["subtemas"] += len(orden)
         resumen["asignados"] += len(filas)
         resumen["por_tema"][tema] = len(orden)
+        miembros_nuevos: dict[int, set[int]] = defaultdict(set)
+        for cid, c in asignacion.items():
+            if c != OTROS:
+                miembros_nuevos[c].add(cid)
+        heredados = emparejar_nombres(manuales.get(tema, []), miembros_nuevos)
+        resumen["nombres_manuales_conservados"] += len(heredados)
+        resumen["nombres_manuales_descartados"] += len(manuales.get(tema, [])) - len(heredados)
         if not escribir:
             continue
         ids: dict[int, int] = {}
         for pos, c in enumerate(orden):
             etiqueta, terminos = nombres[c]
+            h = heredados.get(c)
             fila = S(tema=tema, orden=pos, etiqueta=etiqueta, terminos=terminos,
-                     n_comentarios=tamanos[c], modelo=modelo, generado_en=ahora)
+                     n_comentarios=tamanos[c], modelo=modelo, generado_en=ahora,
+                     **({"etiqueta_manual": h["nombre"], "renombrado_por": h["por"],
+                         "renombrado_en": h["en"]} if h else {}))
             db.add(fila)
             db.flush()
             ids[c] = fila.id
         derivados._insertar(db, CS, [{"comentario_id": cid, "subtema_id": ids[c]}
                                      for cid, c in asignacion.items()])
+    # Temas que ya no tienen comentarios: sus nombres manuales no tienen a quién pasar.
+    resumen["nombres_manuales_descartados"] += sum(
+        len(v) for t, v in manuales.items() if t not in por_tema)
     return resumen
