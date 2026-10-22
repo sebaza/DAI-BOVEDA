@@ -21,7 +21,7 @@ const INPUT = SELECT;
 function TemaSelect({ temas, onPick }: { temas: TemaAsignable[]; onPick: (t: string) => void }) {
   return (
     <select
-      className={`${SELECT} shrink-0`}
+      className={`${SELECT} shrink-0 sm:w-56`}
       value=""
       onChange={(e) => { if (e.target.value) onPick(e.target.value); }}
     >
@@ -161,8 +161,8 @@ export function PercepcionCuracion({ onCambio }: { onCambio: () => void }) {
             pubs.length > 0 ? (
               <ul className="space-y-2">
                 {pubs.map((p) => (
-                  <li key={p.id} className="flex items-start justify-between gap-3 rounded-md border border-white/5 bg-white/[0.02] p-3">
-                    <div className="flex-1">
+                  <li key={p.id} className="flex flex-col gap-3 rounded-md border border-white/5 bg-white/[0.02] p-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm text-slate-100">{p.caption || "(publicación sin texto)"}</p>
                       <p className="mt-1 text-sm text-slate-500">
                         {p.cuenta ? `@${p.cuenta} · ` : ""}<strong className="text-ucn-tierra-clara">{p.n_otros}</strong> de {p.n_comentarios} comentarios en “Otros” heredarán
@@ -182,8 +182,8 @@ export function PercepcionCuracion({ onCambio }: { onCambio: () => void }) {
             <ul className="space-y-2">
               {coms.map((c) => (
                 <li key={c.id} className="rounded-md border border-white/5 bg-white/[0.02] p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="flex-1 text-sm text-slate-100">{c.texto}</p>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <p className="min-w-0 flex-1 text-sm text-slate-100">{c.texto}</p>
                     <TemaSelect temas={temas} onPick={(t) => asignar(
                       percepcionApi.asignarTemaComentario(c.id, t),
                       () => "Comentario reclasificado.",
