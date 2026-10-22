@@ -320,6 +320,34 @@ class PublicacionDominante(BaseModel):
     hasta: date | None = None
 
 
+class RepercusionSemana(BaseModel):
+    semana: date                      # lunes de la semana
+    comentarios: int = 0
+    con_etiqueta: int = 0
+    porcentaje: float = 0.0
+
+
+class RepercusionPublicacion(BaseModel):
+    publicacion_id: int
+    fecha: date | None = None
+    cuenta: str | None = None
+    n_comentarios: int = 0
+    con_etiqueta: int = 0
+    porcentaje: float = 0.0
+
+
+class RepercusionResponse(BaseModel):
+    """Qué parte de los comentarios etiqueta a otras personas. Solo conteos."""
+
+    disponible: bool = False          # False = la tabla derivada no existe o no se puede leer
+    comentarios: int = 0
+    con_etiqueta: int = 0
+    solo_etiquetas: int = 0           # comentarios que no dicen nada más que a quién llaman
+    porcentaje: float = 0.0           # cota inferior (ver derivados.contar_etiquetas)
+    semanas: list[RepercusionSemana] = []
+    publicaciones: list[RepercusionPublicacion] = []
+
+
 class PublicacionesDominantesResponse(BaseModel):
     """De qué se habló: las publicaciones que concentran la conversación.
 

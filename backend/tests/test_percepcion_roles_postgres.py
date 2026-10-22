@@ -175,6 +175,7 @@ def test_app_si_lee_el_resto(con_app):
     assert _ok(con_app, "SELECT token FROM percepcion_comentario_token LIMIT 1")
     assert _ok(con_app, "SELECT familia FROM percepcion_comentario_familia LIMIT 1")
     assert _ok(con_app, "SELECT emojis_3_o_mas FROM percepcion_publicacion_rasgo")
+    assert _ok(con_app, "SELECT count(*) FROM percepcion_comentario_etiqueta") is not None
     assert _ok(con_app, "SELECT count(*) FROM percepcion_subtema") is not None
     assert _ok(con_app, "SELECT count(*) FROM percepcion_comentario_subtema") is not None
     assert _ok(con_app, "SELECT sentimiento FROM percepcion_score")

@@ -157,7 +157,7 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         engine.dispose()
     print(("[dry-run] " if args.dry_run else "") + f"Temas: {r['temas']}  Subtemas: {r['subtemas']}  "
-          f"Comentarios asignados: {r['asignados']}")
+          f"Comentarios asignados: {r['asignados']}  Solo etiquetas: {r['etiquetan']}")
     print(f"Nombres manuales conservados: {r['nombres_manuales_conservados']}  "
           f"descartados: {r['nombres_manuales_descartados']}")
     for tema, n in sorted(r["por_tema"].items()):

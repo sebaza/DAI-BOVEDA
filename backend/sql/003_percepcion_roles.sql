@@ -54,7 +54,7 @@ DECLARE
     -- Tablas derivadas del texto: solo las reconstruye el rol de proceso.
     derivadas text[] := ARRAY['percepcion_subtema', 'percepcion_comentario_subtema',
                               'percepcion_comentario_token', 'percepcion_comentario_familia',
-                              'percepcion_publicacion_rasgo'];
+                              'percepcion_publicacion_rasgo', 'percepcion_comentario_etiqueta'];
     t record;
     cols text;
     priv text;

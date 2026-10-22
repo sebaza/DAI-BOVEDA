@@ -29,10 +29,14 @@ import numpy as np
 from sqlalchemy import delete, inspect, select
 from sqlalchemy.orm import Session
 
-from app.services.percepcion import derivados
+from app.services.percepcion import derivados, emojis
 
 OTROS = -1                       # cluster residual (los demasiado chicos)
 ETIQUETA_OTROS = "Otros"
+# Comentarios que, sacadas las etiquetas, no dicen nada: la gente llama a otras personas a la
+# conversación (repercusión). No se embeben: forman este grupo fijo, sin términos.
+ETIQUETAS = -2
+ETIQUETA_ETIQUETAS = "Etiquetan a otras personas"
 
 # Umbrales anti-PII de las etiquetas: un término sale en pantalla solo si lo dicen
 # varias personas distintas, en varios comentarios, y no es lo que dice casi todo el tema.
@@ -51,10 +55,14 @@ _MENCION = re.compile(r"@[\w.]+")
 
 
 def limpiar(texto: str | None) -> str:
-    """Texto listo para embeber: sin frases del scraper, URLs, @menciones ni handles."""
+    """Texto listo para embeber: sin frases del scraper, URLs, @menciones ni handles.
+
+    Los emojis conocidos pasan a palabras ("👏" -> "aplausos") para que el modelo distinga el
+    tono. Solo afecta lo que se embebe: los tokens guardados no cambian.
+    """
     if not texto:
         return ""
-    t = derivados.FRASES_SCRAPER.sub(" ", texto)
+    t = emojis.emojis_a_palabras(derivados.FRASES_SCRAPER.sub(" ", texto))
     t = _URL.sub(" ", t)
     t = _MENCION.sub(" ", t)
     return " ".join(p for p in t.split() if not derivados.PATRON_HANDLE.search(p))
@@ -224,6 +232,9 @@ def etiquetar(tokens_por_comentario: dict[int, set[str]],
         if c == OTROS:
             salida[c] = (ETIQUETA_OTROS, [])
             continue
+        if c == ETIQUETAS:
+            salida[c] = (ETIQUETA_ETIQUETAS, [])
+            continue
         en_cluster = Counter(t for cid in miembros[c]
                              for t in tokens_por_comentario.get(cid, ()) if t in califican)
         puntajes = {
@@ -328,11 +339,14 @@ def reconstruir_subtemas(db: Session, embedder: Callable[[list[str]], np.ndarray
         db.execute(delete(CS))
         db.execute(delete(S))
 
-    por_tema: dict[str, list[tuple[int, str, str]]] = defaultdict(list)
+    # (id, autor, texto limpio, ¿etiquetaba a alguien?). El texto crudo no se guarda.
+    por_tema: dict[str, list[tuple[int, str, str, bool]]] = defaultdict(list)
     crudos: list[str | None] = []                # solo para juntar @menciones; no sale de acá
     for cid, tema, autor, texto in db.execute(
             select(C.id, C.tema, C.autor_hash, C.texto).where(C.tema.is_not(None)).order_by(C.id)):
-        por_tema[tema].append((cid, autor, limpiar(texto)))
+        limpio = limpiar(texto)
+        por_tema[tema].append((cid, autor, limpio,
+                               not limpio and derivados.contar_etiquetas(texto) > 0))
         crudos.append(texto)
 
     tokens: dict[int, set[str]] = defaultdict(set)
@@ -340,23 +354,34 @@ def reconstruir_subtemas(db: Session, embedder: Callable[[list[str]], np.ndarray
         tokens[cid].add(tok)
 
     # Sobre TODO el corpus: un nombre se reconoce mejor con más apariciones.
-    propios = nombres_propios(t for filas in por_tema.values() for _, _, t in filas)
+    propios = nombres_propios(f[2] for filas in por_tema.values() for f in filas)
     propios |= usuarios_mencionados(crudos)
     propios |= {v.strip().lower() for v in vetar if v.strip()}   # vetos a mano (apodos)
     del crudos
 
-    resumen = {"temas": 0, "subtemas": 0, "asignados": 0, "por_tema": {},
+    resumen = {"temas": 0, "subtemas": 0, "asignados": 0, "etiquetan": 0, "por_tema": {},
                "nombres_manuales_conservados": 0, "nombres_manuales_descartados": 0}
     for tema in sorted(por_tema):
         filas = por_tema[tema]
-        emb = _embeber(embedder, [t for _, _, t in filas])
+        # Lo que quedó vacío no se embebe (todos los vacíos se parecerían y formarían un
+        # subtema falso): va al grupo fijo de etiquetas, o a Otros si no etiquetaba a nadie.
+        con_texto = [f for f in filas if f[2]]
+        emb = _embeber(embedder, [t for _, _, t, _ in con_texto])
         etiquetas = agrupar(emb, k_max=k_max, min_tamano=min_tamano, semilla=semilla)
-        asignacion = {cid: c for (cid, _, _), c in zip(filas, etiquetas)}
-        nombres = etiquetar({cid: tokens.get(cid, set()) for cid, _, _ in filas},
-                            {cid: a for cid, a, _ in filas}, asignacion, excluir=propios,
+        asignacion = {cid: c for (cid, _, _, _), c in zip(con_texto, etiquetas)}
+        # Los términos se calculan solo con los comentarios que dicen algo.
+        nombres = etiquetar({cid: tokens.get(cid, set()) for cid in asignacion},
+                            {cid: a for cid, a, _, _ in con_texto}, asignacion, excluir=propios,
                             es_palabra=es_palabra)
-        tamanos = Counter(etiquetas)
-        orden = sorted(tamanos, key=lambda c: (c == OTROS, c))
+        nombres.setdefault(OTROS, (ETIQUETA_OTROS, []))
+        nombres[ETIQUETAS] = (ETIQUETA_ETIQUETAS, [])
+        for cid, _, t, etiquetaba in filas:
+            if not t:
+                asignacion[cid] = ETIQUETAS if etiquetaba else OTROS
+        tamanos = Counter(asignacion.values())
+        # Clusters normales, luego «Etiquetan a otras personas», al final «Otros».
+        orden = sorted(tamanos, key=lambda c: (0 if c >= 0 else 1 if c == ETIQUETAS else 2, c))
+        resumen["etiquetan"] += tamanos.get(ETIQUETAS, 0)
         resumen["temas"] += 1
         resumen["subtemas"] += len(orden)
         resumen["asignados"] += len(filas)

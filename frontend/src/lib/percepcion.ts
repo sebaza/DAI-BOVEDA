@@ -261,6 +261,36 @@ export interface PublicacionesDominantesResponse {
   concentracion: number | null;
 }
 
+export interface RepercusionSemana {
+  semana: string;              // lunes de la semana (YYYY-MM-DD)
+  comentarios: number;
+  con_etiqueta: number;
+  porcentaje: number;
+}
+
+export interface RepercusionPublicacion {
+  publicacion_id: number;
+  fecha: string | null;
+  cuenta: string | null;
+  n_comentarios: number;
+  con_etiqueta: number;
+  porcentaje: number;
+}
+
+/** Comentarios que etiquetan a otras personas. Solo conteos: sin texto ni handles. */
+export interface RepercusionResponse {
+  /** false = la tabla derivada no esta en la base (todavia no se precalculo). */
+  disponible: boolean;
+  comentarios: number;
+  con_etiqueta: number;
+  /** Comentarios que no dicen nada mas que a quien llaman. */
+  solo_etiquetas: number;
+  /** Cota inferior: un handle de solo letras sin "@" no se detecta. */
+  porcentaje: number;
+  semanas: RepercusionSemana[];
+  publicaciones: RepercusionPublicacion[];
+}
+
 export interface AnomaliaItem {
   /** Lunes de la QUINCENA. La unidad de deteccion son 2 semanas, no una: medido
    *  sobre los 8 episodios del calendario, la quincena enciende en los 5 evaluables
@@ -1209,6 +1239,9 @@ export const percepcionApi = {
   publicacionesDominantes: (f: Filtro, limite = 10, opts?: ReqOpts): Promise<PublicacionesDominantesResponse> =>
     getJson<PublicacionesDominantesResponse>(
       `/percepcion/publicaciones-dominantes?${qs(f, { limite: String(limite) })}`, opts?.signal),
+  repercusion: (f: Filtro, limite = 5, opts?: ReqOpts): Promise<RepercusionResponse> =>
+    getJson<RepercusionResponse>(
+      `/percepcion/repercusion?${qs(f, { limite: String(limite) })}`, opts?.signal),
   anomalias: (f: Filtro, opts?: ReqOpts): Promise<AnomaliasResponse> =>
     getJson<AnomaliasResponse>(`/percepcion/anomalias?${qs(f)}`, opts?.signal),
 

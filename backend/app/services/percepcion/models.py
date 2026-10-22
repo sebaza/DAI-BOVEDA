@@ -415,6 +415,22 @@ class PercepcionComentarioFamilia(Base):
     familia: Mapped[str] = mapped_column(String(40), primary_key=True)
 
 
+class PercepcionComentarioEtiqueta(Base):
+    """Cuántas personas etiqueta un comentario (repercusión). SOLO el número, nunca el handle.
+
+    Una fila por comentario recorrido (también con 0), así la API sabe cuáles ya fueron
+    procesados. `n_etiquetas` es una cota inferior (ver `derivados.contar_etiquetas`);
+    `solo_etiquetas` = el comentario no dice nada más que a quién llama.
+    """
+
+    __tablename__ = "percepcion_comentario_etiqueta"
+
+    comentario_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("percepcion_comentario.id", ondelete="CASCADE"), primary_key=True)
+    n_etiquetas: Mapped[int] = mapped_column(Integer, default=0)
+    solo_etiquetas: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
 class PercepcionPublicacionRasgo(Base):
     """Rasgos binarios de la caption de una publicación (para `comunicacion.py`).
 

@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.services.percepcion import derivados, lexico, ponderacion
 from app.services.percepcion.models import PercepcionComentario as C
+from app.services.percepcion.models import PercepcionComentarioEtiqueta as Etq
 from app.services.percepcion.models import PercepcionComentarioFamilia as Fam
 from app.services.percepcion.models import PercepcionComentarioSubtema as CSub
 from app.services.percepcion.models import PercepcionComentarioToken as Tok
@@ -2681,13 +2682,14 @@ def _peso_likes(n_likes: int) -> float:
     return 1.0 + math.log1p(max(0, int(n_likes or 0)))
 
 
-def _hay_subtemas(db) -> bool:
-    """Las tablas de subtemas las crea un script aparte: sin él, la API sigue sin ellas.
+def _hay_tablas(db, *tablas: str) -> bool:
+    """¿Existen TODAS esas tablas y, en Postgres, puede ESTE rol leerlas?
 
-    En Postgres además exige que ESTE rol pueda leerlas: el script las crea antes de que se
-    re-corra 003, y en esa ventana un SELECT daría InsufficientPrivilege (500 y transacción
-    envenenada). Una sola consulta sobre la misma conexión; sin caché, así aparecen apenas
-    se otorgan los permisos.
+    Las tablas derivadas las crea un script aparte: sin él, la API sigue sin ellas. En
+    Postgres además se exige el permiso: el script las crea antes de que se re-corra 003, y
+    en esa ventana un SELECT daría InsufficientPrivilege (500 y transacción envenenada).
+    Una sola consulta sobre la misma conexión; sin caché, así aparecen apenas se otorgan
+    los permisos.
     """
     conn = db.connection()
     if conn.dialect.name == "postgresql":
@@ -2696,9 +2698,78 @@ def _hay_subtemas(db) -> bool:
             "ELSE has_table_privilege(to_regclass(t), 'SELECT') END) "
             "FROM unnest(CAST(:tablas AS text[])) AS t"
         )
-        return bool(conn.execute(sql, {"tablas": [Sub.__tablename__, CSub.__tablename__]}).scalar())
+        return bool(conn.execute(sql, {"tablas": list(tablas)}).scalar())
     insp = inspect(conn)
-    return insp.has_table(Sub.__tablename__) and insp.has_table(CSub.__tablename__)
+    return all(insp.has_table(t) for t in tablas)
+
+
+def _hay_subtemas(db) -> bool:
+    """Las tablas de subtemas las crea un script aparte (ver `_hay_tablas`)."""
+    return _hay_tablas(db, Sub.__tablename__, CSub.__tablename__)
+
+
+def repercusion(db, *, dias=30, campus=None, facultad=None, departamento=None, tema=None,
+                limite=5, fecha_desde=None, fecha_hasta=None) -> dict:
+    """Repercusión: qué parte de los comentarios etiqueta a otras personas.
+
+    Etiquetar es llamar a otros a la conversación: un post con muchas etiquetas movió a la
+    gente a compartirlo, aunque no diga nada. Sale de `percepcion_comentario_etiqueta`
+    (solo conteos, la API no lee el texto). Es una COTA INFERIOR: los handles de solo
+    letras escritos sin "@" no se detectan.
+
+    El denominador son los comentarios que ya están en esa tabla: lo ingestado después de
+    la última reconstrucción no cuenta como «sin etiquetas». Sin la tabla (o sin permiso)
+    devuelve `disponible: False`. Nunca devuelve texto, captions ni handles de personas.
+    """
+    vacio = {"disponible": False, "comentarios": 0, "con_etiqueta": 0, "solo_etiquetas": 0,
+             "porcentaje": 0.0, "semanas": [], "publicaciones": []}
+    if not _hay_tablas(db, Etq.__tablename__):
+        return vacio
+    fmax = _fmax_comentario(db)
+    if fmax is None:
+        return {**vacio, "disponible": True}
+    cond = _cond_corpus(fmax, dias=dias, campus=campus, facultad=facultad,
+                        departamento=departamento, tema=tema,
+                        fecha_desde=fecha_desde, fecha_hasta=fecha_hasta)
+    filas = db.execute(
+        _select_corpus(C.fecha_comentario, P.id, P.fecha_publicacion, Cu.handle, Cu.nombre,
+                       Etq.n_etiquetas, Etq.solo_etiquetas)
+        .join(Etq, Etq.comentario_id == C.id)
+        .where(*cond)
+    ).all()
+
+    def pct(parte: int, todo: int) -> float:
+        return round(100.0 * parte / todo, 1) if todo else 0.0
+
+    n = con = solo = 0
+    semanas: dict[date, list[int]] = {}
+    pubs: dict[int, dict] = {}
+    for fecha, pid, fpub, handle, nombre, n_et, solo_et in filas:
+        tiene = int(n_et or 0) > 0
+        n += 1
+        con += tiene
+        solo += bool(solo_et)
+        s = semanas.setdefault(_lunes(_a_fecha(fecha)), [0, 0])
+        s[0] += 1
+        s[1] += tiene
+        p = pubs.setdefault(pid, {"fecha": _a_fecha(fpub), "cuenta": nombre or handle,
+                                  "n": 0, "con": 0})
+        p["n"] += 1
+        p["con"] += tiene
+    top = sorted(((pid, p) for pid, p in pubs.items() if p["con"]),
+                 key=lambda kv: (-kv[1]["con"], -pct(kv[1]["con"], kv[1]["n"]), kv[0]))[:limite]
+    return {
+        "disponible": True,
+        "comentarios": n,
+        "con_etiqueta": con,
+        "solo_etiquetas": solo,
+        "porcentaje": pct(con, n),
+        "semanas": [{"semana": s, "comentarios": v[0], "con_etiqueta": v[1],
+                     "porcentaje": pct(v[1], v[0])} for s, v in sorted(semanas.items())],
+        "publicaciones": [{"publicacion_id": pid, "fecha": p["fecha"], "cuenta": p["cuenta"],
+                           "n_comentarios": p["n"], "con_etiqueta": p["con"],
+                           "porcentaje": pct(p["con"], p["n"])} for pid, p in top],
+    }
 
 
 def _hay_nombre_manual(db) -> bool:

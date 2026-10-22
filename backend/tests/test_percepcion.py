@@ -22,6 +22,7 @@ from app.services.percepcion.repository import ETIQUETAS_TEMA
 from app.services.percepcion.models import (
     PercepcionComentario,
     PercepcionComentarioFamilia,
+    PercepcionComentarioEtiqueta,
     PercepcionComentarioToken,
     PercepcionCorreccion,
     PercepcionCuenta,
@@ -49,6 +50,7 @@ def _memoria():
     for m in (PercepcionHechoDiario, PercepcionEvento, PercepcionCuenta,
               PercepcionPublicacion, PercepcionComentario, PercepcionScore,
               PercepcionCorreccion, PercepcionComentarioToken, PercepcionComentarioFamilia,
+              PercepcionComentarioEtiqueta,
               PercepcionPublicacionRasgo):
         m.__table__.create(engine)
     return sessionmaker(bind=engine, future=True)()
@@ -67,6 +69,7 @@ def _memoria_completa():
     for m in (PercepcionHechoDiario, PercepcionEvento, PercepcionCuenta,
               PercepcionPublicacion, PercepcionComentario, PercepcionScore,
               PercepcionCorreccion, PercepcionComentarioToken, PercepcionComentarioFamilia,
+              PercepcionComentarioEtiqueta,
               PercepcionPublicacionRasgo):
         m.__table__.create(engine)
     return sessionmaker(bind=engine, future=True)()

@@ -11,6 +11,7 @@ lugar, tres tablas derivadas que llena ESTE script con un rol que sí puede leer
     percepcion_comentario_token      palabras únicas de cada comentario
     percepcion_comentario_familia    familias del léxico de vigilancia que menciona cada comentario
     percepcion_publicacion_rasgo     rasgos binarios de cada caption (emojis, @, #, «?», largo)
+    percepcion_comentario_etiqueta   cuántas personas etiqueta cada comentario (solo el número)
 
 Usa EXACTAMENTE la misma lógica que el resto del código (`app.services.percepcion.derivados`),
 así que los resultados no cambian respecto de calcular sobre el texto.
@@ -56,6 +57,7 @@ def main(argv: list[str] | None = None) -> int:
     from app.config import get_settings
     from app.services.percepcion import derivados
     from app.services.percepcion.models import (
+        PercepcionComentarioEtiqueta,
         PercepcionComentarioFamilia,
         PercepcionComentarioToken,
         PercepcionPublicacionRasgo,
@@ -64,9 +66,14 @@ def main(argv: list[str] | None = None) -> int:
     s = get_settings()
     url = (args.url or s.percepcion_proceso_database_url or s.percepcion_database_url
            or s.operational_database_url).strip()
+    if url.startswith("postgresql"):
+        # Una URL de administrador no trae search_path: sin esto las tablas caerían en `public`.
+        from app.services.percepcion.pg import url_con_esquema
+        url = url_con_esquema(url)
     engine = create_engine(url, future=True, pool_pre_ping=True)
     try:
-        for modelo in (PercepcionComentarioToken, PercepcionComentarioFamilia, PercepcionPublicacionRasgo):
+        for modelo in (PercepcionComentarioToken, PercepcionComentarioFamilia, PercepcionPublicacionRasgo,
+                       PercepcionComentarioEtiqueta):
             modelo.__table__.create(bind=engine, checkfirst=True)
         with sessionmaker(bind=engine, future=True)() as db:
             try:
@@ -85,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Filas en percepcion_comentario_token:   {r['tokens']}")
     print(f"Filas en percepcion_comentario_familia: {r['familias']}")
     print(f"Filas en percepcion_publicacion_rasgo:  {r['rasgos']}")
+    print(f"Comentarios con etiquetas (percepcion_comentario_etiqueta): {r['etiquetas']}")
     return 0
 
 

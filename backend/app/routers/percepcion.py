@@ -277,6 +277,21 @@ def get_publicaciones_dominantes(
     return repository.publicaciones_dominantes(db, limite=limite, **f.kwargs())
 
 
+@router.get("/repercusion", response_model=schemas.RepercusionResponse)
+def get_repercusion(
+    f: Filtro = Depends(),
+    limite: int = Query(5, ge=1, le=20),
+    db: Session = Depends(get_db),
+):
+    """Repercusión: qué parte de los comentarios etiqueta a otras personas.
+
+    Etiquetar es llamar a otros a la conversación. Serie semanal y las publicaciones con más
+    comentarios que etiquetan. Solo conteos (sin texto ni handles de personas); si la tabla
+    derivada no está, responde `disponible: false`.
+    """
+    return repository.repercusion(db, limite=limite, **f.kwargs())
+
+
 @router.get("/destacados", response_model=schemas.DestacadosResponse)
 def get_destacados(f: Filtro = Depends(), db: Session = Depends(get_db)):
     """Lo que el RESUMEN muestra de un vistazo, en una sola llamada.

@@ -19,6 +19,7 @@ import { PercepcionSimulacion } from "./PercepcionSimulacion";
 import { PercepcionCuracion } from "./PercepcionCuracion";
 import { PercepcionSubtemas } from "./PercepcionSubtemas";
 import { PercepcionNube } from "./PercepcionNube";
+import { PercepcionRepercusion } from "./PercepcionRepercusion";
 import { PercepcionResumen } from "./PercepcionResumen";
 import { PercepcionRevision } from "./PercepcionRevision";
 import {
@@ -2170,7 +2171,10 @@ python -m percepcion.cli agregar`}
           )}
 
           {subConv !== "publicaciones" ? null : (
-            <PercepcionDominantes filtro={filtroEstable} />
+            <>
+              <PercepcionRepercusion filtro={filtroEstable} />
+              <PercepcionDominantes filtro={filtroEstable} />
+            </>
           )}
 
           {subConv !== "palabras" ? null : (

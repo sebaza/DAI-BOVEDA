@@ -169,6 +169,9 @@ def sincronizar(origen: Session, destino: Session, *, simular: bool = False,
 
     if con_derivados:
         res.hechos = curacion.reagregar(destino, confirmar=False)
+        # La tabla de etiquetas es nueva: una base anterior todavía no la tiene.
+        from app.services.percepcion.models import PercepcionComentarioEtiqueta
+        PercepcionComentarioEtiqueta.__table__.create(bind=destino.connection(), checkfirst=True)
         res.derivados = derivados.reconstruir(destino)
     return res
 

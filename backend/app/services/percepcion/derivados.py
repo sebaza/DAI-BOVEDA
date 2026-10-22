@@ -142,6 +142,45 @@ def tokens_de(texto: str | None) -> set[str]:
     return set(tokenizar(texto or ""))
 
 
+_URL = re.compile(r"https?://\S+|www\.\S+")
+_MENCION = re.compile(r"@[\w.]+")
+_FORMA_HANDLE = re.compile(r"[a-z0-9._]{3,30}")      # Instagram: minúsculas, dígitos, "." y "_"
+_UNIDAD = re.compile(r"\d+[a-z]{1,3}")               # 10pm, 8am, 3ra, 5g: no son personas
+_NO_SON_HANDLES = frozenset({"covid19"})
+_BORDES = ".,;:!?()\"'¡¿"
+
+
+def es_handle(palabra: str) -> bool:
+    """¿Parece un handle que el scraper dejó sin "@"? Forma de Instagram (minúsculas, dígitos,
+    "." y "_"), al menos 2 letras y un "_", un dígito o un punto entre letras. Las mayúsculas
+    ("Dr.Perez"), las horas y unidades ("10pm", "3ra") y los #hashtags no califican.
+    """
+    p = palabra.strip(_BORDES)
+    if not _FORMA_HANDLE.fullmatch(p) or sum(c.isalpha() for c in p) < 2:
+        return False
+    if _UNIDAD.fullmatch(p) or p in _NO_SON_HANDLES:
+        return False
+    return bool(PATRON_HANDLE.search(p))
+
+
+def contar_etiquetas(texto: str | None) -> int:
+    """Cuántas personas etiqueta un comentario: `@menciones` + handles que el scraper dejó sin "@".
+
+    COTA INFERIOR: un handle de solo letras sin "@" ("jmanuuu") no se puede distinguir de una
+    palabra, así que no se cuenta. Cuenta menciones, no personas distintas (dos veces la misma
+    suman dos). Descarta antes las frases del scraper y las URL; el resto pasa por `es_handle`.
+    Queda un margen chico de error: una errata "palabra.palabra" en minúsculas cuenta (en el
+    corpus de oct. 2026 eran 32 casos de 8.823 comentarios). Solo devuelve el número: el
+    handle no sale de acá.
+    """
+    if not texto:
+        return 0
+    t = _URL.sub(" ", FRASES_SCRAPER.sub(" ", texto))
+    n = len(_MENCION.findall(t))
+    t = _MENCION.sub(" ", t)
+    return n + sum(1 for p in t.split() if es_handle(p))
+
+
 def familias_de(texto: str | None) -> set[str]:
     """Familias del léxico de vigilancia que menciona el comentario (`lexico.detectar`)."""
     return lexico.detectar(texto)
@@ -192,21 +231,28 @@ def reconstruir(db: Session) -> dict[str, int]:
     """
     from app.services.percepcion.models import (
         PercepcionComentario as C,
+        PercepcionComentarioEtiqueta as E,
         PercepcionComentarioFamilia as F,
         PercepcionComentarioToken as T,
         PercepcionPublicacion as P,
         PercepcionPublicacionRasgo as R,
     )
+    from app.services.percepcion import subtemas   # perezoso: subtemas importa este módulo
 
     # Hijos primero (hay FK hacia comentario/publicación en bases que las imponen).
-    for modelo in (T, F, R):
+    for modelo in (T, F, R, E):
         db.execute(delete(modelo))
 
     n_com = n_tok = n_fam = 0
     tokens: list[dict] = []
     familias: list[dict] = []
+    etiquetas: list[dict] = []
     for cid, texto in db.execute(select(C.id, C.texto).order_by(C.id)).yield_per(2000):
         n_com += 1
+        n_et = contar_etiquetas(texto)
+        # Solo etiquetas = no queda nada que decir salvo a quién se llama (misma regla que subtemas).
+        etiquetas.append({"comentario_id": cid, "n_etiquetas": n_et,
+                          "solo_etiquetas": n_et > 0 and not subtemas.limpiar(texto)})
         tokens += [{"comentario_id": cid, "token": t} for t in sorted(tokens_de(texto))]
         familias += [{"comentario_id": cid, "familia": f} for f in sorted(familias_de(texto))]
         if len(tokens) >= LOTE:
@@ -221,8 +267,10 @@ def reconstruir(db: Session) -> dict[str, int]:
     n_fam += len(familias)
     _insertar(db, T, tokens)
     _insertar(db, F, familias)
+    _insertar(db, E, etiquetas)
 
     rasgos = [{"publicacion_id": pid, **rasgos_caption(caption)}
               for pid, caption in db.execute(select(P.id, P.caption).order_by(P.id))]
     _insertar(db, R, rasgos)
-    return {"comentarios": n_com, "tokens": n_tok, "familias": n_fam, "rasgos": len(rasgos)}
+    return {"comentarios": n_com, "tokens": n_tok, "familias": n_fam, "rasgos": len(rasgos),
+            "etiquetas": sum(1 for e in etiquetas if e["n_etiquetas"])}
