@@ -17,8 +17,10 @@
 // La confirmación es la función más importante de esta pantalla, aunque parezca la
 // más aburrida: sin aciertos anotados no hay accuracy, solo un log de defectos.
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSolicitudVigente } from "../lib/solicitud";
 
 import {
+  esCancelacion,
   percepcionApi,
   type ComentarioScoring,
   type OpcionesScoring,
@@ -377,15 +379,18 @@ export function PercepcionRevision({ onCambio }: { onCambio?: () => void }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [porRevisar, setPorRevisar] = useState(0);
 
+  const nueva = useSolicitudVigente();
   const recargar = useCallback(async (o: OrdenScoring) => {
+    const ctrl = nueva();
+    const opts = { signal: ctrl.signal };
     setCargando(true);
     setError(null);
     try {
       const [cola, opc, tem, cal] = await Promise.all([
-        percepcionApi.comentariosScoring(OBJETIVO, {}, o),
-        percepcionApi.scoringOpciones(),
-        percepcionApi.curacionTemas(),
-        percepcionApi.calidad(),
+        percepcionApi.comentariosScoring(OBJETIVO, {}, o, opts),
+        percepcionApi.scoringOpciones(opts),
+        percepcionApi.curacionTemas(opts),
+        percepcionApi.calidad(opts),
       ]);
       setItems(cola.items);
       setOpciones(opc);
@@ -401,11 +406,12 @@ export function PercepcionRevision({ onCambio }: { onCambio?: () => void }) {
       setYaAnotadas(cola.revisados);
       setPorRevisar(cola.pendientes);
     } catch (e) {
+      if (esCancelacion(e)) return;
       setError(e instanceof Error ? e.message : "No se pudo cargar la cola de revisión");
     } finally {
-      setCargando(false);
+      if (!ctrl.signal.aborted) setCargando(false);
     }
-  }, []);
+  }, [nueva]);
 
   useEffect(() => { if (abierto) void recargar(orden); }, [abierto, orden, recargar]);
 

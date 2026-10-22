@@ -18,10 +18,11 @@
 // es SENTIMIENTO con los neutrales en gris tenue: el color solo "grita" donde hay
 // polaridad real (~40% del corpus). Igual se puede cambiar desde el selector.
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSolicitudVigente } from "../lib/solicitud";
 import { PALETA } from "@/lib/paleta";
 
 import type { Filtro, NubeResponse, PalabraNube } from "../lib/percepcion";
-import { percepcionApi } from "../lib/percepcion";
+import { esCancelacion, percepcionApi } from "../lib/percepcion";
 import { CARD, COLOR_NEG, COLOR_NEU, COLOR_POS, SELECT } from "./PercepcionUI";
 
 type CriterioColor = "sentimiento" | "tema" | "mono";
@@ -317,17 +318,21 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const nueva = useSolicitudVigente();
   const cargar = useCallback(async () => {
+    const ctrl = nueva();
+    const opts = { signal: ctrl.signal };
     setCargando(true);
     setError(null);
     try {
-      setData(await percepcionApi.nube(filtro, limite, minFrecuencia, excluidas, agruparVariantes));
+      setData(await percepcionApi.nube(filtro, limite, minFrecuencia, excluidas, agruparVariantes, opts));
     } catch (e) {
+      if (esCancelacion(e)) return;
       setError(e instanceof Error ? e.message : "No se pudo cargar la nube de palabras.");
     } finally {
-      setCargando(false);
+      if (!ctrl.signal.aborted) setCargando(false);
     }
-  }, [filtro, limite, minFrecuencia, excluidas, agruparVariantes]);
+  }, [filtro, limite, minFrecuencia, excluidas, agruparVariantes, nueva]);
 
   useEffect(() => {
     void cargar();

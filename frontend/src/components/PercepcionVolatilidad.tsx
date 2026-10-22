@@ -22,6 +22,8 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useSolicitudVigente } from "../lib/solicitud";
+import { esCancelacion } from "../lib/percepcion";
 
 import {
   percepcionApi,
@@ -96,17 +98,21 @@ export function PercepcionVolatilidad() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const nueva = useSolicitudVigente();
   const cargar = useCallback(async () => {
+    const ctrl = nueva();
+    const opts = { signal: ctrl.signal };
     setCargando(true);
     setError(null);
     try {
-      setData(await percepcionApi.volatilidad(nivel));
+      setData(await percepcionApi.volatilidad(nivel, opts));
     } catch (e) {
+      if (esCancelacion(e)) return;
       setError(e instanceof Error ? e.message : "No se pudo cargar la volatilidad.");
     } finally {
-      setCargando(false);
+      if (!ctrl.signal.aborted) setCargando(false);
     }
-  }, [nivel]);
+  }, [nivel, nueva]);
 
   useEffect(() => {
     void cargar();

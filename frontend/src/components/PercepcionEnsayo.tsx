@@ -28,9 +28,10 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useSolicitudVigente } from "../lib/solicitud";
 
 import type { EnsayoResponse } from "../lib/percepcion";
-import { percepcionApi } from "../lib/percepcion";
+import { esCancelacion, percepcionApi } from "../lib/percepcion";
 import { CARD, COLOR_COPPER, COLOR_POS, TituloBloque, fmt, nro } from "./PercepcionUI";
 
 export function PercepcionEnsayo() {
@@ -39,17 +40,21 @@ export function PercepcionEnsayo() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const nueva = useSolicitudVigente();
   const cargar = useCallback(async (rs: string[]) => {
+    const ctrl = nueva();
+    const opts = { signal: ctrl.signal };
     setCargando(true);
     setError(null);
     try {
-      setData(await percepcionApi.ensayo(rs));
+      setData(await percepcionApi.ensayo(rs, opts));
     } catch (e) {
+      if (esCancelacion(e)) return;
       setError(e instanceof Error ? e.message : "No se pudo correr el ensayo.");
     } finally {
-      setCargando(false);
+      if (!ctrl.signal.aborted) setCargando(false);
     }
-  }, []);
+  }, [nueva]);
 
   useEffect(() => { void cargar(rasgos); }, [cargar, rasgos]);
 

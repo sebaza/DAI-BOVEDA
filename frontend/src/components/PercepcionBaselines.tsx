@@ -32,8 +32,9 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useSolicitudVigente } from "../lib/solicitud";
 
-import { percepcionApi, type BaselinesResponse } from "../lib/percepcion";
+import { esCancelacion, percepcionApi, type BaselinesResponse } from "../lib/percepcion";
 import { CARD, COLOR_COPPER, COLOR_NEG, COLOR_POS, TituloBloque, fmt, nro } from "./PercepcionUI";
 
 export function PercepcionBaselines() {
@@ -41,17 +42,21 @@ export function PercepcionBaselines() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const nueva = useSolicitudVigente();
   const cargar = useCallback(async () => {
+    const ctrl = nueva();
+    const opts = { signal: ctrl.signal };
     setCargando(true);
     setError(null);
     try {
-      setData(await percepcionApi.baselines());
+      setData(await percepcionApi.baselines(opts));
     } catch (e) {
+      if (esCancelacion(e)) return;
       setError(e instanceof Error ? e.message : "No se pudieron cargar los baselines.");
     } finally {
-      setCargando(false);
+      if (!ctrl.signal.aborted) setCargando(false);
     }
-  }, []);
+  }, [nueva]);
 
   useEffect(() => {
     void cargar();

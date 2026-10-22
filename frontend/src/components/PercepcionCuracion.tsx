@@ -5,6 +5,8 @@
 // post heredan) y por COMENTARIO (uno por uno). Cada asignación escribe en la base
 // del worker y reconstruye los hechos → se refleja en todo el tablero (onCambio).
 import { useCallback, useEffect, useState } from "react";
+import { useSolicitudVigente } from "../lib/solicitud";
+import { esCancelacion } from "../lib/percepcion";
 
 import {
   percepcionApi,
@@ -41,24 +43,28 @@ export function PercepcionCuracion({ onCambio }: { onCambio: () => void }) {
   const [nombreTema, setNombreTema] = useState("");
   const [kwTema, setKwTema] = useState("");
 
+  const nueva = useSolicitudVigente();
   const recargar = useCallback(async () => {
+    const ctrl = nueva();
+    const opts = { signal: ctrl.signal };
     setCargando(true);
     setError(null);
     try {
       const [t, p, c] = await Promise.all([
-        percepcionApi.curacionTemas(),
-        percepcionApi.curacionPublicaciones(),
-        percepcionApi.curacionComentarios(),
+        percepcionApi.curacionTemas(opts),
+        percepcionApi.curacionPublicaciones(opts),
+        percepcionApi.curacionComentarios(opts),
       ]);
       setTemas(t.items);
       setPubs(p.items);
       setComs(c.items);
     } catch (e) {
+      if (esCancelacion(e)) return;
       setError(e instanceof Error ? e.message : "Error al cargar la curación");
     } finally {
-      setCargando(false);
+      if (!ctrl.signal.aborted) setCargando(false);
     }
-  }, []);
+  }, [nueva]);
 
   useEffect(() => { if (abierto) void recargar(); }, [abierto, recargar]);
 

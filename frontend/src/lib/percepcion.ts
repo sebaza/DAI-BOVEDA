@@ -11,10 +11,18 @@ function authHeaders(): Headers {
   return headers;
 }
 
-async function getJson<T>(path: string): Promise<T> {
+/** Optional cancellation for read helpers (mutations are never cancelled). */
+export interface ReqOpts { signal?: AbortSignal }
+
+/** True when the error comes from an aborted request (not a real failure). */
+export function esCancelacion(e: unknown): boolean {
+  return e instanceof DOMException && e.name === "AbortError";
+}
+
+async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   // no-store: el dashboard refleja datos vivos; sin esto el navegador cachea GETs
   // (p.ej. /filtros) y sigue mostrando una respuesta vieja tras cambiar el backend.
-  const res = await fetch(`${API_BASE_URL}${path}`, { headers: authHeaders(), cache: "no-store" });
+  const res = await fetch(`${API_BASE_URL}${path}`, { headers: authHeaders(), cache: "no-store", signal });
   if (!res.ok) throw new Error((await res.text()) || `Error ${res.status}`);
   return res.json() as Promise<T>;
 }
@@ -1042,22 +1050,22 @@ export interface ResumenSemanalResponse {
 
 // ---- API ----
 export const percepcionApi = {
-  filtros: (): Promise<FiltrosResponse> => getJson<FiltrosResponse>("/percepcion/filtros"),
+  filtros: (opts?: ReqOpts): Promise<FiltrosResponse> => getJson<FiltrosResponse>("/percepcion/filtros", opts?.signal),
 
-  resumen: (f: Filtro): Promise<ResumenPercepcion> =>
-    getJson<ResumenPercepcion>(`/percepcion/resumen?${qs(f)}`),
+  resumen: (f: Filtro, opts?: ReqOpts): Promise<ResumenPercepcion> =>
+    getJson<ResumenPercepcion>(`/percepcion/resumen?${qs(f)}`, opts?.signal),
 
-  evolucion: (f: Filtro): Promise<SerieEvolucion> =>
-    getJson<SerieEvolucion>(`/percepcion/evolucion?${qs(f)}`),
+  evolucion: (f: Filtro, opts?: ReqOpts): Promise<SerieEvolucion> =>
+    getJson<SerieEvolucion>(`/percepcion/evolucion?${qs(f)}`, opts?.signal),
 
-  porTema: (f: Filtro): Promise<ComparacionTemas> =>
-    getJson<ComparacionTemas>(`/percepcion/por-tema?${qs(f)}`),
+  porTema: (f: Filtro, opts?: ReqOpts): Promise<ComparacionTemas> =>
+    getJson<ComparacionTemas>(`/percepcion/por-tema?${qs(f)}`, opts?.signal),
 
-  porUnidad: (nivel: "facultad" | "campus" | "departamento", f: Filtro): Promise<ComparacionUnidades> =>
-    getJson<ComparacionUnidades>(`/percepcion/por-unidad?${qs(f, { nivel })}`),
+  porUnidad: (nivel: "facultad" | "campus" | "departamento", f: Filtro, opts?: ReqOpts): Promise<ComparacionUnidades> =>
+    getJson<ComparacionUnidades>(`/percepcion/por-unidad?${qs(f, { nivel })}`, opts?.signal),
 
-  emociones: (f: Filtro): Promise<EmocionesResponse> =>
-    getJson<EmocionesResponse>(`/percepcion/emociones?${qs(f)}`),
+  emociones: (f: Filtro, opts?: ReqOpts): Promise<EmocionesResponse> =>
+    getJson<EmocionesResponse>(`/percepcion/emociones?${qs(f)}`, opts?.signal),
 
   /**
    * Resumen narrativo de una semana. NO usa el filtro global a propósito: es una
@@ -1072,21 +1080,21 @@ export const percepcionApi = {
     nivel: NivelResumenSemanal,
     dimension: string | null,
     semana?: string,
-    forzar = false,
+    forzar = false, opts?: ReqOpts,
   ): Promise<ResumenSemanalResponse> => {
     const p = new URLSearchParams({ nivel });
     if (dimension) p.set("dimension", dimension);
     if (semana) p.set("semana", semana);
     if (forzar) p.set("forzar", "true");
-    return getJson<ResumenSemanalResponse>(`/percepcion/resumen-semanal?${p.toString()}`);
+    return getJson<ResumenSemanalResponse>(`/percepcion/resumen-semanal?${p.toString()}`, opts?.signal);
   },
 
   /**
    * La vara de la fase 1: backtesting de los baselines triviales. No es un
    * pronóstico para consumir, es el piso que un modelo tiene que superar.
    */
-  baselines: (): Promise<BaselinesResponse> =>
-    getJson<BaselinesResponse>("/percepcion/baselines"),
+  baselines: (opts?: ReqOpts): Promise<BaselinesResponse> =>
+    getJson<BaselinesResponse>("/percepcion/baselines", opts?.signal),
 
   /**
    * C · respuesta a shock. Devuelve CASOS, no un promedio: la mayoría de los
@@ -1096,8 +1104,8 @@ export const percepcionApi = {
    * B · qué rasgos de una publicación se asocian con generar conversación. Cada uno
    * viene con su efecto crudo y con el controlado por cuenta; solo el segundo vale.
    */
-  comunicacion: (): Promise<ComunicacionResponse> =>
-    getJson<ComunicacionResponse>("/percepcion/comunicacion"),
+  comunicacion: (opts?: ReqOpts): Promise<ComunicacionResponse> =>
+    getJson<ComunicacionResponse>("/percepcion/comunicacion", opts?.signal),
 
   /**
    * B · El ENSAYO: «¿una publicación así va a generar conversación?».
@@ -1106,25 +1114,24 @@ export const percepcionApi = {
    * "observado" es la tasa contada de las publicaciones con esa misma combinación
    * y "estimado" es una suma de efectos. No valen lo mismo y el panel lo declara.
    */
-  ensayo: (rasgos: string[]): Promise<EnsayoResponse> => {
+  ensayo: (rasgos: string[], opts?: ReqOpts): Promise<EnsayoResponse> => {
     const p = new URLSearchParams();
     for (const r of rasgos) p.append("rasgos", r);
-    return getJson<EnsayoResponse>(`/percepcion/ensayo?${p.toString()}`);
+    return getJson<EnsayoResponse>(`/percepcion/ensayo?${p.toString()}`, opts?.signal);
   },
 
-  shock: (soloConfirmados = false): Promise<ShockResponse> =>
+  shock: (soloConfirmados = false, opts?: ReqOpts): Promise<ShockResponse> =>
     getJson<ShockResponse>(
-      `/percepcion/shock${soloConfirmados ? "?solo_confirmados=true" : ""}`,
-    ),
+      `/percepcion/shock${soloConfirmados ? "?solo_confirmados=true" : ""}`, opts?.signal),
 
   /**
    * Volatilidad estructural por unidad. NO usa el filtro global: la volatilidad es
    * una propiedad de la serie completa, no de una ventana de 30 días.
    */
   volatilidad: (
-    nivel: "campus" | "facultad" | "departamento" = "facultad",
+    nivel: "campus" | "facultad" | "departamento" = "facultad", opts?: ReqOpts,
   ): Promise<VolatilidadResponse> =>
-    getJson<VolatilidadResponse>(`/percepcion/volatilidad?nivel=${nivel}`),
+    getJson<VolatilidadResponse>(`/percepcion/volatilidad?nivel=${nivel}`, opts?.signal),
 
   /**
    * Semanas navegables (solo las que tienen datos), de la más nueva a la más vieja.
@@ -1133,13 +1140,12 @@ export const percepcionApi = {
   semanasResumen: (
     nivel: NivelResumenSemanal = "global",
     dimension: string | null = null,
-    limite = 52,
+    limite = 52, opts?: ReqOpts,
   ): Promise<{ semanas: SemanaDisponible[] }> => {
     const p = new URLSearchParams({ nivel, limite: String(limite) });
     if (dimension) p.set("dimension", dimension);
     return getJson<{ semanas: SemanaDisponible[] }>(
-      `/percepcion/resumen-semanal/semanas?${p.toString()}`,
-    );
+      `/percepcion/resumen-semanal/semanas?${p.toString()}`, opts?.signal);
   },
 
   // Capa 1 del resumen ejecutivo: trae los DOS cortes (temas y áreas) + focos en
@@ -1147,16 +1153,16 @@ export const percepcionApi = {
   sintesis: (
     nivel: "facultad" | "campus" | "departamento",
     orden: OrdenSintesis,
-    f: Filtro,
+    f: Filtro, opts?: ReqOpts,
   ): Promise<SintesisResponse> =>
-    getJson<SintesisResponse>(`/percepcion/sintesis?${qs(f, { nivel, orden })}`),
+    getJson<SintesisResponse>(`/percepcion/sintesis?${qs(f, { nivel, orden })}`, opts?.signal),
 
   nube: (
     f: Filtro,
     limite = 120,
     minFrecuencia = 2,
     excluir: string[] = [],
-    agruparVariantes = true,
+    agruparVariantes = true, opts?: ReqOpts,
   ): Promise<NubeResponse> => {
     const extra: Record<string, string> = {
       limite: String(limite),
@@ -1164,23 +1170,23 @@ export const percepcionApi = {
       agrupar_variantes: String(agruparVariantes),
     };
     if (excluir.length > 0) extra.excluir = excluir.join(",");
-    return getJson<NubeResponse>(`/percepcion/nube?${qs(f, extra)}`);
+    return getJson<NubeResponse>(`/percepcion/nube?${qs(f, extra)}`, opts?.signal);
   },
 
-  destacados: (f: Filtro): Promise<DestacadosResponse> =>
-    getJson<DestacadosResponse>(`/percepcion/destacados?${qs(f)}`),
+  destacados: (f: Filtro, opts?: ReqOpts): Promise<DestacadosResponse> =>
+    getJson<DestacadosResponse>(`/percepcion/destacados?${qs(f)}`, opts?.signal),
 
-  terminos: (f: Filtro): Promise<TerminosResponse> =>
-    getJson<TerminosResponse>(`/percepcion/terminos?${qs(f)}`),
+  terminos: (f: Filtro, opts?: ReqOpts): Promise<TerminosResponse> =>
+    getJson<TerminosResponse>(`/percepcion/terminos?${qs(f)}`, opts?.signal),
 
-  eventos: (dias = 120): Promise<EventosResponse> =>
-    getJson<EventosResponse>(`/percepcion/eventos?dias=${dias}`),
+  eventos: (dias = 120, opts?: ReqOpts): Promise<EventosResponse> =>
+    getJson<EventosResponse>(`/percepcion/eventos?dias=${dias}`, opts?.signal),
 
   // ---- ABM de marcas de contexto ----
-  eventosTodos: (): Promise<EventosResponse> =>
-    getJson<EventosResponse>("/percepcion/eventos/todos"),
-  eventosTipos: (): Promise<{ items: TipoEventoOpcion[] }> =>
-    getJson<{ items: TipoEventoOpcion[] }>("/percepcion/eventos/tipos"),
+  eventosTodos: (opts?: ReqOpts): Promise<EventosResponse> =>
+    getJson<EventosResponse>("/percepcion/eventos/todos", opts?.signal),
+  eventosTipos: (opts?: ReqOpts): Promise<{ items: TipoEventoOpcion[] }> =>
+    getJson<{ items: TipoEventoOpcion[] }>("/percepcion/eventos/tipos", opts?.signal),
   crearEvento: (payload: EventoPayload): Promise<EventoItem> =>
     postJson<EventoItem>("/percepcion/eventos", payload),
   actualizarEvento: (id: number, payload: EventoPayload): Promise<EventoItem> =>
@@ -1188,29 +1194,29 @@ export const percepcionApi = {
   eliminarEvento: (id: number): Promise<{ eliminado: boolean; id: number }> =>
     sendJson<{ eliminado: boolean; id: number }>("DELETE", `/percepcion/eventos/${id}`),
 
-  publicacionesDominantes: (f: Filtro, limite = 10): Promise<PublicacionesDominantesResponse> =>
+  publicacionesDominantes: (f: Filtro, limite = 10, opts?: ReqOpts): Promise<PublicacionesDominantesResponse> =>
     getJson<PublicacionesDominantesResponse>(
-      `/percepcion/publicaciones-dominantes?${qs(f, { limite: String(limite) })}`),
-  anomalias: (f: Filtro): Promise<AnomaliasResponse> =>
-    getJson<AnomaliasResponse>(`/percepcion/anomalias?${qs(f)}`),
+      `/percepcion/publicaciones-dominantes?${qs(f, { limite: String(limite) })}`, opts?.signal),
+  anomalias: (f: Filtro, opts?: ReqOpts): Promise<AnomaliasResponse> =>
+    getJson<AnomaliasResponse>(`/percepcion/anomalias?${qs(f)}`, opts?.signal),
 
-  comentarios: (f: Filtro, limite = 20, cf: ComentariosFiltro = {}): Promise<ComentariosResponse> => {
+  comentarios: (f: Filtro, limite = 20, cf: ComentariosFiltro = {}, opts?: ReqOpts): Promise<ComentariosResponse> => {
     const extra: Record<string, string> = { limite: String(limite) };
     if (cf.sentimiento) extra.sentimiento = cf.sentimiento;
     if (cf.emocion) extra.emocion = cf.emocion;
     if (cf.fechaDesde) extra.fecha_desde = cf.fechaDesde;
     if (cf.fechaHasta) extra.fecha_hasta = cf.fechaHasta;
     if (cf.incluirNeutrales) extra.incluir_neutrales = "true";
-    return getJson<ComentariosResponse>(`/percepcion/comentarios?${qs(f, extra)}`);
+    return getJson<ComentariosResponse>(`/percepcion/comentarios?${qs(f, extra)}`, opts?.signal);
   },
 
   // Curación manual
-  curacionTemas: (): Promise<{ items: TemaAsignable[] }> =>
-    getJson<{ items: TemaAsignable[] }>("/percepcion/curacion/temas"),
-  curacionPublicaciones: (): Promise<{ items: PublicacionCurar[] }> =>
-    getJson<{ items: PublicacionCurar[] }>("/percepcion/curacion/publicaciones"),
-  curacionComentarios: (): Promise<{ items: ComentarioCurar[] }> =>
-    getJson<{ items: ComentarioCurar[] }>("/percepcion/curacion/comentarios"),
+  curacionTemas: (opts?: ReqOpts): Promise<{ items: TemaAsignable[] }> =>
+    getJson<{ items: TemaAsignable[] }>("/percepcion/curacion/temas", opts?.signal),
+  curacionPublicaciones: (opts?: ReqOpts): Promise<{ items: PublicacionCurar[] }> =>
+    getJson<{ items: PublicacionCurar[] }>("/percepcion/curacion/publicaciones", opts?.signal),
+  curacionComentarios: (opts?: ReqOpts): Promise<{ items: ComentarioCurar[] }> =>
+    getJson<{ items: ComentarioCurar[] }>("/percepcion/curacion/comentarios", opts?.signal),
   asignarTemaPublicacion: (id: number, tema: string): Promise<AsignarTemaResponse> =>
     postJson<AsignarTemaResponse>(`/percepcion/curacion/publicacion/${id}`, { tema }),
   asignarTemaComentario: (id: number, tema: string): Promise<AsignarTemaResponse> =>
@@ -1219,34 +1225,34 @@ export const percepcionApi = {
     postJson<TemaAsignable>("/percepcion/curacion/tema", { etiqueta, keywords }),
 
   // Corrección de sentimiento / emoción
-  scoringOpciones: (): Promise<OpcionesScoring> =>
-    getJson<OpcionesScoring>("/percepcion/curacion/scoring/opciones"),
+  scoringOpciones: (opts?: ReqOpts): Promise<OpcionesScoring> =>
+    getJson<OpcionesScoring>("/percepcion/curacion/scoring/opciones", opts?.signal),
   // `revisados`/`pendientes` los calcula el servidor sobre COMENTARIOS CUBIERTOS
   // (los cuatro campos anotados y el tema vigente), no sobre correcciones guardadas.
   // La diferencia no es cosmética: el contador anterior contaba clicks, así que
   // subía igual cuando la cola devolvía los mismos comentarios una y otra vez —por
   // eso nadie notó durante días que la cola no avanzaba.
-  concentracion: (f: Filtro, nivel: string): Promise<ConcentracionResponse> =>
-    getJson<ConcentracionResponse>(`/percepcion/concentracion?${qs(f, { nivel })}`),
+  concentracion: (f: Filtro, nivel: string, opts?: ReqOpts): Promise<ConcentracionResponse> =>
+    getJson<ConcentracionResponse>(`/percepcion/concentracion?${qs(f, { nivel })}`, opts?.signal),
 
-  postura: (f: Filtro): Promise<PosturaInstitucionalResponse> =>
-    getJson<PosturaInstitucionalResponse>(`/percepcion/postura?${qs(f)}`),
+  postura: (f: Filtro, opts?: ReqOpts): Promise<PosturaInstitucionalResponse> =>
+    getJson<PosturaInstitucionalResponse>(`/percepcion/postura?${qs(f)}`, opts?.signal),
 
   /**
    * Volumen adverso del período y si su variación resiste el cambio de ventana.
    * Complementa al índice con lo que un promedio no puede dar: cuántos comentarios
    * adversos hubo, y cuánto depende el resultado de con qué se lo compare.
    */
-  conflicto: (f: Filtro): Promise<ConflictoResponse> =>
-    getJson<ConflictoResponse>(`/percepcion/conflicto?${qs(f)}`),
+  conflicto: (f: Filtro, opts?: ReqOpts): Promise<ConflictoResponse> =>
+    getJson<ConflictoResponse>(`/percepcion/conflicto?${qs(f)}`, opts?.signal),
 
   comentariosScoring: (
-    limite = 50, cf: ComentariosFiltro = {}, orden: OrdenScoring = "duda",
+    limite = 50, cf: ComentariosFiltro = {}, orden: OrdenScoring = "duda", opts?: ReqOpts,
   ): Promise<ColaScoring> => {
     const p = new URLSearchParams({ limite: String(limite), orden });
     if (cf.sentimiento) p.set("sentimiento", cf.sentimiento);
     if (cf.emocion) p.set("emocion", cf.emocion);
-    return getJson<ColaScoring>(`/percepcion/curacion/scoring?${p.toString()}`);
+    return getJson<ColaScoring>(`/percepcion/curacion/scoring?${p.toString()}`, opts?.signal);
   },
   // `origenMuestra` viaja con cada corrección: sin él no se puede separar después
   // lo anotado al azar (sirve para medir) de lo anotado por duda (no sirve).
@@ -1275,14 +1281,14 @@ export const percepcionApi = {
       { valor, justificacion, origen_muestra: origenMuestra ?? null }),
 
   // D · qué palabras movieron la conversación respecto del período anterior
-  impactoPalabras: (f: Filtro): Promise<ImpactoPalabrasResponse> =>
-    getJson<ImpactoPalabrasResponse>(`/percepcion/impacto-palabras?${qs(f)}`),
+  impactoPalabras: (f: Filtro, opts?: ReqOpts): Promise<ImpactoPalabrasResponse> =>
+    getJson<ImpactoPalabrasResponse>(`/percepcion/impacto-palabras?${qs(f)}`, opts?.signal),
 
   // Calidad del modelo (A1)
-  calidad: (): Promise<CalidadResponse> =>
-    getJson<CalidadResponse>("/percepcion/curacion/calidad"),
-  correcciones: (limite = 100): Promise<{ items: CorreccionItem[] }> =>
-    getJson<{ items: CorreccionItem[] }>(`/percepcion/curacion/correcciones?limite=${limite}`),
+  calidad: (opts?: ReqOpts): Promise<CalidadResponse> =>
+    getJson<CalidadResponse>("/percepcion/curacion/calidad", opts?.signal),
+  correcciones: (limite = 100, opts?: ReqOpts): Promise<{ items: CorreccionItem[] }> =>
+    getJson<{ items: CorreccionItem[] }>(`/percepcion/curacion/correcciones?limite=${limite}`, opts?.signal),
 };
 
 // ---- Señal de conflicto: el volumen adverso y su robustez ----

@@ -5,6 +5,7 @@
 // (rango × sede × facultad × departamento × tema) que reconfigura TODO el tablero.
 // Estilado con el sistema de la Torre (portal oscuro).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSolicitudVigente } from "../lib/solicitud";
 import { PALETA } from "@/lib/paleta";
 
 import { EChartsChart, type EChartsInstance } from "./EChartsChart";
@@ -36,6 +37,7 @@ import {
 } from "./PercepcionUI";
 import {
   esAdmin,
+  esCancelacion,
   esEquipoDai,
   percepcionApi,
   type ComentarioReciente,
@@ -846,22 +848,30 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
   serieRef.current = serie;
 
   useEffect(() => {
-    percepcionApi.filtros().then(setOpciones).catch(() => setOpciones(null));
-    percepcionApi.scoringOpciones().then(setOpcScoring).catch(() => undefined);
-    percepcionApi.eventosTipos().then((r) => setTiposEvento(r.items)).catch(() => undefined);
+    const ctrl = new AbortController();
+    const opts = { signal: ctrl.signal };
+    percepcionApi.filtros(opts).then(setOpciones)
+      .catch((e) => { if (!esCancelacion(e)) setOpciones(null); });
+    percepcionApi.scoringOpciones(opts).then(setOpcScoring).catch(() => undefined);
+    percepcionApi.eventosTipos(opts).then((r) => setTiposEvento(r.items)).catch(() => undefined);
+    return () => ctrl.abort();
   }, []);
 
   // ---- Marcas de contexto (ABM + toggles) ----
+  const nuevaEventos = useSolicitudVigente();
   const recargarEventos = useCallback(async () => {
+    const ctrl = nuevaEventos();
+    const opts = { signal: ctrl.signal };
     // El overlay del gráfico (ventana) y la lista completa del ABM son dos vistas
     // distintas de lo mismo: tras cada alta/baja hay que refrescar las dos.
     const [todos, deVentana] = await Promise.all([
-      percepcionApi.eventosTodos().catch(() => ({ items: [] as EventoItem[] })),
-      percepcionApi.eventos(36500).catch(() => ({ items: [] as EventoItem[] })),
+      percepcionApi.eventosTodos(opts).catch(() => ({ items: [] as EventoItem[] })),
+      percepcionApi.eventos(36500, opts).catch(() => ({ items: [] as EventoItem[] })),
     ]);
+    if (ctrl.signal.aborted) return;
     setEventosTodos(todos.items);
     setEventos(deVentana.items);
-  }, []);
+  }, [nuevaEventos]);
 
   /** Apaga o prende TODOS los tipos de una categoría a la vez. */
   const toggleCategoria = (tipos: string[]) =>
@@ -959,41 +969,47 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
     }
   };
 
+  const nueva = useSolicitudVigente();
   const cargar = useCallback(async (f: Filtro) => {
+    const ctrl = nueva();
+    const opts = { signal: ctrl.signal };
     setLoading(true);
     setError(null);
     try {
       // Carga critica primero y con baja concurrencia. Si disparamos todos los
       // bloques juntos, el navegador puede abortar alguna request tras el preflight
       // y el tablero queda en falso "sin datos" aunque el backend tenga respuesta.
-      const r = await percepcionApi.resumen(f);
-      const e = await percepcionApi.evolucion(f);
+      const r = await percepcionApi.resumen(f, opts);
+      const e = await percepcionApi.evolucion(f, opts);
       setResumen(r);
       setSerie(e);
 
       const fallas: string[] = [];
       try {
-        const resp = await percepcionApi.emociones(f);
+        const resp = await percepcionApi.emociones(f, opts);
         setEmociones(resp.items);
-      } catch {
+      } catch (e) {
+        if (esCancelacion(e)) return;
         setEmociones([]);
         fallas.push("emociones");
       }
       try {
-        const resp = await percepcionApi.eventos(Math.min(36500, Math.max(120, f.dias)));
+        const resp = await percepcionApi.eventos(Math.min(36500, Math.max(120, f.dias)), opts);
         setEventos(resp.items);
-      } catch {
+      } catch (e) {
+        if (esCancelacion(e)) return;
         setEventos([]);
       }
       if (fallas.length > 0) {
         setError(`No se pudieron actualizar estos bloques: ${fallas.join(", ")}. Se muestran los datos disponibles.`);
       }
     } catch (err) {
+      if (esCancelacion(err)) return;
       setError(err instanceof Error ? err.message : "Error al cargar percepcion");
     } finally {
-      setLoading(false);
+      if (!ctrl.signal.aborted) setLoading(false);
     }
-  }, []);
+  }, [nueva]);
 
   // Debounce: los sliders (peso/recencia) disparan onChange en cada pixel. Sin
   // esto, arrastrarlos lanzaría decenas de recargas × 8 endpoints → ráfaga que
@@ -1018,16 +1034,17 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
   // Comentarios recientes: filtro LOCAL (sentimiento/emoción) que recarga SOLO la
   // lista, sin re-pegarle a los gráficos. También reacciona al filtro global.
   useEffect(() => {
+    const ctrl = new AbortController();
     const t = setTimeout(() => {
       // Al leer un día/rango concreto queremos TODO lo que se dijo (incl. neutrales),
       // salvo que el usuario haya elegido un chip de sentimiento explícito.
       const hayFecha = !!(filtro.fechaDesde || filtro.fechaHasta);
       const cf = { ...comFiltro, incluirNeutrales: hayFecha && !comFiltro.sentimiento };
-      percepcionApi.comentarios(filtro, hayFecha ? 100 : 20, cf)
+      percepcionApi.comentarios(filtro, hayFecha ? 100 : 20, cf, { signal: ctrl.signal })
         .then((r) => setComentarios(r.items))
-        .catch(() => setComentarios([]));
+        .catch((e) => { if (!esCancelacion(e)) setComentarios([]); });
     }, 650);
-    return () => clearTimeout(t);
+    return () => { clearTimeout(t); ctrl.abort(); };
   }, [filtro, comFiltro]);
 
   const up = (patch: Partial<Filtro>) => setFiltro((prev) => ({ ...prev, ...patch }));

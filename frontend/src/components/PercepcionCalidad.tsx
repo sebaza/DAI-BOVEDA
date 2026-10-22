@@ -13,6 +13,8 @@
 // se dice "desconocido" y por qué; nunca un 0% que se leería como "el modelo nunca
 // acierta" cuando lo que pasa es que los aciertos no se anotaron.
 import { useCallback, useEffect, useState } from "react";
+import { useSolicitudVigente } from "../lib/solicitud";
+import { esCancelacion } from "../lib/percepcion";
 
 import {
   percepcionApi,
@@ -281,17 +283,21 @@ export function PercepcionCalidad() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const nueva = useSolicitudVigente();
   const recargar = useCallback(async () => {
+    const ctrl = nueva();
+    const opts = { signal: ctrl.signal };
     setCargando(true);
     setError(null);
     try {
-      setData(await percepcionApi.calidad());
+      setData(await percepcionApi.calidad(opts));
     } catch (e) {
+      if (esCancelacion(e)) return;
       setError(e instanceof Error ? e.message : "No se pudo cargar la calidad del modelo");
     } finally {
-      setCargando(false);
+      if (!ctrl.signal.aborted) setCargando(false);
     }
-  }, []);
+  }, [nueva]);
 
   useEffect(() => { if (abierto) void recargar(); }, [abierto, recargar]);
 

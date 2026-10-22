@@ -14,6 +14,7 @@
 // tablero no viven acá.
 
 import { useCallback, useEffect, useState } from "react";
+import { useSolicitudVigente } from "../lib/solicitud";
 
 import type {
   AnomaliaItem,
@@ -22,7 +23,7 @@ import type {
   TerminoFamilia,
   TerminosResponse,
 } from "../lib/percepcion";
-import { percepcionApi } from "../lib/percepcion";
+import { esCancelacion, percepcionApi } from "../lib/percepcion";
 import {
   BarraSentimiento,
   CARD,
@@ -500,26 +501,31 @@ export function PercepcionAlertas({ filtro }: { filtro: Filtro }) {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const nueva = useSolicitudVigente();
   const cargar = useCallback(async () => {
+    const ctrl = nueva();
+    const opts = { signal: ctrl.signal };
     setCargando(true);
     setError(null);
     try {
       // Cada bloque falla por su cuenta: que la vigilancia se caiga no tiene por
       // qué llevarse puestas las semanas anómalas, ni al revés.
       const [t, a] = await Promise.all([
-        percepcionApi.terminos(filtro).catch(() => null),
-        percepcionApi.anomalias(filtro).catch(() => null),
+        percepcionApi.terminos(filtro, opts).catch(() => null),
+        percepcionApi.anomalias(filtro, opts).catch(() => null),
       ]);
+      if (ctrl.signal.aborted) return;
       if (t === null && a === null) throw new Error("No se pudieron cargar las alertas.");
       setTerminos(t);
       setAnomalias(a?.items ?? []);
       setCfgAnomalias(a?.config);
     } catch (e) {
+      if (esCancelacion(e)) return;
       setError(e instanceof Error ? e.message : "No se pudieron cargar las alertas.");
     } finally {
-      setCargando(false);
+      if (!ctrl.signal.aborted) setCargando(false);
     }
-  }, [filtro]);
+  }, [filtro, nueva]);
 
   useEffect(() => {
     void cargar();

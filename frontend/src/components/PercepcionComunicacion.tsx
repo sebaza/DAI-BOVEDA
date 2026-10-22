@@ -20,6 +20,8 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useSolicitudVigente } from "../lib/solicitud";
+import { esCancelacion } from "../lib/percepcion";
 import { PALETA } from "@/lib/paleta";
 
 import {
@@ -82,17 +84,21 @@ export function PercepcionComunicacion() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const nueva = useSolicitudVigente();
   const cargar = useCallback(async () => {
+    const ctrl = nueva();
+    const opts = { signal: ctrl.signal };
     setCargando(true);
     setError(null);
     try {
-      setData(await percepcionApi.comunicacion());
+      setData(await percepcionApi.comunicacion(opts));
     } catch (e) {
+      if (esCancelacion(e)) return;
       setError(e instanceof Error ? e.message : "No se pudo cargar el análisis.");
     } finally {
-      setCargando(false);
+      if (!ctrl.signal.aborted) setCargando(false);
     }
-  }, []);
+  }, [nueva]);
 
   useEffect(() => {
     void cargar();

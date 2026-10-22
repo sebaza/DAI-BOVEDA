@@ -31,9 +31,10 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useSolicitudVigente } from "../lib/solicitud";
 
 import type { Filtro, PublicacionesDominantesResponse } from "../lib/percepcion";
-import { percepcionApi } from "../lib/percepcion";
+import { esCancelacion, percepcionApi } from "../lib/percepcion";
 import { CARD, TituloBloque, colorIndice, fmt, nro } from "./PercepcionUI";
 
 /** Por encima de acá, el promedio del período describe a UNA publicación. */
@@ -44,17 +45,21 @@ export function PercepcionDominantes({ filtro }: { filtro: Filtro }) {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const nueva = useSolicitudVigente();
   const cargar = useCallback(async (f: Filtro) => {
+    const ctrl = nueva();
+    const opts = { signal: ctrl.signal };
     setCargando(true);
     try {
-      setData(await percepcionApi.publicacionesDominantes(f, 12));
+      setData(await percepcionApi.publicacionesDominantes(f, 12, opts));
       setError(null);
     } catch (e) {
+      if (esCancelacion(e)) return;
       setError(e instanceof Error ? e.message : "No se pudo cargar");
     } finally {
-      setCargando(false);
+      if (!ctrl.signal.aborted) setCargando(false);
     }
-  }, []);
+  }, [nueva]);
 
   useEffect(() => { void cargar(filtro); }, [cargar, filtro]);
 

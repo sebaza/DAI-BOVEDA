@@ -31,6 +31,8 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useSolicitudVigente } from "../lib/solicitud";
+import { esCancelacion } from "../lib/percepcion";
 
 import {
   percepcionApi,
@@ -112,33 +114,39 @@ export function PercepcionResumenSemanal() {
   // El catálogo se pide UNA vez: es lectura pura, no gasta tokens, y sin él la
   // navegación tendría que adivinar a qué semanas puede saltar.
   useEffect(() => {
+    const ctrl = new AbortController();
     void (async () => {
       try {
-        const r = await percepcionApi.semanasResumen("global", null, 260);
-        setSemanas(r.semanas);
+        const r = await percepcionApi.semanasResumen("global", null, 260, { signal: ctrl.signal });
+        if (!ctrl.signal.aborted) setSemanas(r.semanas);
       } catch {
         // Sin catálogo el bloque sigue mostrando la última semana; solo se pierden
         // las flechas. No es motivo para vaciar la pantalla.
       }
     })();
+    return () => ctrl.abort();
   }, []);
 
+  const nueva = useSolicitudVigente();
   const cargar = useCallback(
     async (forzar = false) => {
+    const ctrl = nueva();
+    const opts = { signal: ctrl.signal };
       if (forzar) setRegenerando(true);
       else setCargando(true);
       setError(null);
       try {
         setData(await percepcionApi.resumenSemanal(
-          "global", null, semana ?? undefined, forzar));
+          "global", null, semana ?? undefined, forzar, opts));
       } catch (e) {
+        if (esCancelacion(e)) return;
         setError(e instanceof Error ? e.message : "No se pudo cargar el resumen semanal.");
       } finally {
-        setCargando(false);
-        setRegenerando(false);
+        if (!ctrl.signal.aborted) setCargando(false);
+        if (!ctrl.signal.aborted) setRegenerando(false);
       }
     },
-    [semana],
+    [semana, nueva],
   );
 
   useEffect(() => {

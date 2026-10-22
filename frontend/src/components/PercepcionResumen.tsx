@@ -17,6 +17,7 @@
 // pesa igual; la temperatura reciente vive en Conversación, donde el tiempo importa.
 
 import { useCallback, useEffect, useState } from "react";
+import { useSolicitudVigente } from "../lib/solicitud";
 import { PALETA } from "@/lib/paleta";
 
 import type {
@@ -29,7 +30,7 @@ import type {
   PosturaInstitucionalResponse,
   SintesisResponse,
 } from "../lib/percepcion";
-import { percepcionApi } from "../lib/percepcion";
+import { esCancelacion, percepcionApi } from "../lib/percepcion";
 import type { Destino } from "./PercepcionPanel";
 import { PercepcionConflicto } from "./PercepcionConflicto";
 import { PercepcionResumenSemanal } from "./PercepcionResumenSemanal";
@@ -494,20 +495,24 @@ export function PercepcionResumen({
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const nueva = useSolicitudVigente();
   const cargar = useCallback(async () => {
+    const ctrl = nueva();
+    const opts = { signal: ctrl.signal };
     setCargando(true);
     setError(null);
     try {
       // nivel/orden fijos: los cortes por tema y área se muestran en Comparar,
       // que es quien tiene los selectores. Acá solo se usan el titular y los cambios.
       const [s, a, t, d, imp, pos] = await Promise.all([
-        percepcionApi.sintesis("facultad", "peor", filtro),
-        percepcionApi.anomalias(filtro).catch(() => null),
-        percepcionApi.terminos(filtro).catch(() => null),
-        percepcionApi.destacados(filtro).catch(() => null),
-        percepcionApi.impactoPalabras(filtro).catch(() => null),
-        percepcionApi.postura(filtro).catch(() => null),
+        percepcionApi.sintesis("facultad", "peor", filtro, opts),
+        percepcionApi.anomalias(filtro, opts).catch(() => null),
+        percepcionApi.terminos(filtro, opts).catch(() => null),
+        percepcionApi.destacados(filtro, opts).catch(() => null),
+        percepcionApi.impactoPalabras(filtro, opts).catch(() => null),
+        percepcionApi.postura(filtro, opts).catch(() => null),
       ]);
+      if (ctrl.signal.aborted) return;
       setData(s);
       setPostura(pos);
       setDest(d);
@@ -516,11 +521,12 @@ export function PercepcionResumen({
       setNFamilias(t?.familias.length ?? 0);
       setNMenciones(t?.global?.n_con_termino ?? 0);
     } catch (e) {
+      if (esCancelacion(e)) return;
       setError(e instanceof Error ? e.message : "No se pudo cargar el resumen.");
     } finally {
-      setCargando(false);
+      if (!ctrl.signal.aborted) setCargando(false);
     }
-  }, [filtro]);
+  }, [filtro, nueva]);
 
   useEffect(() => {
     void cargar();

@@ -18,6 +18,7 @@
 // en Conversación, que es donde el tiempo importa.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSolicitudVigente } from "../lib/solicitud";
 import { PALETA } from "@/lib/paleta";
 
 import { EChartsChart } from "./EChartsChart";
@@ -32,7 +33,7 @@ import type {
   SintesisResponse,
   SintesisTema,
 } from "../lib/percepcion";
-import { percepcionApi } from "../lib/percepcion";
+import { esCancelacion, percepcionApi } from "../lib/percepcion";
 import {
   BarraConfianza,
   CARD,
@@ -385,22 +386,27 @@ export function PercepcionComparar({
   const [error, setError] = useState<string | null>(null);
   const [conc, setConc] = useState<ConcentracionResponse | null>(null);
 
+  const nueva = useSolicitudVigente();
   const cargar = useCallback(async () => {
+    const ctrl = nueva();
+    const opts = { signal: ctrl.signal };
     setCargando(true);
     setError(null);
     try {
       const [sint, cc] = await Promise.all([
-        percepcionApi.sintesis(nivel, orden, filtro),
-        percepcionApi.concentracion(filtro, nivel).catch(() => null),
+        percepcionApi.sintesis(nivel, orden, filtro, opts),
+        percepcionApi.concentracion(filtro, nivel, opts).catch(() => null),
       ]);
+      if (ctrl.signal.aborted) return;
       setConc(cc);
       setData(sint);
     } catch (e) {
+      if (esCancelacion(e)) return;
       setError(e instanceof Error ? e.message : "No se pudo cargar la comparación.");
     } finally {
-      setCargando(false);
+      if (!ctrl.signal.aborted) setCargando(false);
     }
-  }, [nivel, orden, filtro]);
+  }, [nivel, orden, filtro, nueva]);
 
   useEffect(() => {
     void cargar();

@@ -25,8 +25,9 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useSolicitudVigente } from "../lib/solicitud";
 
-import { percepcionApi, type EpisodioShock, type ShockResponse } from "../lib/percepcion";
+import { esCancelacion, percepcionApi, type EpisodioShock, type ShockResponse } from "../lib/percepcion";
 import { CARD, COLOR_NEG, COLOR_POS, TituloBloque, fmt, nro } from "./PercepcionUI";
 
 const ETIQUETA_EVIDENCIA: Record<string, string> = {
@@ -227,17 +228,21 @@ export function PercepcionShock() {
   const [error, setError] = useState<string | null>(null);
   const [verTodos, setVerTodos] = useState(false);
 
+  const nueva = useSolicitudVigente();
   const cargar = useCallback(async () => {
+    const ctrl = nueva();
+    const opts = { signal: ctrl.signal };
     setCargando(true);
     setError(null);
     try {
-      setData(await percepcionApi.shock());
+      setData(await percepcionApi.shock(false, opts));
     } catch (e) {
+      if (esCancelacion(e)) return;
       setError(e instanceof Error ? e.message : "No se pudo cargar la respuesta a shock.");
     } finally {
-      setCargando(false);
+      if (!ctrl.signal.aborted) setCargando(false);
     }
-  }, []);
+  }, [nueva]);
 
   useEffect(() => {
     void cargar();

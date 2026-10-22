@@ -29,8 +29,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSolicitudVigente } from "../lib/solicitud";
 
-import { percepcionApi, type EventoItem } from "../lib/percepcion";
+import { esCancelacion, percepcionApi, type EventoItem } from "../lib/percepcion";
 import { CARD, TituloBloque, nro } from "./PercepcionUI";
 
 const DISRUPTIVOS = new Set(["paro", "toma", "emergencia"]);
@@ -58,18 +59,22 @@ export function PercepcionCalendarioDatos() {
   const [soloDisruptivos, setSoloDisruptivos] = useState(false);
   const [abierto, setAbierto] = useState(false);
 
+  const nueva = useSolicitudVigente();
   const cargar = useCallback(async () => {
+    const ctrl = nueva();
+    const opts = { signal: ctrl.signal };
     setCargando(true);
     setError(null);
     try {
-      const r = await percepcionApi.eventosTodos();
+      const r = await percepcionApi.eventosTodos(opts);
       setEventos(r.items);
     } catch (e) {
+      if (esCancelacion(e)) return;
       setError(e instanceof Error ? e.message : "No se pudo cargar el calendario.");
     } finally {
-      setCargando(false);
+      if (!ctrl.signal.aborted) setCargando(false);
     }
-  }, []);
+  }, [nueva]);
 
   useEffect(() => {
     void cargar();

@@ -24,9 +24,10 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useSolicitudVigente } from "../lib/solicitud";
 import { PALETA } from "@/lib/paleta";
 
-import { percepcionApi, type ConflictoResponse, type Filtro } from "../lib/percepcion";
+import { esCancelacion, percepcionApi, type ConflictoResponse, type Filtro } from "../lib/percepcion";
 import { CARD, COLOR_NEG, COLOR_POS, TituloBloque, fmt, nro } from "./PercepcionUI";
 
 const COLOR_TENDENCIA: Record<string, string> = {
@@ -47,17 +48,21 @@ export function PercepcionConflicto({ filtro }: { filtro: Filtro }) {
   const [error, setError] = useState<string | null>(null);
   const [verBarrido, setVerBarrido] = useState(false);
 
+  const nueva = useSolicitudVigente();
   const cargar = useCallback(async () => {
+    const ctrl = nueva();
+    const opts = { signal: ctrl.signal };
     setCargando(true);
     setError(null);
     try {
-      setData(await percepcionApi.conflicto(filtro));
+      setData(await percepcionApi.conflicto(filtro, opts));
     } catch (e) {
+      if (esCancelacion(e)) return;
       setError(e instanceof Error ? e.message : "No se pudo cargar la señal de conflicto.");
     } finally {
-      setCargando(false);
+      if (!ctrl.signal.aborted) setCargando(false);
     }
-  }, [filtro]);
+  }, [filtro, nueva]);
 
   useEffect(() => {
     void cargar();
