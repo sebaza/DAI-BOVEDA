@@ -139,10 +139,13 @@ def _tiene_columna(db: Session, tabla: str, columna: str) -> bool:
         return False
 
 
-def reagregar(db: Session) -> int:
+def reagregar(db: Session, *, confirmar: bool = True) -> int:
     """Reconstruye percepcion_hecho_diario desde comentario⋈score⋈cuenta. Idempotente.
 
     Espeja aggregation/pipeline.agregar del worker. Devuelve el nº de hechos.
+
+    `confirmar=False` deja la transacción abierta (la sincronización con el worker la
+    comparte con sus INSERT y confirma todo junto).
 
     ⚠️ EL GRANO INCLUYE `origen`. El worker agrupa por (fecha, ORIGEN, campus,
     facultad, depto, tema) y lo hereda de la cuenta (interno = ingesta UCN,
@@ -233,7 +236,8 @@ def reagregar(db: Session) -> int:
     ]
     if hechos:
         db.execute(H.__table__.insert(), hechos)
-    db.commit()
+    if confirmar:
+        db.commit()
     return len(hechos)
 
 

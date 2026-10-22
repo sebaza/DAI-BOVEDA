@@ -51,3 +51,6 @@ desktop.ini
 # Scratch
 _x/
 .claude/settings.local.json
+
+# Local backups of curation data (may contain admin-written free text)
+backend/respaldos/
