@@ -14,6 +14,10 @@ Contrato
 * Después de insertar, reagrega `percepcion_hecho_diario` con `curacion.reagregar`
   (respeta la curación porque lee `comentario.tema`) y reconstruye tokens/familias/rasgos,
   todo en la MISMA transacción. Quien llama confirma o revierte; este módulo no hace commit.
+* Cifrado: con claves configuradas (`cripto.hay_clave()`), `texto` y `caption` de las filas
+  NUEVAS se insertan cifrados (el contexto usa el `id`, que se copia del worker). Sin claves se
+  insertan en claro y `Resultado.sin_cifrar` cuenta cuántos valores quedaron así (solo el conteo).
+  Las guardas de clave natural nunca leen ni comparan texto.
 """
 from __future__ import annotations
 
@@ -25,7 +29,7 @@ from pathlib import Path
 from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
 
-from app.services.percepcion import curacion, derivados
+from app.services.percepcion import cripto, curacion, derivados
 from app.services.percepcion.models import (
     PercepcionComentario,
     PercepcionCuenta,
@@ -35,6 +39,12 @@ from app.services.percepcion.models import (
 )
 
 LOTE = 1000
+
+# tabla -> (columna con texto crudo, función que la cifra con el id de la fila)
+_CIFRABLES = {
+    "percepcion_comentario": ("texto", cripto.cifrar_texto),
+    "percepcion_publicacion": ("caption", cripto.cifrar_caption),
+}
 
 # (modelo, columnas de la clave natural, padres [(columna, tabla padre)])
 _TABLAS = [
@@ -62,6 +72,7 @@ class Resultado:
     conflictos: dict[str, int] = field(default_factory=dict)
     hechos: int | None = None
     derivados: dict[str, int] | None = None
+    sin_cifrar: int = 0   # valores de texto/caption insertados en claro por falta de claves
 
 
 def _columnas(modelo, origen: Session, destino: Session) -> list[str]:
@@ -137,13 +148,28 @@ def _reiniciar_secuencias(destino: Session, tablas: list[str]) -> None:
         )
 
 
+def _destino_tiene_cifrados(destino: Session, nuevos: dict[str, list[int]]) -> bool:
+    """Sonda barata: ¿alguna fila del destino ya tiene la forma `enc:...`? (solo si hay filas nuevas)"""
+    for modelo, _nat, _p in _TABLAS:
+        cifrable = _CIFRABLES.get(modelo.__tablename__)
+        if not cifrable or not nuevos[modelo.__tablename__]:
+            continue
+        col = modelo.__table__.c[cifrable[0]]
+        if destino.execute(select(modelo.__table__.c.id).where(col.like("enc:%")).limit(1)).first():
+            return True
+    return False
+
+
 def sincronizar(origen: Session, destino: Session, *, simular: bool = False,
-                con_derivados: bool = True) -> Resultado:
+                con_derivados: bool = True, permitir_claro: bool = False) -> Resultado:
     """Inserta en `destino` lo que `origen` tiene de más. NO hace commit.
 
     `simular=True` calcula y devuelve los conteos (y los conflictos, sin lanzar) sin escribir
     ni leer texto del destino. Fuera de simulación, un conflicto lanza `ConflictoSincronizacion`
     antes de insertar nada.
+
+    Sin clave configurada y con filas YA cifradas en el destino se NIEGA (`ClaveNoConfigurada`):
+    insertaría en claro y dejaría la base en un estado mixto. `permitir_claro=True` lo permite.
     """
     nuevos, conflictos = _planificar(origen, destino)
     res = Resultado(insertados={m.__tablename__: len(nuevos[m.__tablename__]) for m, _, _ in _TABLAS},
@@ -152,6 +178,11 @@ def sincronizar(origen: Session, destino: Session, *, simular: bool = False,
         return res
     if conflictos:
         raise ConflictoSincronizacion(conflictos)
+    if not permitir_claro and not cripto.hay_clave() and _destino_tiene_cifrados(destino, nuevos):
+        raise cripto.ClaveNoConfigurada(
+            f"{cripto.VAR_CLAVE_TEXTO} no está configurada pero el destino ya tiene texto cifrado: "
+            "insertar en claro dejaría la base mezclada (usa permitir_claro / --permitir-claro "
+            "solo si es lo que quieres).")
 
     for modelo, _nat, _padres in _TABLAS:
         ids = nuevos[modelo.__tablename__]
@@ -163,6 +194,22 @@ def sincronizar(origen: Session, destino: Session, *, simular: bool = False,
             lote = ids[i:i + LOTE]
             filas = [dict(f._mapping) for f in origen.execute(
                 select(*[t.c[c] for c in columnas]).where(t.c.id.in_(lote)).order_by(t.c.id))]
+            cifrable = _CIFRABLES.get(modelo.__tablename__)
+            if cifrable and cifrable[0] in columnas:
+                col, cifrar_valor = cifrable
+                contexto_de = (cripto.contexto_comentario if col == "texto"
+                               else cripto.contexto_publicacion)
+                con_clave = cripto.hay_clave()
+                for fila in filas:
+                    valor = fila[col]
+                    # Ya cifrado de verdad (descifra con su AAD): no se cifra dos veces. Algo con la
+                    # forma `enc:...` que no descifra es texto en claro y se cifra.
+                    if not valor or (con_clave and cripto.es_genuino(valor, contexto_de(fila["id"]))):
+                        continue
+                    if con_clave:
+                        fila[col] = cifrar_valor(fila["id"], valor)
+                    else:
+                        res.sin_cifrar += 1
             destino.execute(t.insert(), filas)
     destino.flush()
     _reiniciar_secuencias(destino, [m.__tablename__ for m, _, _ in _TABLAS])

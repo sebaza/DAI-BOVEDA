@@ -22,7 +22,7 @@ from datetime import datetime
 from sqlalchemy import case, delete, func, inspect, select, update
 from sqlalchemy.orm import Session
 
-from app.services.percepcion import lexico
+from app.services.percepcion import cripto, lexico
 from app.services.percepcion.models import (
     AUTOR_HUMANO,
     MUESTRA_ADVERSOS,
@@ -259,7 +259,7 @@ def publicaciones_a_curar(db: Session, *, solo_con_otros: bool = True, limite: i
             continue
         items.append({
             "id": pid,
-            "caption": _cap(caption),
+            "caption": _cap(cripto.caption_de_seguro(pid, caption)),
             "cuenta": cuenta,
             "n_comentarios": int(n_com or 0),
             "n_otros": n_ot,
@@ -273,7 +273,7 @@ def publicaciones_a_curar(db: Session, *, solo_con_otros: bool = True, limite: i
 def comentarios_a_curar(db: Session, *, limite: int = 100) -> dict:
     """Comentarios que siguen en 'otros' (para asignar tema uno por uno)."""
     stmt = (
-        select(C.id, C.texto, C.fecha_comentario, S.sentimiento, P.caption, Cu.nombre)
+        select(C.id, C.texto, C.fecha_comentario, S.sentimiento, P.caption, Cu.nombre, P.id)
         .join(S, S.comentario_id == C.id)
         .join(P, P.id == C.publicacion_id)
         .join(Cu, Cu.id == P.cuenta_id)
@@ -283,11 +283,11 @@ def comentarios_a_curar(db: Session, *, limite: int = 100) -> dict:
     )
     items = [
         {
-            "id": cid, "texto": texto, "fecha": fecha.date(),
-            "sentimiento": sent, "caption": _cap(caption),
+            "id": cid, "texto": cripto.texto_de_seguro(cid, texto), "fecha": fecha.date(),
+            "sentimiento": sent, "caption": _cap(cripto.caption_de_seguro(pid, caption)),
             "cuenta": cuenta,
         }
-        for cid, texto, fecha, sent, caption, cuenta in db.execute(stmt)
+        for cid, texto, fecha, sent, caption, cuenta, pid in db.execute(stmt)
     ]
     return {"items": items}
 
@@ -504,16 +504,17 @@ def _cola_estratificada(db, stmt, cond, completos, limite, semilla):
     misma probabilidad de salir, así que su tasa observada estima la del estrato.
     """
     candidatos = db.execute(
-        select(C.id, S.sentimiento, C.texto, P.caption, Cu.tipo)
+        select(C.id, S.sentimiento, C.texto, P.caption, Cu.tipo, P.id)
         .join(S, S.comentario_id == C.id)
         .join(P, P.id == C.publicacion_id)
         .join(Cu, Cu.id == P.cuenta_id)
         .where(*cond)
     ).all()
     por_estrato: dict[str, list[int]] = {ESTRATO_RICO: [], ESTRATO_POBRE: []}
-    for cid, sent, texto, caption, tipo in candidatos:
+    for cid, sent, texto, caption, tipo, pid in candidatos:
         if cid in completos:
             continue
+        texto, caption = cripto.texto_de_seguro(cid, texto), cripto.caption_de_seguro(pid, caption)
         por_estrato[_estrato_de(sent, texto, caption, tipo)].append(cid)
 
     rnd = random.Random(semilla)
@@ -544,16 +545,17 @@ def _cola_adversos(db, stmt, cond, completos, limite):
     Ver `MUESTRA_ADVERSOS` en `models.py`.
     """
     candidatos = db.execute(
-        select(C.id, S.sentimiento, C.texto, P.caption, Cu.tipo, C.fecha_comentario)
+        select(C.id, S.sentimiento, C.texto, P.caption, Cu.tipo, C.fecha_comentario, P.id)
         .join(S, S.comentario_id == C.id)
         .join(P, P.id == C.publicacion_id)
         .join(Cu, Cu.id == P.cuenta_id)
         .where(*cond)
     ).all()
     puntuados = []
-    for cid, sent, texto, caption, tipo, fecha in candidatos:
+    for cid, sent, texto, caption, tipo, fecha, pid in candidatos:
         if cid in completos:
             continue
+        texto, caption = cripto.texto_de_seguro(cid, texto), cripto.caption_de_seguro(pid, caption)
         p = _puntaje_adverso(sent, texto, caption, tipo)
         # Sin ninguna señal no es candidato: servirlo sería una cola aleatoria con
         # otro nombre, y la persona que anota perdería el tiempo.
@@ -613,7 +615,7 @@ def comentarios_para_scoring(
         select(
             C.id, C.texto, C.fecha_comentario, C.tema, C.tema_confianza,
             S.sentimiento, S.emocion, Cu.nombre,
-            S.prob_pos, S.prob_neu, S.prob_neg, P.caption,
+            S.prob_pos, S.prob_neu, S.prob_neg, P.caption, P.id,
         )
         .join(S, S.comentario_id == C.id)
         .join(P, P.id == C.publicacion_id)
@@ -655,7 +657,8 @@ def comentarios_para_scoring(
                  if f[0] not in completos]
 
     items = []
-    for cid, texto, fecha, tema, tema_conf, sent, emo, cuenta, ppos, pneu, pneg, caption in filas:
+    for cid, texto, fecha, tema, tema_conf, sent, emo, cuenta, ppos, pneu, pneg, caption, pid in filas:
+        texto, caption = cripto.texto_de_seguro(cid, texto), cripto.caption_de_seguro(pid, caption)
         probs = sorted(
             (float(ppos or 0), float(pneu or 0), float(pneg or 0)), reverse=True
         )

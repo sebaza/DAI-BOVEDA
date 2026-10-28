@@ -66,6 +66,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 import httpx  # noqa: E402
 
 from app.config import get_settings  # noqa: E402
+from app.services.percepcion import cripto  # noqa: E402
 from app.services.percepcion.calidad import _kappa  # noqa: E402
 from app.services.percepcion.db import PercepcionSessionLocal  # noqa: E402
 
@@ -292,7 +293,7 @@ def _muestra(db, limite: int, dias: int | None = None,
         cond.append(C.fecha_comentario >= corte)
 
     filas = db.execute(
-        select(C.id, C.texto, P.caption, Corr.valor_nuevo, Corr.valor_original)
+        select(C.id, C.texto, P.caption, Corr.valor_nuevo, Corr.valor_original, P.id)
         .join(Corr, Corr.comentario_id == C.id)
         .join(P, P.id == C.publicacion_id)
         .join(S, S.comentario_id == C.id)
@@ -301,9 +302,10 @@ def _muestra(db, limite: int, dias: int | None = None,
     ).all()
 
     datos = [
-        {"id": cid, "texto": txt, "caption": cap or "",
+        {"id": cid, "texto": cripto.texto_de(cid, txt),
+         "caption": cripto.caption_de(pid, cap) or "",
          "humano": humano, "modelo": modelo}
-        for cid, txt, cap, humano, modelo in filas
+        for cid, txt, cap, humano, modelo, pid in filas
     ]
     if limite and len(datos) > limite:
         random.Random(SEMILLA).shuffle(datos)
@@ -330,15 +332,16 @@ def _sin_anotar(db, limite: int, dias: int | None) -> list[dict]:
         cond.append(C.fecha_comentario >= corte)
 
     filas = db.execute(
-        select(C.id, C.texto, P.caption, S.sentimiento)
+        select(C.id, C.texto, P.caption, S.sentimiento, P.id)
         .join(P, P.id == C.publicacion_id)
         .join(S, S.comentario_id == C.id)
         .where(*cond)
         .order_by(C.fecha_comentario.desc())
         .limit(limite or 10_000)
     ).all()
-    return [{"id": cid, "texto": txt, "caption": cap or "",
-             "humano": None, "modelo": sent} for cid, txt, cap, sent in filas]
+    return [{"id": cid, "texto": cripto.texto_de(cid, txt),
+             "caption": cripto.caption_de(pid, cap) or "",
+             "humano": None, "modelo": sent} for cid, txt, cap, sent, pid in filas]
 
 
 def _comparar(pares: list[tuple[str, str]], etiqueta: str) -> dict:

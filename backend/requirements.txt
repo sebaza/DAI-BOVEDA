@@ -13,3 +13,5 @@ google-auth==2.41.1
 requests==2.32.3
 # Weekly LLM summary (services/percepcion/resumen_llm.py imports it lazily).
 anthropic==1.0.0
+# AES-256-GCM encryption of comment text/captions (services/percepcion/cripto.py).
+cryptography==50.0.2

@@ -58,6 +58,7 @@ from sqlalchemy import (  # noqa: E402
 from sqlalchemy.engine import Connection, Engine  # noqa: E402
 
 from app.database import Base  # noqa: E402
+from app.services.percepcion import cripto  # noqa: E402
 from app.services.percepcion import models  # noqa: E402,F401  (registra las tablas)
 from app.services.percepcion.pg import ESQUEMA_PERCEPCION, url_con_esquema  # noqa: E402
 
@@ -147,14 +148,41 @@ def _insert(tabla, columnas: list[str]):
     return tabla.insert().values(params)
 
 
-def _copiar_tabla(origen: Connection, destino: Connection, tabla, columnas: list[str], lote: int) -> int:
+def _columna_cifrable(tabla: str, columnas: list[str]):
+    """(columna, función) si la tabla guarda texto crudo que debe ir cifrado."""
+    if "id" not in columnas:
+        return None
+    if tabla == "percepcion_comentario" and "texto" in columnas:
+        return "texto", cripto.cifrar_texto
+    if tabla == "percepcion_publicacion" and "caption" in columnas:
+        return "caption", cripto.cifrar_caption
+    return None
+
+
+def _copiar_tabla(origen: Connection, destino: Connection, tabla, columnas: list[str], lote: int,
+                  contadores: dict | None = None) -> int:
     lectura = origen.execution_options(stream_results=True).execute(
         select(*[tabla.c[n] for n in columnas])
     )
     insert = _insert(tabla, columnas)
+    # Con claves configuradas, el texto crudo entra YA cifrado (ver services/percepcion/cripto.py).
+    cifra = _columna_cifrable(tabla.name, columnas) if cripto.hay_clave() else None
     copiadas = 0
     for filas in lectura.partitions(lote):
-        destino.execute(insert, [dict(f._mapping) for f in filas])
+        lote_filas = [dict(f._mapping) for f in filas]
+        if cifra:
+            columna, cifrar_fila = cifra
+            contexto_de = cripto.contexto_comentario if columna == "texto" else cripto.contexto_publicacion
+            for fila in lote_filas:
+                v = fila[columna]
+                # Ya cifrado de verdad (descifra con su AAD): no se cifra dos veces.
+                if v and not cripto.es_genuino(v, contexto_de(fila["id"])):
+                    fila[columna] = cifrar_fila(fila["id"], v)
+        elif contadores is not None and _columna_cifrable(tabla.name, columnas):
+            col_sin = _columna_cifrable(tabla.name, columnas)[0]
+            contadores["sin_cifrar"] = contadores.get("sin_cifrar", 0) + sum(
+                1 for f in lote_filas if f.get(col_sin))
+        destino.execute(insert, lote_filas)
         copiadas += len(filas)
     return copiadas
 
@@ -203,6 +231,7 @@ def migrar(
     eng_origen = abrir_origen(origen)
     eng_destino = create_engine(url_con_esquema(destino_url, esquema), future=True)
     copiadas: dict[str, int] = {}
+    contadores: dict[str, int] = {}
     try:
         with eng_origen.connect() as src, eng_destino.begin() as dst:
             dst.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{esquema}"'))
@@ -240,8 +269,11 @@ def migrar(
                     salida(f"  {tabla.name}: no existe en el origen, se omite")
                     copiadas[tabla.name] = 0
                     continue
-                copiadas[tabla.name] = _copiar_tabla(src, dst, tabla, columnas, lote)
+                copiadas[tabla.name] = _copiar_tabla(src, dst, tabla, columnas, lote, contadores)
 
+            if contadores.get("sin_cifrar"):
+                salida(f"  ADVERTENCIA: {contadores['sin_cifrar']} textos/captions copiados SIN cifrar "
+                       "(falta PERCEPCION_CLAVE_TEXTO).")
             _reiniciar_secuencias(dst, esquema)
 
             diferencias: list[str] = []

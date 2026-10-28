@@ -36,6 +36,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
+from app.services.percepcion import cripto
 from app.services.percepcion.postura import ETIQUETAS_POSTURA, postura_de
 from app.services.percepcion.repository import (
     ETIQUETAS_EMOCION,
@@ -95,7 +96,7 @@ def _cargar(con: sqlite3.Connection) -> tuple[list[dict], dict]:
                c.tema, c.tema_confianza, c.idioma,
                s.sentimiento, s.prob_pos, s.prob_neu, s.prob_neg,
                s.emocion, s.prob_emocion, s.modelo,
-               p.caption, p.fecha_publicacion, p.tipo AS tipo_pub,
+               p.caption, p.id AS pub_id, p.fecha_publicacion, p.tipo AS tipo_pub,
                cu.nombre AS cuenta, cu.campus, cu.facultad, cu.departamento
         FROM percepcion_comentario c
         JOIN percepcion_score s ON s.comentario_id = c.id
@@ -107,7 +108,7 @@ def _cargar(con: sqlite3.Connection) -> tuple[list[dict], dict]:
         if r["autor_hash"] not in autores:
             autores[r["autor_hash"]] = len(autores) + 1
 
-        caption = (r["caption"] or "").strip().replace("\n", " ")
+        caption = (cripto.caption_de(r["pub_id"], r["caption"]) or "").strip().replace("\n", " ")
         if len(caption) > MAX_CAPTION:
             caption = caption[:MAX_CAPTION].rstrip() + "…"
 
@@ -124,7 +125,7 @@ def _cargar(con: sqlite3.Connection) -> tuple[list[dict], dict]:
             "id": r["id"],
             "autor_id": autores[r["autor_hash"]],
             "fecha": (r["fecha_comentario"] or "")[:19],
-            "comentario": r["texto"],
+            "comentario": cripto.texto_de(r["id"], r["texto"]),
             "contexto_publicacion": caption,
             "fecha_publicacion": (r["fecha_publicacion"] or "")[:10],
             "tipo_publicacion": r["tipo_pub"],

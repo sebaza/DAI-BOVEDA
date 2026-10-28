@@ -54,7 +54,7 @@ if str(BACKEND) not in sys.path:
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
-from app.services.percepcion import sincronizacion  # noqa: E402
+from app.services.percepcion import cripto, sincronizacion  # noqa: E402
 from app.services.percepcion.pg import url_con_esquema  # noqa: E402
 
 ORIGEN_POR_DEFECTO = Path(
@@ -86,6 +86,9 @@ def _imprimir(res: sincronizacion.Resultado, simular: bool) -> None:
         print("  CONFLICTOS: " + ", ".join(f"{t}={n}" for t, n in res.conflictos.items()))
     else:
         print("  conflictos: 0")
+    if res.sin_cifrar:
+        print(f"  ADVERTENCIA: {res.sin_cifrar} textos/captions nuevos quedaron SIN cifrar "
+              "(faltan las claves PERCEPCION_CLAVE_TEXTO).")
     if res.hechos is not None:
         print(f"  hechos diarios reagregados: {res.hechos}")
     if res.derivados is not None:
@@ -102,6 +105,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--dry-run", action="store_true", help="calcula e informa; no escribe nada")
     ap.add_argument("--sin-derivados", action="store_true",
                     help="no reagrega hechos diarios ni reconstruye tokens/familias/rasgos")
+    ap.add_argument("--permitir-claro", action="store_true",
+                    help="inserta en claro aunque no haya clave y el destino ya tenga texto cifrado")
     args = ap.parse_args(argv)
 
     for flujo in (sys.stdout, sys.stderr):
@@ -141,7 +146,8 @@ def main(argv: list[str] | None = None) -> int:
                     raise sincronizacion.ConflictoSincronizacion(res.conflictos)
                 ruta = sincronizacion.respaldar(dst, RESPALDOS)
                 print(f"Respaldo de curación: {ruta.relative_to(RAIZ)}")
-                res = sincronizacion.sincronizar(src, dst, con_derivados=not args.sin_derivados)
+                res = sincronizacion.sincronizar(src, dst, con_derivados=not args.sin_derivados,
+                                                 permitir_claro=args.permitir_claro)
                 dst.commit()
             except BaseException:
                 dst.rollback()
@@ -153,6 +159,11 @@ def main(argv: list[str] | None = None) -> int:
     except sincronizacion.ConflictoSincronizacion as exc:
         print("ABORTADO, no se escribió nada. Conflictos: " + ", ".join(
             f"{t}={n}" for t, n in exc.conflictos.items()), file=sys.stderr)
+        return 1
+    except cripto.ClaveNoConfigurada:
+        print("ABORTADO, no se escribió nada: falta PERCEPCION_CLAVE_TEXTO y el destino ya tiene texto "
+              "cifrado. Configura la clave (o usa --permitir-claro si de verdad quieres texto en claro).",
+              file=sys.stderr)
         return 1
     except Exception as exc:  # noqa: BLE001 - los mensajes del driver pueden traer URL o filas
         print(f"ERROR inesperado ({type(exc).__name__}). No se escribió nada.", file=sys.stderr)

@@ -29,7 +29,7 @@ import numpy as np
 from sqlalchemy import delete, inspect, select
 from sqlalchemy.orm import Session
 
-from app.services.percepcion import derivados, emojis
+from app.services.percepcion import cripto, derivados, emojis
 
 OTROS = -1                       # cluster residual (los demasiado chicos)
 ETIQUETA_OTROS = "Otros"
@@ -341,9 +341,11 @@ def reconstruir_subtemas(db: Session, embedder: Callable[[list[str]], np.ndarray
 
     # (id, autor, texto limpio, ¿etiquetaba a alguien?). El texto crudo no se guarda.
     por_tema: dict[str, list[tuple[int, str, str, bool]]] = defaultdict(list)
+    ilegibles: list[int] = []                    # ids con cifrado que no abre (solo ids)
     crudos: list[str | None] = []                # solo para juntar @menciones; no sale de acá
     for cid, tema, autor, texto in db.execute(
             select(C.id, C.tema, C.autor_hash, C.texto).where(C.tema.is_not(None)).order_by(C.id)):
+        texto = cripto.texto_de_seguro(cid, texto, ilegibles)   # en claro solo en memoria
         limpio = limpiar(texto)
         por_tema[tema].append((cid, autor, limpio,
                                not limpio and derivados.contar_etiquetas(texto) > 0))
@@ -359,7 +361,7 @@ def reconstruir_subtemas(db: Session, embedder: Callable[[list[str]], np.ndarray
     propios |= {v.strip().lower() for v in vetar if v.strip()}   # vetos a mano (apodos)
     del crudos
 
-    resumen = {"temas": 0, "subtemas": 0, "asignados": 0, "etiquetan": 0, "por_tema": {},
+    resumen = {"ilegibles": len(ilegibles), "temas": 0, "subtemas": 0, "asignados": 0, "etiquetan": 0, "por_tema": {},
                "nombres_manuales_conservados": 0, "nombres_manuales_descartados": 0}
     for tema in sorted(por_tema):
         filas = por_tema[tema]

@@ -42,7 +42,7 @@ for _flujo in (sys.stdout, sys.stderr):
     except Exception:
         pass
 
-from app.services.percepcion import lexico, repository  # noqa: E402
+from app.services.percepcion import cripto, lexico, repository  # noqa: E402
 
 RUTA_CALENDARIO = Path(__file__).resolve().parents[1] / "backend" / "app" / "data" / "percepcion_calendario_ucn.json"
 
@@ -93,7 +93,7 @@ def serie_semanal(db: Path) -> list[dict]:
     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     con.row_factory = sqlite3.Row
     filas = con.execute("""
-        SELECT substr(C.fecha_comentario, 1, 10) AS f, C.texto,
+        SELECT substr(C.fecha_comentario, 1, 10) AS f, C.id, C.texto,
                S.prob_pos, S.prob_neg, S.sentimiento
           FROM percepcion_comentario C
           JOIN percepcion_score S ON S.comentario_id = C.id
@@ -107,11 +107,12 @@ def serie_semanal(db: Path) -> list[dict]:
         w = _lunes(date.fromisoformat(r["f"]))
         a = acc[w]
         es_neg = (r["sentimiento"] or "").upper().startswith("NEG")
-        if lexico.detectar(r["texto"]):
+        texto = cripto.texto_de(r["id"], r["texto"])
+        if lexico.detectar(texto):
             a["lex"] += 1
             if es_neg:
                 a["lex_neg"] += 1
-        if _sin_contenido(r["texto"]):
+        if _sin_contenido(texto):
             continue
         a["n"] += 1
         a["pos"] += float(r["prob_pos"] or 0)

@@ -74,6 +74,14 @@ class Settings:
         # read use it. Empty => falls back to PERCEPCION_DATABASE_URL (single-credential setup).
         self.percepcion_proceso_database_url: str = os.getenv("PERCEPCION_PROCESO_DATABASE_URL", "").strip()
 
+        # --- Text encryption (services/percepcion/cripto.py). Values are never logged. ---
+        # base64url, 32 bytes each. TEXTO encrypts comment text/captions; ID is only for HMAC.
+        self.percepcion_clave_texto: str = os.getenv("PERCEPCION_CLAVE_TEXTO", "").strip()
+        self.percepcion_clave_id: str = os.getenv("PERCEPCION_CLAVE_ID", "").strip()
+        self.percepcion_clave_version: str = os.getenv("PERCEPCION_CLAVE_VERSION", "").strip() or "1"
+        # "version:key,version:key": old keys so past ciphertexts still decrypt after a rotation.
+        self.percepcion_claves_anteriores: str = os.getenv("PERCEPCION_CLAVES_ANTERIORES", "").strip()
+
         # --- Percepcion knobs (see the Torre docs / services/percepcion/*) ---
         # Model of the weekly LLM summary. Empty => resumen_llm.MODELO_ANTHROPIC.
         self.percepcion_resumen_modelo: str = os.getenv("PERCEPCION_RESUMEN_MODELO", "")

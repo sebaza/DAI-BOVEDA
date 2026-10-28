@@ -68,7 +68,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.config import get_settings
 from app.services.costos import costo_estimado_usd, registrar_uso_llm
-from app.services.percepcion import repository
+from app.services.percepcion import cripto, repository
 from app.services.percepcion.models import PercepcionComentario as C
 from app.services.percepcion.models import PercepcionCuenta as Cu
 from app.services.percepcion.models import PercepcionEvento as Evento
@@ -502,7 +502,7 @@ def _publicaciones(db, desde: date, hasta: date, alc: dict) -> list[dict]:
 
     n_semana = func.count(C.id).label("n_semana")
     filas = db.execute(
-        select(P.caption, P.fecha_publicacion, n_semana, P.n_likes, P.tipo, Cu.nombre)
+        select(P.caption, P.fecha_publicacion, n_semana, P.n_likes, P.tipo, Cu.nombre, P.id)
         .select_from(C)
         .join(P, P.id == C.publicacion_id)
         .join(Cu, Cu.id == P.cuenta_id)
@@ -518,8 +518,9 @@ def _publicaciones(db, desde: date, hasta: date, alc: dict) -> list[dict]:
         .limit(N_PUBLICACIONES)
     )
     out = []
-    for caption, fecha_pub, n_com, n_likes, tipo, cuenta in filas:
-        texto = (caption or "").strip()
+    for caption, fecha_pub, n_com, n_likes, tipo, cuenta, pid in filas:
+        # Descifra en memoria: el caption viaja en claro al proveedor del modelo (como antes).
+        texto = (cripto.caption_de(pid, caption) or "").strip()
         if len(texto) > MAX_CAPTION:
             texto = texto[:MAX_CAPTION].rstrip() + "…"
         out.append({

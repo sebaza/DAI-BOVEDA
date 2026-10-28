@@ -62,8 +62,13 @@ El venv del worker ya trae torch 2.6.0+cpu y transformers 5.13.1. Todo corre
 LOCAL: no sale un solo comentario de la UCN a un servicio externo.
 """
 import sqlite3
+import sys
 import time
 from collections import Counter
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
+from app.services.percepcion import cripto  # noqa: E402
 
 import laya
 from laya.common import render_options
@@ -109,14 +114,17 @@ def presupuesto(tok, crit, instr, etiqueta):
 
 
 def datos(con, campo, extra=""):
-    return con.execute(f"""
-        SELECT c.texto, k.valor_nuevo, k.valor_original, c.tema_confianza
+    filas = con.execute(f"""
+        SELECT c.texto, k.valor_nuevo, k.valor_original, c.tema_confianza, c.id
         FROM percepcion_correccion k
         JOIN percepcion_comentario c ON c.id = k.comentario_id
         WHERE k.campo='{campo}' AND k.autor_tipo='humano' AND k.origen_muestra='aleatorio'
           AND k.valor_nuevo IS NOT NULL AND k.valor_original IS NOT NULL
-          AND c.texto IS NOT NULL AND length(trim(c.texto)) > 0 {extra}
+          AND c.texto IS NOT NULL {extra}
     """).fetchall()
+    # El texto puede venir cifrado: el filtro de "no vacío" se hace acá, ya descifrado.
+    descifradas = [(cripto.texto_de(f[4], f[0]), f[1], f[2], f[3]) for f in filas]
+    return [f for f in descifradas if f[0] and f[0].strip()]
 
 
 def evalua(ag, filas, crit, instr, campo):

@@ -5,11 +5,13 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.database import Base
 from app.routers import auth, percepcion, tasks
+from app.services.percepcion.cripto import ErrorCripto
 from app.services.percepcion.db import percepcion_write_engine
 
 logger = logging.getLogger("boveda")
@@ -29,6 +31,14 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
+
+@app.exception_handler(ErrorCripto)
+async def _cifrado_no_disponible(_, exc: ErrorCripto):
+    # Sin clave (o clave inválida / texto ilegible) no se puede leer el texto: 503 fijo, jamás
+    # el mensaje de la excepción ni valores de configuración.
+    logger.error("Error de cifrado de texto: %s", type(exc).__name__)
+    return JSONResponse(status_code=503, content={"detail": "Cifrado no configurado en el servidor"})
+
 
 app.add_middleware(
     CORSMiddleware,

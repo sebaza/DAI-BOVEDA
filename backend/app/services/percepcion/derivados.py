@@ -26,7 +26,7 @@ import re
 from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import Session
 
-from app.services.percepcion import lexico
+from app.services.percepcion import cripto, lexico
 
 # --------------------------------------------------------------------------- #
 # Tokenizador (movido tal cual desde `repository`; no cambiar sin re-precalcular).
@@ -244,11 +244,13 @@ def reconstruir(db: Session) -> dict[str, int]:
         db.execute(delete(modelo))
 
     n_com = n_tok = n_fam = 0
+    ilegibles: list[int] = []     # ids cuyo cifrado no abre (solo ids; esas filas quedan sin derivados)
     tokens: list[dict] = []
     familias: list[dict] = []
     etiquetas: list[dict] = []
     for cid, texto in db.execute(select(C.id, C.texto).order_by(C.id)).yield_per(2000):
         n_com += 1
+        texto = cripto.texto_de_seguro(cid, texto, ilegibles)   # en claro solo en memoria
         n_et = contar_etiquetas(texto)
         # Solo etiquetas = no queda nada que decir salvo a quién se llama (misma regla que subtemas).
         etiquetas.append({"comentario_id": cid, "n_etiquetas": n_et,
@@ -269,8 +271,11 @@ def reconstruir(db: Session) -> dict[str, int]:
     _insertar(db, F, familias)
     _insertar(db, E, etiquetas)
 
+    ilegibles_cap: list[int] = []
     rasgos = [{"publicacion_id": pid, **rasgos_caption(caption)}
-              for pid, caption in db.execute(select(P.id, P.caption).order_by(P.id))]
+              for pid, caption in ((i, cripto.caption_de_seguro(i, c, ilegibles_cap))
+                                 for i, c in db.execute(select(P.id, P.caption).order_by(P.id)))]
     _insertar(db, R, rasgos)
     return {"comentarios": n_com, "tokens": n_tok, "familias": n_fam, "rasgos": len(rasgos),
-            "etiquetas": sum(1 for e in etiquetas if e["n_etiquetas"])}
+            "etiquetas": sum(1 for e in etiquetas if e["n_etiquetas"]),
+            "ilegibles": len(ilegibles) + len(ilegibles_cap)}
