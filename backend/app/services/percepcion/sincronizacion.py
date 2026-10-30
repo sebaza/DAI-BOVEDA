@@ -18,6 +18,17 @@ Contrato
   NUEVAS se insertan cifrados (el contexto usa el `id`, que se copia del worker). Sin claves se
   insertan en claro y `Resultado.sin_cifrar` cuenta cuántos valores quedaron así (solo el conteo).
   Las guardas de clave natural nunca leen ni comparan texto.
+* Almacén institucional (fase A3): si el destino tiene las marcas `autor_seudonimizado=true` y
+  `ext_comentario_seudonimizado=true` en `percepcion_meta` (las escribe
+  `scripts/publicar_warehouse_percepcion.py`), el `autor_hash` y el `external_id` de los comentarios
+  NUEVOS pasan por `cripto.seudonimo_autor` / `cripto.seudonimo_ext_comentario` antes de
+  insertarse, igual que en la carga inicial. La clave natural (publicacion_id, external_id) del
+  origen se compara YA seudonimizada contra la del destino, así la detección de duplicados y de
+  conflictos sigue funcionando. Sin marcas, se copia tal cual (base local). Una sola marca
+  presente = base inconsistente: se NIEGA (`MarcasInconsistentes`). Con marcas y sin
+  `PERCEPCION_CLAVE_ID` se NIEGA (`ClaveNoConfigurada`) antes de escribir: mezclaría dos criterios
+  en la misma columna. Nunca se aplica dos veces: solo se transforman filas que vienen del worker
+  (SQLite), y las que ya están en el destino no se tocan.
 """
 from __future__ import annotations
 
@@ -33,7 +44,10 @@ from app.services.percepcion import cripto, curacion, derivados
 from app.services.percepcion.models import (
     PercepcionComentario,
     PercepcionCuenta,
+    META_AUTOR_SEUDONIMIZADO,
+    META_EXT_COMENTARIO_SEUDONIMIZADO,
     PercepcionEvento,
+    PercepcionMeta,
     PercepcionPublicacion,
     PercepcionScore,
 )
@@ -73,6 +87,33 @@ class Resultado:
     hechos: int | None = None
     derivados: dict[str, int] | None = None
     sin_cifrar: int = 0   # valores de texto/caption insertados en claro por falta de claves
+    autor_seudonimizado: bool = False   # el destino lleva la marca: autor_hash nuevo seudonimizado
+    autores_seudonimizados: int = 0     # filas nuevas cuyo autor_hash se seudonimizó
+
+
+class MarcasInconsistentes(Exception):
+    """El destino tiene solo una de las dos marcas del almacén. No lleva datos."""
+
+
+def destino_seudonimizado(destino: Session) -> bool:
+    """¿El destino es el almacén (marcas `autor_seudonimizado` y `ext_comentario_seudonimizado`)?
+
+    Una base sin la tabla (la local, anterior a la fase A3) o sin ninguna fila no está marcada.
+    Con SOLO una de las dos marcas lanza `MarcasInconsistentes`: ni copiar tal cual ni
+    seudonimizar es seguro.
+    """
+    if not inspect(destino.connection()).has_table(PercepcionMeta.__tablename__):
+        return False
+    valores = {c: v for c, v in destino.execute(select(PercepcionMeta.clave, PercepcionMeta.valor).where(
+        PercepcionMeta.clave.in_([META_AUTOR_SEUDONIMIZADO, META_EXT_COMENTARIO_SEUDONIMIZADO])))}
+    activas = [(valores.get(k) or "").strip().lower() == "true"
+               for k in (META_AUTOR_SEUDONIMIZADO, META_EXT_COMENTARIO_SEUDONIMIZADO)]
+    if any(activas) and not all(activas):
+        raise MarcasInconsistentes(
+            "El destino tiene solo una de las marcas de seudonimización "
+            f"({META_AUTOR_SEUDONIMIZADO}, {META_EXT_COMENTARIO_SEUDONIMIZADO}): se niega la "
+            "sincronización. Recarga el almacén con scripts/publicar_warehouse_percepcion.py --reemplazar.")
+    return all(activas)
 
 
 def _columnas(modelo, origen: Session, destino: Session) -> list[str]:
@@ -83,14 +124,30 @@ def _columnas(modelo, origen: Session, destino: Session) -> list[str]:
     return [c.name for c in modelo.__table__.columns if c.name in comunes]
 
 
-def _claves(s: Session, modelo, nat: tuple[str, ...]) -> dict[int, tuple]:
-    """{id: clave natural} leyendo SOLO id y la clave (jamás texto)."""
+def _claves(s: Session, modelo, nat: tuple[str, ...], transformar: dict | None = None) -> dict[int, tuple]:
+    """{id: clave natural} leyendo SOLO id y la clave (jamás texto).
+
+    `transformar` = {columna: función} se aplica a esa parte de la clave (la usa el origen cuando
+    el destino guarda el `external_id` de comentarios seudonimizado).
+    """
     t = modelo.__table__
     cols = [t.c.id] + [t.c[n] for n in nat]
-    return {f[0]: tuple(f[1:]) for f in s.execute(select(*cols))}
+    fns = [(transformar or {}).get(n) for n in nat]
+    if not any(fns):
+        return {f[0]: tuple(f[1:]) for f in s.execute(select(*cols))}
+    cache: dict = {}
+
+    def _t(fn, v):
+        if fn is None:
+            return v
+        k = (fn, v)
+        if k not in cache:
+            cache[k] = fn(v)
+        return cache[k]
+    return {f[0]: tuple(_t(fn, v) for fn, v in zip(fns, f[1:])) for f in s.execute(select(*cols))}
 
 
-def _planificar(origen: Session, destino: Session):
+def _planificar(origen: Session, destino: Session, seudonimizar: bool = False):
     """Devuelve (ids nuevos por tabla, conflictos por tabla)."""
     nuevos: dict[str, list[int]] = {}
     conflictos: dict[str, int] = {}
@@ -98,7 +155,9 @@ def _planificar(origen: Session, destino: Session):
     ids_origen: dict[str, dict[int, tuple]] = {}
     for modelo, nat, padres in _TABLAS:
         nombre = modelo.__tablename__
-        src = _claves(origen, modelo, nat)
+        transf = ({"external_id": cripto.seudonimo_ext_comentario}
+                  if seudonimizar and modelo is PercepcionComentario else None)
+        src = _claves(origen, modelo, nat, transf)
         dst = _claves(destino, modelo, nat)
         ids_origen[nombre] = src
         ids_destino[nombre] = set(dst)
@@ -171,9 +230,13 @@ def sincronizar(origen: Session, destino: Session, *, simular: bool = False,
     Sin clave configurada y con filas YA cifradas en el destino se NIEGA (`ClaveNoConfigurada`):
     insertaría en claro y dejaría la base en un estado mixto. `permitir_claro=True` lo permite.
     """
-    nuevos, conflictos = _planificar(origen, destino)
+    seudonimizar = destino_seudonimizado(destino)
+    if seudonimizar:
+        # Falla ANTES de planificar o escribir: sin la clave no hay criterio coherente posible.
+        cripto.seudonimo_autor("verificacion")
+    nuevos, conflictos = _planificar(origen, destino, seudonimizar)
     res = Resultado(insertados={m.__tablename__: len(nuevos[m.__tablename__]) for m, _, _ in _TABLAS},
-                    conflictos=conflictos)
+                    conflictos=conflictos, autor_seudonimizado=seudonimizar)
     if simular:
         return res
     if conflictos:
@@ -194,6 +257,13 @@ def sincronizar(origen: Session, destino: Session, *, simular: bool = False,
             lote = ids[i:i + LOTE]
             filas = [dict(f._mapping) for f in origen.execute(
                 select(*[t.c[c] for c in columnas]).where(t.c.id.in_(lote)).order_by(t.c.id))]
+            if seudonimizar and modelo is PercepcionComentario:
+                for fila in filas:
+                    if "autor_hash" in fila:
+                        fila["autor_hash"] = cripto.seudonimo_autor(fila["autor_hash"])
+                    if "external_id" in fila:
+                        fila["external_id"] = cripto.seudonimo_ext_comentario(fila["external_id"])
+                    res.autores_seudonimizados += 1
             cifrable = _CIFRABLES.get(modelo.__tablename__)
             if cifrable and cifrable[0] in columnas:
                 col, cifrar_valor = cifrable

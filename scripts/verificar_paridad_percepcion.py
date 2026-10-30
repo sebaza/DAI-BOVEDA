@@ -20,6 +20,16 @@ SEGURIDAD
   `/resumen-semanal` (puede gastar plata); sí a `/resumen-semanal/semanas`.
 * La URL de Postgres se toma de `--postgres` o de `PERCEPCION_DATABASE_URL` y no se imprime.
 
+PASO AL ALMACÉN (fase A3)
+-------------------------
+Sirve para comprobar que el almacén responde lo mismo que la Bóveda actual, con las claves de
+`PERCEPCION_CLAVE_TEXTO`/`PERCEPCION_CLAVE_ID` configuradas (las respuestas de Curación descifran
+el texto). ANTES de cambiar las URLs:
+    ... --guardar-referencia ref.json --referencia-desde-postgres <URL de la Bóveda actual>
+DESPUÉS de cargar el almacén:
+    ... --contra-referencia ref.json --postgres <URL del almacén>
+`ref.json` contiene lo que devuelven los endpoints de curación (texto): bórralo al terminar.
+
 Código de salida: 0 si todo es OK; 1 si algún endpoint difiere o falla.
 
 Uso:
@@ -184,6 +194,10 @@ def main(argv: list[str] | None = None) -> int:
                     help="Solo SQLite: guarda las respuestas del código ACTUAL (cálculo sobre texto) "
                          "en ARCHIVO (JSON local; contiene lo que devuelven los endpoints de curación: "
                          "bórralo después) y termina. No requiere Postgres.")
+    ap.add_argument("--referencia-desde-postgres", default=None, metavar="URL",
+                    help="Con --guardar-referencia: toma la referencia de ESTE Postgres (p. ej. la Bóveda "
+                         "actual, ANTES de pasar al almacén) en vez del SQLite; no se imprime. "
+                         "Después, --contra-referencia + --postgres apuntando al almacén.")
     ap.add_argument("--contra-referencia", type=Path, default=None, metavar="ARCHIVO",
                     help="Compara el Postgres (cálculo sobre tokens precalculados) contra una referencia "
                          "guardada antes con --guardar-referencia: prueba que refactorizar no cambió resultados.")
@@ -199,7 +213,13 @@ def main(argv: list[str] | None = None) -> int:
     if not args.guardar_referencia and not url_pg.startswith("postgresql"):
         print("Falta la URL de Postgres: pasa --postgres o define PERCEPCION_DATABASE_URL.", file=sys.stderr)
         return 2
-    if not args.sqlite.is_file():
+    if args.referencia_desde_postgres and not args.guardar_referencia:
+        print("--referencia-desde-postgres solo se usa junto con --guardar-referencia.", file=sys.stderr)
+        return 2
+    if args.referencia_desde_postgres and not args.referencia_desde_postgres.startswith("postgresql"):
+        print("--referencia-desde-postgres debe ser una URL de PostgreSQL.", file=sys.stderr)
+        return 2
+    if not args.referencia_desde_postgres and not args.sqlite.is_file():
         print(f"No existe el SQLite de origen: {args.sqlite}", file=sys.stderr)
         return 2
 
@@ -207,13 +227,15 @@ def main(argv: list[str] | None = None) -> int:
     sys.path.insert(0, str(BACKEND))
     try:
         return _comparar(args.sqlite, url_pg, args.esquema,
-                         guardar=args.guardar_referencia, referencia=args.contra_referencia)
+                         guardar=args.guardar_referencia, referencia=args.contra_referencia,
+                         origen_pg=args.referencia_desde_postgres)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
 def _comparar(ruta_sqlite: Path, url_pg: str, esquema: str, *,
-              guardar: Path | None = None, referencia: Path | None = None) -> int:
+              guardar: Path | None = None, referencia: Path | None = None,
+              origen_pg: str | None = None) -> int:
     from fastapi.testclient import TestClient
     from sqlalchemy.orm import sessionmaker
 
@@ -246,10 +268,13 @@ def _comparar(ruta_sqlite: Path, url_pg: str, esquema: str, *,
     ).session_token
     cabecera = {"Authorization": f"Bearer {token}"}
 
-    motores = {
-        "sqlite": crear_engine(
-            f"sqlite:///file:{ruta_sqlite.resolve().as_posix()}?mode=ro&uri=true", solo_lectura=True),
-    }
+    if origen_pg:
+        # La referencia sale de otro Postgres (la Bóveda actual), con el motor de solo lectura.
+        motor_ref = crear_engine(url_con_esquema(origen_pg, esquema), solo_lectura=True)
+    else:
+        motor_ref = crear_engine(
+            f"sqlite:///file:{ruta_sqlite.resolve().as_posix()}?mode=ro&uri=true", solo_lectura=True)
+    motores = {"sqlite": motor_ref}   # la clave "sqlite" es solo la etiqueta del lado de referencia
     if not guardar:
         motores["postgres"] = crear_engine(url_con_esquema(url_pg, esquema), solo_lectura=True)
     fabricas = {k: sessionmaker(bind=e, autoflush=False, autocommit=False, future=True)

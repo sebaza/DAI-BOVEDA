@@ -89,6 +89,9 @@ def _imprimir(res: sincronizacion.Resultado, simular: bool) -> None:
     if res.sin_cifrar:
         print(f"  ADVERTENCIA: {res.sin_cifrar} textos/captions nuevos quedaron SIN cifrar "
               "(faltan las claves PERCEPCION_CLAVE_TEXTO).")
+    if res.autor_seudonimizado:
+        print("  destino marcado como almacén: autor_hash nuevo seudonimizado"
+              + ("" if simular else f" ({res.autores_seudonimizados} filas)"))
     if res.hechos is not None:
         print(f"  hechos diarios reagregados: {res.hechos}")
     if res.derivados is not None:
@@ -160,9 +163,14 @@ def main(argv: list[str] | None = None) -> int:
         print("ABORTADO, no se escribió nada. Conflictos: " + ", ".join(
             f"{t}={n}" for t, n in exc.conflictos.items()), file=sys.stderr)
         return 1
-    except cripto.ClaveNoConfigurada:
-        print("ABORTADO, no se escribió nada: falta PERCEPCION_CLAVE_TEXTO y el destino ya tiene texto "
-              "cifrado. Configura la clave (o usa --permitir-claro si de verdad quieres texto en claro).",
+    except sincronizacion.MarcasInconsistentes as exc:
+        print(f"ABORTADO, no se escribió nada: {exc}", file=sys.stderr)
+        return 1
+    except cripto.ClaveNoConfigurada as exc:
+        # El mensaje de cripto nombra la variable que falta, jamás su valor.
+        print(f"ABORTADO, no se escribió nada: {exc} Si falta PERCEPCION_CLAVE_TEXTO, el destino ya "
+              "tiene texto cifrado (usa --permitir-claro solo si de verdad quieres texto en claro); si "
+              "falta PERCEPCION_CLAVE_ID, el destino es el almacén y sus autores van seudonimizados.",
               file=sys.stderr)
         return 1
     except Exception as exc:  # noqa: BLE001 - los mensajes del driver pueden traer URL o filas

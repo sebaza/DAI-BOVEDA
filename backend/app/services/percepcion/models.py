@@ -484,3 +484,26 @@ class PercepcionComentarioSubtema(Base):
         Integer, ForeignKey("percepcion_comentario.id", ondelete="CASCADE"), primary_key=True)
     subtema_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("percepcion_subtema.id", ondelete="CASCADE"), index=True)
+
+
+# --------------------------------------------------------------------------- #
+# METADATOS DE LA BASE (Fase A3: almacén institucional).
+# --------------------------------------------------------------------------- #
+# Marcas de la propia base, no de los datos. Hoy una sola: `autor_seudonimizado`. La escribe
+# `scripts/publicar_warehouse_percepcion.py` al cargar el almacén y la lee `sincronizacion.py`
+# para saber si los comentarios NUEVOS del worker deben pasar por `cripto.seudonimo_autor`
+# (así toda la tabla usa un solo criterio y nunca se aplica dos veces). Tabla propia de la
+# Bóveda: el worker no la conoce ni la toca.
+META_AUTOR_SEUDONIMIZADO = "autor_seudonimizado"
+# Segunda marca: `percepcion_comentario.external_id` seudonimizado (enlaza con el autor público).
+# Las dos van juntas: una sola presente es una base inconsistente y la sincronización se niega.
+META_EXT_COMENTARIO_SEUDONIMIZADO = "ext_comentario_seudonimizado"
+MARCAS_ALMACEN = (META_AUTOR_SEUDONIMIZADO, META_EXT_COMENTARIO_SEUDONIMIZADO)
+
+
+class PercepcionMeta(Base):
+    __tablename__ = "percepcion_meta"
+
+    clave: Mapped[str] = mapped_column(String(60), primary_key=True)
+    valor: Mapped[str] = mapped_column(String(200))
+    actualizado_en: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

@@ -210,6 +210,22 @@ def _con_filas(destino: Connection, esquema: str) -> list[str]:
     ]
 
 
+def destino_marcado(destino: Connection, esquema: str | None) -> bool:
+    """¿El destino es el almacén (alguna marca de `percepcion_meta` en `true`)?
+
+    Esta migración copia `autor_hash` y `external_id` TAL COMO los escribe el worker: en el
+    almacén eso mezclaría identificadores crudos con seudónimos. Para el almacén se usa
+    `publicar_warehouse_percepcion.py` o la sincronización (que seudonimizan).
+    """
+    if not inspect(destino).has_table("percepcion_meta", schema=esquema):
+        return False
+    tabla = f'"{esquema}"."percepcion_meta"' if esquema else '"percepcion_meta"'
+    n = destino.execute(
+        text(f"SELECT COUNT(*) FROM {tabla} WHERE valor = 'true' AND clave IN "
+             "('autor_seudonimizado', 'ext_comentario_seudonimizado')")).scalar_one()
+    return n > 0
+
+
 def migrar(
     origen: Path,
     destino_url: str,
@@ -236,6 +252,12 @@ def migrar(
         with eng_origen.connect() as src, eng_destino.begin() as dst:
             dst.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{esquema}"'))
             Base.metadata.create_all(dst)
+
+            if destino_marcado(dst, esquema):
+                raise MigracionError(
+                    "El destino es el almacén institucional (autores y external_id seudonimizados): "
+                    "esta migración copiaría identificadores crudos y se niega, con o sin --reemplazar. "
+                    "Usa scripts/publicar_warehouse_percepcion.py.")
 
             existentes = _con_filas(dst, esquema)
             if existentes and not reemplazar:

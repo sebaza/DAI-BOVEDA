@@ -240,3 +240,37 @@ class TestCopia:
         with esquema_efimero("percepcion_test_mig6", crear_tablas=False):
             migrar_mod.migrar(origen, URL, esquema="percepcion_test_mig6", salida=lineas.append)
         assert any("percepcion_contexto" in l and "sin modelo" in l and "1 filas" in l for l in lineas)
+
+
+# ---------------------------------------------------------------------------
+# El almacén (marcado) no admite cargas crudas (sin Postgres: la función corre sobre cualquier conexión)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("clave,valor,esperado", [
+    ("autor_seudonimizado", "true", True),
+    ("ext_comentario_seudonimizado", "true", True),
+    ("autor_seudonimizado", "false", False),
+    ("otra_cosa", "true", False),
+])
+def test_destino_marcado_detecta_el_almacen(tmp_path, clave, valor, esperado):
+    eng = create_engine(f"sqlite:///{(tmp_path / 'd.db').as_posix()}", future=True)
+    Base.metadata.create_all(eng)
+    with eng.begin() as con:
+        assert migrar_mod.destino_marcado(con, None) is False
+        con.execute(text("INSERT INTO percepcion_meta (clave, valor) VALUES (:c, :v)"),
+                    {"c": clave, "v": valor})
+        assert migrar_mod.destino_marcado(con, None) is esperado
+    eng.dispose()
+
+
+def test_destino_sin_tabla_meta_no_esta_marcado(tmp_path):
+    eng = create_engine(f"sqlite:///{(tmp_path / 'd.db').as_posix()}", future=True)
+    with eng.begin() as con:
+        assert migrar_mod.destino_marcado(con, None) is False
+    eng.dispose()
+
+
+def test_migrar_se_niega_antes_de_copiar_si_el_destino_es_el_almacen():
+    fuente = RUTA_SCRIPT.read_text(encoding="utf-8")
+    # La guarda corre tras create_all y antes de la comprobación de --reemplazar.
+    assert fuente.index("destino_marcado(dst, esquema)") < fuente.index("existentes = _con_filas")

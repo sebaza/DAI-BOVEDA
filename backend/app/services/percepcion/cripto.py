@@ -32,9 +32,10 @@ Si se pierde ``PERCEPCION_CLAVE_TEXTO`` los textos cifrados son IRRECUPERABLES.
 Seudonimización
 ---------------
 ``seudonimo(valor, dominio)`` = HMAC-SHA256(``PERCEPCION_CLAVE_ID``, dominio NUL valor) en hex.
-NO se aplica a la base local en esta fase: cambiaría ``autor_hash``, que además es la clave
-natural que usa ``sincronizacion.py`` contra el worker. Es para la exportación al almacén
-(fase A3), donde el dominio separa usos ("autor", "etiqueta", ...).
+NO se aplica a la base local: cambiaría ``autor_hash`` en una base que sigue al worker. Se usa
+en el almacén institucional (fase A3): ``scripts/publicar_warehouse_percepcion.py`` lo aplica a
+la carga inicial y ``sincronizacion.py`` a los comentarios nuevos, siempre por ``seudonimo_autor``
+(el dominio separa usos: "autor", "etiqueta", ...).
 """
 from __future__ import annotations
 
@@ -270,3 +271,32 @@ def seudonimo(valor: str, dominio: str) -> str:
     # Dominio y valor separados por NUL: ("a", "b:c") y ("a:b", "c") dan entradas distintas.
     mensaje = dominio.encode("utf-8") + b"\x00" + valor.encode("utf-8")
     return hmac.new(clave, mensaje, hashlib.sha256).hexdigest()
+
+
+DOMINIO_AUTOR = "autor"
+
+
+def seudonimo_autor(valor: str | None) -> str | None:
+    """Seudónimo del ``autor_hash`` del worker para el almacén. Vacío/None pasan sin cambios.
+
+    UN solo lugar para la regla, así la carga y la sincronización no pueden divergir.
+    Determinista: la misma persona sigue siendo "una" persona (conteos de autores distintos).
+    """
+    if not valor:
+        return valor
+    return seudonimo(valor, DOMINIO_AUTOR)
+
+
+DOMINIO_EXT_COMENTARIO = "comentario_ext"
+
+
+def seudonimo_ext_comentario(valor: str | None) -> str | None:
+    """Seudónimo del ``external_id`` de un comentario (enlaza con su autor público) para el almacén.
+
+    Mismo criterio que `seudonimo_autor` y la misma garantía: un solo lugar, determinista. Hex de
+    64 caracteres: cabe en `external_id` (String(80)). Solo para comentarios; el `external_id` de
+    publicaciones y el `handle` de cuentas son datos públicos institucionales y no se tocan.
+    """
+    if not valor:
+        return valor
+    return seudonimo(valor, DOMINIO_EXT_COMENTARIO)

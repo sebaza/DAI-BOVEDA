@@ -44,3 +44,12 @@ def test_las_rutas_nunca_incluyen_valores():
 
 def test_diferencia_dentro_de_una_lista_indica_el_indice():
     assert paridad.diferencias({"l": [{"n": 1}, {"n": 2}]}, {"l": [{"n": 1}, {"n": 9}]}) == ["$.l[1].n"]
+
+
+def test_referencia_desde_postgres_exige_guardar_y_postgres(capsys):
+    assert paridad.main(["--referencia-desde-postgres", "postgresql://u:p@h/db",
+                         "--postgres", "postgresql://u:p@h/otra"]) == 2
+    assert "--guardar-referencia" in capsys.readouterr().err
+    assert paridad.main(["--guardar-referencia", "x.json",
+                         "--referencia-desde-postgres", "sqlite:///x.db"]) == 2
+    assert "PostgreSQL" in capsys.readouterr().err
