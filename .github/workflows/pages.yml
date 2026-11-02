@@ -1,0 +1,65 @@
+# Publica el Termómetro (frontend en modo pages) en https://sebaza.github.io/DAI-BOVEDA/.
+# Los datos se leen desde wh-api con el token del PIN; este sitio no tiene secretos.
+#
+# Variables del repositorio (Settings → Secrets and variables → Actions → Variables):
+#   PAGES_API_BASE_URL  URL pública de wh-api (por defecto https://bi.ucn.cl/wh-api/v0).
+#   PAGES_FEEDBACK_URL  opcional: enlace de comentarios que se muestra en el sitio.
+name: Publicar en GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Build estático (modo pages)
+        run: npm run build:pages
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ${{ vars.PAGES_API_BASE_URL || 'https://bi.ucn.cl/wh-api/v0' }}
+          NEXT_PUBLIC_BASE_PATH: /DAI-BOVEDA
+          PAGES_FEEDBACK_URL: ${{ vars.PAGES_FEEDBACK_URL }}
+      - name: Verificar que no se publica nada de administración
+        run: |
+          if grep -rlE 'curacion|forzar|dev-login|accounts\.google\.com' out --include='*.js' --include='*.html'; then
+            echo "El bundle público contiene funciones de administración." >&2
+            exit 1
+          fi
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
