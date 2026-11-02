@@ -412,7 +412,7 @@ function PosturaInstitucional({
                         desde: `${t.etiqueta} · ${t.pct}% adverso`,
                       })
                     }
-                    className="group -mx-1.5 flex w-[calc(100%+0.75rem)] items-baseline gap-2 rounded-lg px-1.5 py-1 text-left text-sm transition hover:bg-white/[0.06]"
+                    className="toque-alto group -mx-1.5 flex w-[calc(100%+0.75rem)] items-baseline gap-2 rounded-lg px-1.5 py-1 text-left text-sm transition hover:bg-white/[0.06]"
                     title={`Ver de qué se habla en «${t.etiqueta}»`}
                   >
                     {fila}
@@ -430,7 +430,7 @@ function PosturaInstitucional({
             <button
               type="button"
               onClick={() => onIrA({ vista: "comparar", sub: "temas" })}
-              className="mt-2 text-sm text-slate-500 underline decoration-slate-700 underline-offset-2 transition hover:text-slate-400 hover:decoration-slate-500"
+              className="toque mt-2 text-sm text-slate-500 underline decoration-slate-700 underline-offset-2 transition hover:text-slate-400 hover:decoration-slate-500"
             >
               Ver cómo se reparte entre áreas →
             </button>

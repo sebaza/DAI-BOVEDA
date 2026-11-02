@@ -88,7 +88,7 @@ function BotonSemana({
       disabled={!destino || ocupado}
       title={titulo}
       aria-label={titulo}
-      className="relative rounded border border-white/10 px-2 py-0.5 text-xs leading-4 text-slate-400 transition hover:border-white/25 hover:text-slate-100 disabled:opacity-30"
+      className="toque toque-cuadrado relative rounded border border-white/10 px-2 py-0.5 text-xs leading-4 text-slate-400 transition hover:border-white/25 hover:text-slate-100 disabled:opacity-30"
     >
       {atras ? "‹" : "›"}
       {generara ? (
@@ -215,7 +215,7 @@ export function PercepcionResumenSemanal() {
                   type="button"
                   onClick={() => setSemana(null)}
                   disabled={idx === 0 || cargando || regenerando}
-                  className="rounded border border-white/10 px-2 py-0.5 text-xs text-slate-400 transition hover:border-white/25 hover:text-slate-100 disabled:opacity-30"
+                  className="toque rounded border border-white/10 px-2 py-0.5 text-xs text-slate-400 transition hover:border-white/25 hover:text-slate-100 disabled:opacity-30"
                   title="Volver a la última semana con datos"
                 >
                   hoy
@@ -255,7 +255,7 @@ export function PercepcionResumenSemanal() {
               type="button"
               onClick={() => setLeerMas((v) => !v)}
               aria-expanded={leerMas}
-              className="mt-1 rounded text-sm font-semibold text-ucn-azul-claro hover:underline"
+              className="toque mt-1 rounded text-sm font-semibold text-ucn-azul-claro hover:underline"
             >
               {leerMas ? "Leer menos" : "Leer más"}
             </button>

@@ -1281,6 +1281,29 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
   }, [eventos]);
   const [ajustesAbiertos, setAjustesAbiertos] = useState(false);
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
+  // Barra fija compacta: al salir el centinela por arriba de la cabecera (h-16) solo queda la
+  // fila de pestañas. `barraExpandida` la reabre a mano mientras sigue pegada.
+  const [compacto, setCompacto] = useState(false);
+  const [barraExpandida, setBarraExpandida] = useState(false);
+  const centinelaRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = centinelaRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const obs = new IntersectionObserver(
+      ([entrada]) => {
+        const salio = !entrada.isIntersecting && entrada.boundingClientRect.top < 64;
+        setCompacto(salio);
+        if (!salio) setBarraExpandida(false);
+      },
+      { rootMargin: "-64px 0px 0px 0px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  // Difuminado de los bordes de la fila de pestañas mientras haya más contenido que ver.
+  const pestanasRef = useRef<HTMLDivElement | null>(null);
+  const [fadeIzq, setFadeIzq] = useState(false);
+  const [fadeDer, setFadeDer] = useState(false);
   // Internal tabs: visibility only, the real gate lives in the backend. In the Pages build
   // they are not even defined (the bundler folds the ternary).
   const pestanasInternas: readonly {
@@ -1313,6 +1336,38 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
     setVista(sig.id);
     document.getElementById(`percepcion-tab-${sig.id}`)?.focus();
   };
+  const nPestanas = pestanas.length;
+  useEffect(() => {
+    const el = pestanasRef.current;
+    if (!el) return;
+    const medir = () => {
+      setFadeIzq(el.scrollLeft > 0);
+      setFadeDer(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+    };
+    medir();
+    el.addEventListener("scroll", medir, { passive: true });
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(medir) : null;
+    ro?.observe(el);
+    return () => {
+      el.removeEventListener("scroll", medir);
+      ro?.disconnect();
+    };
+  }, [nPestanas]);
+  // La pestaña activa siempre queda a la vista en la fila con scroll (sin animar).
+  useEffect(() => {
+    document
+      .getElementById(`percepcion-tab-${vista}`)
+      ?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "auto" });
+  }, [vista]);
+  const barraColapsada = compacto && !ajustesAbiertos && !filtrosAbiertos && !barraExpandida;
+  const rangoCorto = esTodo
+    ? "Todo"
+    : diasEfectivo === DIAS_ULTIMO_MES
+      ? "Último mes"
+      : `${diasEfectivo} días`;
+  const resumenBarra = filtrosActivos > 0
+    ? `${rangoCorto} · ${filtrosActivos} ${filtrosActivos === 1 ? "filtro" : "filtros"}`
+    : rangoCorto;
 
   return (
     <div className="space-y-6">
@@ -1343,7 +1398,7 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
               type="button"
               onClick={() => setGuiaAbierta((v) => !v)}
               aria-expanded={guiaAbierta}
-              className="rounded text-sm font-semibold text-ucn-azul-claro hover:underline"
+              className="toque rounded text-sm font-semibold text-ucn-azul-claro hover:underline"
             >
               ¿Qué es esto?
             </button>
@@ -1469,7 +1524,16 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
 
       {/* Filters + tabs stay pinned under the header (h-16) so settings can change while scrolling.
           Capped to the viewport so an open "Ajustes" panel scrolls inside instead of hiding the page. */}
-      <div className="sticky top-16 z-20 -mx-4 max-h-[calc(100vh-4rem)] space-y-2 overflow-y-auto bg-[var(--boveda-fondo)] px-4 pt-3 shadow-[0_8px_16px_-12px_rgba(0,0,0,0.8)] md:-mx-6 md:px-6">
+      {/* Centinela de altura cero ANTES de la barra: si estuviera dentro, achicarla
+          realimentaría al observador. Ocupa el lugar donde la barra queda pegada. */}
+      <div ref={centinelaRef} aria-hidden className="!mt-6 h-0" />
+      <div className="sticky top-16 z-20 -mx-4 !mt-0 max-h-[calc(100vh-4rem)] overflow-y-auto bg-[var(--boveda-fondo)] px-4 pt-3 shadow-[0_8px_16px_-12px_rgba(0,0,0,0.8)] md:-mx-6 md:px-6">
+        {/* Selectores, ajustes y rango se pliegan al hacer scroll (grid 1fr -> 0fr). */}
+        <div
+          className={`barra-colapsable ${barraColapsada ? "barra-colapsada" : ""}`}
+          inert={barraColapsada}
+        >
+          <div className="space-y-2 pb-2">
         <div className="flex flex-wrap items-end gap-3">
           {/* On phones the selects hide behind "Filtros" so the pinned bar stays short. */}
           <div className={`${filtrosAbiertos ? "grid" : "hidden"} min-w-0 basis-full grid-cols-2 gap-3 md:grid md:flex-1 md:basis-0 md:grid-cols-5`}>
@@ -1533,7 +1597,7 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
                 <button
                   type="button"
                   onClick={() => setFiltro({ dias: DEFAULT_DIAS, pesoLikes: 1, vidaMedia: 30 })}
-                  className="whitespace-nowrap rounded text-sm font-semibold text-ucn-azul-claro hover:underline"
+                  className="toque whitespace-nowrap rounded text-sm font-semibold text-ucn-azul-claro hover:underline"
                 >
                   Restablecer
                 </button>
@@ -1593,12 +1657,16 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
           {fechaDesdeLabel} → {fechaHastaLabel}
           {esTodo ? " · todo el histórico" : ` · ${diasEfectivo} días`}
         </p>
+          </div>
+        </div>
 
         {/* Tab bar. Labels only: each tab's sub-tabs already carry its questions. */}
+        <div className="flex items-center gap-2 border-b border-[var(--boveda-linea)]">
         <div
+          ref={pestanasRef}
           role="tablist"
           aria-label="Secciones de Percepción"
-          className="flex overflow-x-auto border-b border-[var(--boveda-linea)]"
+          className={`pestanas-scroll flex min-w-0 flex-1 overflow-x-auto ${fadeIzq ? "pestanas-fade-izq" : ""} ${fadeDer ? "pestanas-fade-der" : ""}`}
         >
           {pestanas.map((v, i) => {
             const activa = vista === v.id;
@@ -1612,7 +1680,7 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
                 tabIndex={activa ? 0 : -1}
                 onClick={() => setVista(v.id)}
                 onKeyDown={(e) => moverPestana(e, i)}
-                className={`relative shrink-0 whitespace-nowrap px-4 py-3 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--ucn-azul-claro)] ${
+                className={`relative shrink-0 whitespace-nowrap px-3 py-3 text-sm transition sm:px-4 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--ucn-azul-claro)] ${
                   activa
                     ? "font-semibold text-[var(--portal-fg)] after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-none after:bg-[var(--ucn-azul)]"
                     : "text-slate-400 hover:text-[var(--portal-fg)]"
@@ -1622,6 +1690,18 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
               </button>
             );
           })}
+        </div>
+        {barraColapsada ? (
+          <button
+            type="button"
+            onClick={() => setBarraExpandida(true)}
+            aria-expanded={false}
+            title="Mostrar filtros y rango"
+            className="toque shrink-0 whitespace-nowrap rounded-lg border border-[var(--boveda-linea-fuerte)] px-2.5 text-xs font-semibold text-slate-400 transition hover:text-slate-100"
+          >
+            {resumenBarra} ▾
+          </button>
+        ) : null}
         </div>
       </div>
 

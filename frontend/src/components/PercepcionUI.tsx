@@ -381,7 +381,7 @@ export function SubPestanas<T extends string>({
             aria-selected={activa === o.id}
             onClick={() => onCambio(o.id)}
             className={
-              "-mb-px border-b-2 px-0.5 pb-2 text-sm transition " +
+              "toque-alto -mb-px border-b-2 px-0.5 pb-2 text-sm transition " +
               (activa === o.id
                 ? "border-[var(--portal-cyan)] font-semibold text-slate-100"
                 : "border-transparent text-slate-500 hover:border-white/20 hover:text-slate-400")

@@ -118,7 +118,7 @@ export function PercepcionConflicto({ filtro }: { filtro: Filtro }) {
           <button
             type="button"
             onClick={() => setVerBarrido((v) => !v)}
-            className="rounded border border-white/10 px-2.5 py-1 text-sm text-slate-400 transition hover:border-white/25 hover:text-slate-100"
+            className="toque rounded border border-white/10 px-2.5 py-1 text-sm text-slate-400 transition hover:border-white/25 hover:text-slate-100"
           >
             {verBarrido ? "Ocultar" : `Ver el barrido de ${data.comparaciones.length} períodos`}
           </button>
