@@ -39,6 +39,7 @@ import {
   fechaCorta,
   fmt,
   nro,
+  Esqueleto,
 } from "./PercepcionUI";
 
 // Por qué se marcó una semana. Sin esto el directivo ve una alerta y no sabe qué
@@ -553,9 +554,7 @@ export function PercepcionAlertas({ filtro }: { filtro: Filtro }) {
 
   if (!terminos && cargando) {
     return (
-      <div className={CARD}>
-        <p className="py-6 text-center text-sm text-slate-500">Cargando alertas…</p>
-      </div>
+      <Esqueleto etiqueta="Cargando alertas…" bloques={[180, 320, 280]} />
     );
   }
   if (error && !terminos) {

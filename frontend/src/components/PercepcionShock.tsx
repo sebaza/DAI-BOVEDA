@@ -252,7 +252,7 @@ export function PercepcionShock() {
   const resto = (data?.episodios ?? []).filter((e) => e.evidencia === "insuficiente");
 
   return (
-    <div className={CARD} style={{ opacity: cargando ? 0.55 : 1 }} aria-busy={cargando}>
+    <div className={`${CARD} transition-opacity duration-200`} style={{ opacity: cargando ? 0.55 : 1 }} aria-busy={cargando}>
       <TituloBloque titulo="Qué pasa cuando hay un paro">
         Cuánto cae el índice durante una interrupción y cuánto tarda en volver, medido
         en la sede donde ocurrió. Son <strong>casos</strong>, no un promedio: la mayoría

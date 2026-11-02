@@ -71,7 +71,7 @@ export function PercepcionBaselines() {
   const tope = Math.max(promedio ?? 0, ...(data?.modelos.map((m) => m.mae) ?? [0]));
 
   return (
-    <div className={CARD} style={{ opacity: cargando ? 0.55 : 1 }} aria-busy={cargando}>
+    <div className={`${CARD} transition-opacity duration-200`} style={{ opacity: cargando ? 0.55 : 1 }} aria-busy={cargando}>
       {/* TONO: esto lo lee un vicerrector, no un data scientist. La versión anterior
           decía "lo más tonto posible" y "lo que erraría no pensar" — desdeñoso con
           métodos que son perfectamente razonables, y opaco para quien tiene que

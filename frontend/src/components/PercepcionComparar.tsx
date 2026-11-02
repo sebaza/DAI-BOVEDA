@@ -50,6 +50,7 @@ import {
   fmt,
   labelEmocion,
   nro,
+  Esqueleto,
 } from "./PercepcionUI";
 
 /**
@@ -423,9 +424,7 @@ export function PercepcionComparar({
 
   if (!data && cargando) {
     return (
-      <div className={CARD}>
-        <p className="py-6 text-center text-sm text-slate-500">Cargando comparación…</p>
-      </div>
+      <Esqueleto etiqueta="Cargando comparación…" bloques={[120, 340, 300]} />
     );
   }
   if (error && !data) {

@@ -251,3 +251,42 @@ select option, select optgroup {
   }
   .boveda-cta:hover { filter: brightness(1.1); }
 }
+
+/* Carga: esqueletos con brillo, y entrada suave al cambiar de pestaña. */
+@keyframes portal-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+@keyframes vista-entrar {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.portal-esqueleto,
+.portal-skeleton {
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.07) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: portal-shimmer 1.6s linear infinite;
+}
+/* Cubre el contenedor del gráfico (position: relative) hasta que ECharts está listo. */
+.portal-skeleton {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.5rem;
+  pointer-events: none;
+}
+/* Al pasar de display:none a visible la animación se reinicia: se repite en cada cambio. */
+.vista-entrar {
+  animation: vista-entrar 160ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .portal-esqueleto,
+  .portal-skeleton,
+  .vista-entrar {
+    animation: none;
+  }
+}

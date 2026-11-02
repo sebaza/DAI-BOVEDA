@@ -110,7 +110,7 @@ export function PercepcionComunicacion() {
   );
 
   return (
-    <div className={CARD} style={{ opacity: cargando ? 0.55 : 1 }} aria-busy={cargando}>
+    <div className={`${CARD} transition-opacity duration-200`} style={{ opacity: cargando ? 0.55 : 1 }} aria-busy={cargando}>
       <TituloBloque titulo="Qué comunicación genera conversación">
         Qué rasgos de una publicación se asocian con que la comunidad responda. El
         número grande compara <strong>cada cuenta consigo misma</strong>; el de abajo,

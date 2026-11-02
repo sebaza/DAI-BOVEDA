@@ -395,3 +395,30 @@ export function SubPestanas<T extends string>({
     </div>
   );
 }
+
+/** Marcador de carga que RESERVA la altura de lo que va a aparecer. Reemplaza al
+ *  texto "Cargando…" centrado: ese texto colapsaba la página al alto de la
+ *  ventana y al llegar los datos volvía a crecer (salto de layout). `bloques` son
+ *  las alturas (px) de las tarjetas esperadas; el texto queda solo para lectores
+ *  de pantalla. */
+export function Esqueleto({
+  etiqueta = "Cargando…",
+  bloques = [160, 280, 280],
+}: {
+  etiqueta?: string;
+  bloques?: number[];
+}) {
+  return (
+    <div role="status" aria-live="polite" aria-busy="true" className="space-y-6">
+      <span className="sr-only">{etiqueta}</span>
+      {bloques.map((alto, i) => (
+        <div
+          key={i}
+          aria-hidden="true"
+          className="boveda-placa-card portal-esqueleto"
+          style={{ height: alto }}
+        />
+      ))}
+    </div>
+  );
+}

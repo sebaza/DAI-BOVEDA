@@ -52,6 +52,7 @@ import {
   labelEmocion,
   lecturaIndice,
   nro,
+  Esqueleto,
 } from "./PercepcionUI";
 
 /** "2026-06-01" -> "jun 26". El eje necesita etiquetas cortas o no entran. */
@@ -534,9 +535,7 @@ export function PercepcionResumen({
 
   if (!data && cargando) {
     return (
-      <div className={CARD}>
-        <p className="py-6 text-center text-sm text-slate-500">Cargando resumen…</p>
-      </div>
+      <Esqueleto etiqueta="Cargando resumen…" bloques={[140, 300, 300, 260]} />
     );
   }
   // El error solo tapa la vista si NO hay nada que mostrar. Con datos previos en

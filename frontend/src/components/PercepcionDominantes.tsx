@@ -67,7 +67,7 @@ export function PercepcionDominantes({ filtro }: { filtro: Filtro }) {
   const concentrado = conc !== null && conc >= CONCENTRACION_ALTA;
 
   return (
-    <div className={CARD} style={{ opacity: cargando ? 0.55 : 1 }} aria-busy={cargando}>
+    <div className={`${CARD} transition-opacity duration-200`} style={{ opacity: cargando ? 0.55 : 1 }} aria-busy={cargando}>
       <TituloBloque titulo="Lo más hablado del período" vidaMedia={filtro.vidaMedia} ignoraRecencia>
         Las publicaciones que concentran la conversación, ordenadas por cuántos
         comentarios juntaron. Es lo que explica un movimiento del índice cuando el

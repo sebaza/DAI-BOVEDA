@@ -68,7 +68,7 @@ export function PercepcionEnsayo() {
   const base = data?.tasa_base ?? 0;
 
   return (
-    <div className={CARD} style={{ opacity: cargando ? 0.55 : 1 }} aria-busy={cargando}>
+    <div className={`${CARD} transition-opacity duration-200`} style={{ opacity: cargando ? 0.55 : 1 }} aria-busy={cargando}>
       <TituloBloque titulo="¿Esta publicación va a generar conversación?">
         {/* Español latinoamericano NEUTRO, sin voseo (regla de Alberto, 2026-08-07:
             «hablame en español latino, no con acento argentino»). El voseo entró

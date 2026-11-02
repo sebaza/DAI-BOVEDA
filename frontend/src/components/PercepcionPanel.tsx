@@ -29,6 +29,7 @@ import {
   COLOR_NEG,
   COLOR_NEU,
   COLOR_POS,
+  Esqueleto,
   RotuloMetodo,
   SELECT,
   SubPestanas,
@@ -840,6 +841,16 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
   // Copia del filtro que solo avanza cuando el usuario deja de mover controles
   // (ver el debounce más abajo). Es la que consumen el tablero y la síntesis.
   const [filtroEstable, setFiltroEstable] = useState<Filtro>(FILTRO_INICIAL);
+  // Pestañas que ya se visitaron: Resumen, Alertas y Comparar quedan MONTADAS
+  // (ocultas con `hidden`) al salir de ellas, así volver no refetchea ni colapsa
+  // la altura de la página mientras recarga.
+  const [visitadas, setVisitadas] = useState<ReadonlySet<VistaPercepcion>>(
+    () => new Set<VistaPercepcion>(["resumen"]),
+  );
+  // Último filtro que vio cada pestaña mientras estaba activa. Una pestaña oculta
+  // conserva esa referencia, y como el `cargar` de cada hoja depende de ella, no
+  // refetchea cuando el filtro cambia en otra pestaña; al volver recibe el nuevo.
+  const [filtrosVistos, setFiltrosVistos] = useState<Partial<Record<VistaPercepcion, Filtro>>>({});
   const [evtForm, setEvtForm] = useState<EventoPayload>({ nombre: "", tipo: "receso", fecha_inicio: "", fecha_fin: "" });
   const [evtMsg, setEvtMsg] = useState<string | null>(null);
   const [evtBusy, setEvtBusy] = useState(false);
@@ -1046,6 +1057,14 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
     if (vista !== "conversacion") return;
     void cargar(filtroEstable);
   }, [cargar, filtroEstable, vista]);
+
+  useEffect(() => {
+    setVisitadas((prev) => (prev.has(vista) ? prev : new Set(prev).add(vista)));
+  }, [vista]);
+
+  useEffect(() => {
+    setFiltrosVistos((prev) => (prev[vista] === filtroEstable ? prev : { ...prev, [vista]: filtroEstable }));
+  }, [vista, filtroEstable]);
 
   // Comentarios recientes: filtro LOCAL (sentimiento/emoción) que recarga SOLO la
   // lista, sin re-pegarle a los gráficos. También reacciona al filtro global.
@@ -1622,18 +1641,34 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
         <RastroNavegacion rastro={rastro} onVolver={volverDelRastro} />
       ) : null}
 
-      {vista === "resumen" ? (
-        <PercepcionResumen
-          filtro={filtroEstable}
-          onVerAlertas={() => setVista("alertas")}
-          onVerComparar={() => setVista("comparar")}
-          onIrA={irA}
-        />
-      ) : vista === "alertas" ? (
-        <PercepcionAlertas filtro={filtroEstable} />
-      ) : vista === "comparar" ? (
-        <PercepcionComparar filtro={filtroEstable} sub={subComp} onSub={setSubComp} />
-      ) : !MODO_PAGES && vista === "simulacion" && equipoDai ? (
+      {/* Vistas que se conservan montadas una vez visitadas (ver `visitadas`). */}
+      {visitadas.has("resumen") || vista === "resumen" ? (
+        <div hidden={vista !== "resumen"} className="vista-entrar">
+          <PercepcionResumen
+            filtro={vista === "resumen" ? filtroEstable : filtrosVistos.resumen ?? filtroEstable}
+            onVerAlertas={() => setVista("alertas")}
+            onVerComparar={() => setVista("comparar")}
+            onIrA={irA}
+          />
+        </div>
+      ) : null}
+      {visitadas.has("alertas") || vista === "alertas" ? (
+        <div hidden={vista !== "alertas"} className="vista-entrar">
+          <PercepcionAlertas filtro={vista === "alertas" ? filtroEstable : filtrosVistos.alertas ?? filtroEstable} />
+        </div>
+      ) : null}
+      {visitadas.has("comparar") || vista === "comparar" ? (
+        <div hidden={vista !== "comparar"} className="vista-entrar">
+          <PercepcionComparar
+            filtro={vista === "comparar" ? filtroEstable : filtrosVistos.comparar ?? filtroEstable}
+            sub={subComp}
+            onSub={setSubComp}
+          />
+        </div>
+      ) : null}
+
+      {vista === "resumen" || vista === "alertas" || vista === "comparar" ? null
+      : !MODO_PAGES && vista === "simulacion" && equipoDai ? (
         // Sin `filtro`: los bloques de simulación trabajan sobre la serie completa,
         // no sobre la ventana del tablero. Medir volatilidad o entrenar un baseline
         // con 30 días de datos no alcanza para separar señal de ruido.
@@ -1661,7 +1696,7 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
           {subCur === "subtemas" ? <PercepcionSubtemas /> : null}
         </div>
       ) : loading && !resumen ? (
-        <div className="py-12 text-center text-slate-500">Cargando percepción…</div>
+        <Esqueleto etiqueta="Cargando percepción…" bloques={[120, 320, 240]} />
       ) : !resumen?.hay_datos ? (
         <div className="rounded-md border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-400">
           <p className="font-medium text-slate-100">No hay datos de percepción para este filtro.</p>
@@ -1674,7 +1709,7 @@ python -m percepcion.cli agregar`}
           </pre>
         </div>
       ) : (
-        <>
+        <div className="vista-entrar space-y-6">
           {/* AVISO DE MÉTODO. Es lo que resuelve el hallazgo de la auditoría: el
               mismo tema daba 58.7 acá y 64.3 en el Resumen —y "Organización
               estudiantil" cruzaba el neutro de una pestaña a otra— porque esta
@@ -2244,7 +2279,7 @@ python -m percepcion.cli agregar`}
 
             </>
           )}
-        </>
+        </div>
       )}
     </div>
   );

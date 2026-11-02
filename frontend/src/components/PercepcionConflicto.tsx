@@ -82,7 +82,7 @@ export function PercepcionConflicto({ filtro }: { filtro: Filtro }) {
   const color = data.consistente && tend ? COLOR_TENDENCIA[tend] : PALETA.neutro;
 
   return (
-    <div className={CARD} style={{ opacity: cargando ? 0.55 : 1 }} aria-busy={cargando}>
+    <div className={`${CARD} transition-opacity duration-200`} style={{ opacity: cargando ? 0.55 : 1 }} aria-busy={cargando}>
       <TituloBloque titulo="Conflicto: cuántos, no cuánto">
         El índice de arriba es un <strong>promedio de tono</strong>: sobre cientos de
         mensajes amables, una decena de mensajes duros no lo mueve. Acá va el volumen

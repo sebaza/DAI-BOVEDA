@@ -39,7 +39,7 @@ import {
   type ResumenSemanalResponse,
   type SemanaDisponible,
 } from "../lib/percepcion";
-import { CARD, TituloBloque, fechaCorta, nro } from "./PercepcionUI";
+import { CARD, Esqueleto, TituloBloque, fechaCorta, nro } from "./PercepcionUI";
 
 /** Umbral de evidencia del módulo. Debajo de esto la lectura es indicativa. */
 const N_MIN_EVIDENCIA = 30;
@@ -175,9 +175,7 @@ export function PercepcionResumenSemanal() {
 
   if (cargando && !data) {
     return (
-      <div className={CARD}>
-        <p className="py-4 text-center text-sm text-slate-500">Cargando resumen semanal…</p>
-      </div>
+      <Esqueleto etiqueta="Cargando resumen semanal…" bloques={[200]} />
     );
   }
   if (error && !data) {

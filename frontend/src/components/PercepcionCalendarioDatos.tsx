@@ -99,7 +99,7 @@ export function PercepcionCalendarioDatos() {
   }, [eventos, soloDisruptivos]);
 
   return (
-    <div className={CARD} style={{ opacity: cargando ? 0.55 : 1 }} aria-busy={cargando}>
+    <div className={`${CARD} transition-opacity duration-200`} style={{ opacity: cargando ? 0.55 : 1 }} aria-busy={cargando}>
       <TituloBloque titulo="Calendario cargado">
         Las causas registradas con las que se explica la percepción: matrículas,
         recesos, evaluaciones, titulaciones y movilizaciones, 2022–2026. Es el insumo

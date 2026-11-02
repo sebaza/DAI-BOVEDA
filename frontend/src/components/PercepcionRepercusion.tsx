@@ -69,7 +69,7 @@ export function PercepcionRepercusion({ filtro }: { filtro: Filtro }) {
   const hay = !!data && data.disponible && data.comentarios > 0;
 
   return (
-    <div className={CARD} style={{ opacity: cargando ? 0.55 : 1 }} aria-busy={cargando}>
+    <div className={`${CARD} transition-opacity duration-200`} style={{ opacity: cargando ? 0.55 : 1 }} aria-busy={cargando}>
       <TituloBloque titulo="Repercusión">
         Parte de los comentarios que etiquetan a otras personas: llaman a otros a la
         conversación.

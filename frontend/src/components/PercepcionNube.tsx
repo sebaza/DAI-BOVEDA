@@ -23,7 +23,7 @@ import { PALETA } from "@/lib/paleta";
 
 import type { Filtro, NubeResponse, PalabraNube } from "../lib/percepcion";
 import { esCancelacion, percepcionApi } from "../lib/percepcion";
-import { CARD, COLOR_NEG, COLOR_NEU, COLOR_POS, SELECT } from "./PercepcionUI";
+import { CARD, COLOR_NEG, Esqueleto, COLOR_NEU, COLOR_POS, SELECT } from "./PercepcionUI";
 
 type CriterioColor = "sentimiento" | "tema" | "mono";
 
@@ -384,9 +384,7 @@ export function PercepcionNube({ filtro }: { filtro: Filtro }) {
 
   if (!data && cargando) {
     return (
-      <div className={CARD}>
-        <p className="py-6 text-center text-sm text-slate-500">Cargando nube de palabras…</p>
-      </div>
+      <Esqueleto etiqueta="Cargando nube de palabras…" bloques={[320]} />
     );
   }
   if (error && !data) {
