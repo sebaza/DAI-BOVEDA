@@ -2,10 +2,9 @@
 // Modeled on the Torre's lib/api.ts (fetchAuthConfig / verifyGoogleCredential / devLogin /
 // fetchSessionUser) but trimmed to what this app needs.
 
-export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8012").replace(/\/+$/, "");
+import { API_BASE_URL, SESSION_TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from "./sesionClaves";
 
-export const SESSION_TOKEN_STORAGE_KEY = "boveda-dai-session-token";
-export const USER_STORAGE_KEY = "boveda-dai-user";
+export { API_BASE_URL, SESSION_TOKEN_STORAGE_KEY, USER_STORAGE_KEY };
 export const SESSION_CHANGED_EVENT = "boveda-session-changed";
 
 /**

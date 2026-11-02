@@ -726,6 +726,11 @@ function FiltroSelect({
  *
  * El generador del formulario es `scripts/crear_form_retroalimentacion_termometro.gs`.
  */
+// Build-time switch (see docs/github-pages.md). Declared in-file, with the literal
+// `process.env.NEXT_PUBLIC_MODO`, so the bundler folds it and drops the dead branches
+// (an imported constant is NOT folded across modules).
+const MODO_PAGES = process.env.NEXT_PUBLIC_MODO === "pages";
+
 const URL_RETROALIMENTACION = (process.env.NEXT_PUBLIC_PERCEPCION_FEEDBACK_URL ?? "").trim();
 
 interface PercepcionPanelProps {
@@ -862,7 +867,7 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
     const opts = { signal: ctrl.signal };
     percepcionApi.filtros(opts).then(setOpciones)
       .catch((e) => { if (!esCancelacion(e)) setOpciones(null); });
-    percepcionApi.scoringOpciones(opts).then(setOpcScoring).catch(() => undefined);
+    if (!MODO_PAGES) percepcionApi.scoringOpciones(opts).then(setOpcScoring).catch(() => undefined);
     percepcionApi.eventosTipos(opts).then((r) => setTiposEvento(r.items)).catch(() => undefined);
     return () => ctrl.abort();
   }, []);
@@ -954,6 +959,7 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
   };
 
   const abrirEdicion = (c: ComentarioReciente) => {
+    if (MODO_PAGES) return; // read-only: no sentiment/emotion correction in Pages
     setEditMsg(null);
     if (editId === c.id) { setEditId(null); return; }
     setEditId(c.id);
@@ -1256,16 +1262,24 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
   }, [eventos]);
   const [ajustesAbiertos, setAjustesAbiertos] = useState(false);
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
+  // Internal tabs: visibility only, the real gate lives in the backend. In the Pages build
+  // they are not even defined (the bundler folds the ternary).
+  const pestanasInternas: readonly {
+    id: "curacion" | "simulacion"; label: string; hint: string; interna: true; soloAdmin: boolean;
+  }[] = MODO_PAGES
+    ? []
+    : [
+        { id: "curacion", label: "Curación", hint: "¿Le puedo creer al modelo?", interna: true, soloAdmin: true },
+        { id: "simulacion", label: "Simulación", hint: "¿Qué pasaría si…? (en construcción)", interna: true, soloAdmin: false },
+      ];
   const pestanas = ([
     { id: "resumen", label: "Resumen", hint: "¿Cómo estamos?", interna: false, soloAdmin: false },
     // Only tab that looks forward; the hint says "antes" on purpose.
     { id: "alertas", label: "Alertas", hint: "¿Qué se viene?", interna: false, soloAdmin: false },
     { id: "comparar", label: "Comparar", hint: "¿Dónde está el problema?", interna: false, soloAdmin: false },
     { id: "conversacion", label: "Conversación", hint: "¿Qué se está diciendo?", interna: false, soloAdmin: false },
-    // Internal tabs: visibility only, the real gate lives in the backend.
-    { id: "curacion", label: "Curación", hint: "¿Le puedo creer al modelo?", interna: true, soloAdmin: true },
-    { id: "simulacion", label: "Simulación", hint: "¿Qué pasaría si…? (en construcción)", interna: true, soloAdmin: false },
-  ] as const).filter((v) => (!v.interna || equipoDai) && (!v.soloAdmin || administrador));
+    ...pestanasInternas,
+  ] as const).filter((v) => !(MODO_PAGES && v.interna) && (!v.interna || equipoDai) && (!v.soloAdmin || administrador));
   const ajustesCambiados = filtro.pesoLikes !== 1 || filtro.vidaMedia !== 30;
   const filtrosActivos =
     [filtro.sede, filtro.facultad, filtro.departamento, filtro.tema].filter(Boolean).length +
@@ -1619,7 +1633,7 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
         <PercepcionAlertas filtro={filtroEstable} />
       ) : vista === "comparar" ? (
         <PercepcionComparar filtro={filtroEstable} sub={subComp} onSub={setSubComp} />
-      ) : vista === "simulacion" && equipoDai ? (
+      ) : !MODO_PAGES && vista === "simulacion" && equipoDai ? (
         // Sin `filtro`: los bloques de simulación trabajan sobre la serie completa,
         // no sobre la ventana del tablero. Medir volatilidad o entrenar un baseline
         // con 30 días de datos no alcanza para separar señal de ruido.
@@ -1629,7 +1643,7 @@ export function PercepcionPanel({ onIrAFormulario }: PercepcionPanelProps = {}) 
         // tras el montaje), y una vista guardada o un salto interno podrían dejar
         // `vista` en una interna sin que nadie la haya elegido.
         <PercepcionSimulacion />
-      ) : vista === "curacion" && administrador ? (
+      ) : !MODO_PAGES && vista === "curacion" && administrador ? (
         <div className="space-y-4">
           {/* El ORDEN es deliberado y se conserva en las sub-pestañas: MEDIR →
               ANOTAR → CURAR. Primero se ve cuánto le erra el modelo, después se
@@ -1860,6 +1874,8 @@ python -m percepcion.cli agregar`}
                     );
                   })
                 )}
+                {/* Modo Pages: solo lectura, sin administración de marcas. */}
+                {MODO_PAGES ? null : (
                 <button
                   type="button"
                   onClick={() => { setAbmAbierto((v) => !v); if (!eventosTodos.length) void recargarEventos(); }}
@@ -1867,6 +1883,7 @@ python -m percepcion.cli agregar`}
                 >
                   {abmAbierto ? "Cerrar administración" : "Administrar marcas"}
                 </button>
+                )}
               </div>
               {/* Acá vivía un CHIP POR CADA EVENTO visible con su nombre y sus fechas.
                   Con el calendario académico cargado eran 112 chips debajo del gráfico,
@@ -1875,7 +1892,7 @@ python -m percepcion.cli agregar`}
                   una lista alfabética de fechas no deja ver cuándo se agrupan. */}
 
               {/* ABM de marcas: alta/edición + listado con borrar. */}
-              {abmAbierto ? (
+              {!MODO_PAGES && abmAbierto ? (
                 <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -1992,7 +2009,7 @@ python -m percepcion.cli agregar`}
               bloque nuevo no encuentra dónde ir.
               Solo se muestra con la administración abierta: es material de quien
               carga y audita el calendario, no de quien mira la curva. */}
-          {abmAbierto ? <PercepcionCalendarioDatos /> : null}
+          {!MODO_PAGES && abmAbierto ? <PercepcionCalendarioDatos /> : null}
 
           {/* COMENTARIOS pegado a EVOLUCIÓN, y no al fondo de la pestaña: el
               clic en un día del gráfico filtra ESTA lista. Antes estaban
@@ -2086,13 +2103,13 @@ python -m percepcion.cli agregar`}
               <ul className="mt-2 space-y-2">
                 {comentarios.map((c) => {
                   const color = c.sentimiento === "POS" ? COLOR_POS : c.sentimiento === "NEG" ? COLOR_NEG : COLOR_NEU;
-                  const editando = editId === c.id;
+                  const editando = !MODO_PAGES && editId === c.id;
                   return (
                     <li
                       key={c.id}
                       className={`rounded-md border bg-white/[0.02] p-3 transition ${editando ? "border-[color-mix(in_srgb,var(--portal-cyan)_40%,transparent)]" : "border-white/5 hover:border-white/15"}`}
                     >
-                      <div className="flex cursor-pointer items-start gap-3" onClick={() => abrirEdicion(c)} title="Clic para corregir sentimiento/emoción">
+                      <div className={`flex items-start gap-3 ${MODO_PAGES ? "" : "cursor-pointer"}`} onClick={() => abrirEdicion(c)} title={MODO_PAGES ? undefined : "Clic para corregir sentimiento/emoción"}>
                         <span
                           className="mt-0.5 shrink-0 rounded px-2 py-0.5 text-xs font-semibold"
                           style={{ background: color + "1f", color, border: `1px solid ${color}33` }}
@@ -2105,7 +2122,7 @@ python -m percepcion.cli agregar`}
                           {c.emocion_label ? <span className="rounded bg-white/[0.06] px-2 py-0.5">{labelEmocion(c.emocion, c.emocion_label)}</span> : null}
                           <span className="text-sm text-slate-500">neto {c.neto.toFixed(2)}</span>
                         </div>
-                        <span className="mt-0.5 shrink-0 text-sm text-slate-500">{editando ? "▲" : "✎"}</span>
+                        {MODO_PAGES ? null : <span className="mt-0.5 shrink-0 text-sm text-slate-500">{editando ? "▲" : "✎"}</span>}
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
                         <span>{c.fecha}</span>

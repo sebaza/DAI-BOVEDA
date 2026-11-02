@@ -1,12 +1,28 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 import { BovedaCabecera } from "../../components/BovedaCabecera";
 import { BovedaShell } from "../../components/BovedaShell";
 import { PaginaProtegida } from "../../components/PaginaProtegida";
 
-export default function PaginaPercepcion() {
+// Modo Pages: el tablero vive en "/" (no hay recibidor ni sesión); esta ruta solo redirige.
+function RedirigirAlInicio() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/");
+  }, [router]);
+  return null;
+}
+
+export default function Page() {
+  // Literal env expression on purpose: webpack prunes the dead branch BEFORE tracking imports.
+  return process.env.NEXT_PUBLIC_MODO === "pages" ? <RedirigirAlInicio /> : <PaginaPercepcion />;
+}
+
+function PaginaPercepcion() {
   return (
     <PaginaProtegida>
       {(usuario, cerrarSesion) =>

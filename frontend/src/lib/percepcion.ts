@@ -1,14 +1,36 @@
 // Cliente del feature Percepción (dashboard filtrable de percepción de la comunidad UCN).
 // Aislado: solo depende de ./session (token y usuario de la sesión de la Bóveda DAI).
-import { API_BASE_URL, SESSION_TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from "./session";
+import { API_PAGES_URL, limpiarToken, obtenerToken } from "./accesoPages";
+import { API_BASE_URL as API_LOCAL_URL, SESSION_TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from "./sesionClaves";
+
+// Build-time switch (see docs/github-pages.md). Declared in-file, with the literal
+// `process.env.NEXT_PUBLIC_MODO`, so the bundler folds it and drops the dead branches
+// (an imported constant is NOT folded across modules).
+const MODO_PAGES = process.env.NEXT_PUBLIC_MODO === "pages";
+
+// Modo Pages: datos desde wh-api con el token del PIN (sessionStorage), sin cookies.
+const API_BASE_URL = MODO_PAGES ? API_PAGES_URL : API_LOCAL_URL;
 
 function authHeaders(): Headers {
   const headers = new Headers();
   if (typeof window !== "undefined") {
-    const token = window.localStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
+    const token = MODO_PAGES ? obtenerToken() : window.localStorage.getItem(SESSION_TOKEN_STORAGE_KEY);
     if (token) headers.set("Authorization", `Bearer ${token}`);
   }
   return headers;
+}
+
+/**
+ * Error de una respuesta no exitosa. En modo Pages un 401/403 significa token vencido o
+ * revocado: se borra y la pantalla del PIN reaparece. Un 400 (validación en wh-api; FastAPI
+ * daba 422) sigue el mismo camino de error que cualquier otro.
+ */
+async function errorDeRespuesta(res: Response): Promise<Error> {
+  if (MODO_PAGES && (res.status === 401 || res.status === 403)) {
+    limpiarToken();
+    return new Error("Tu acceso venció. Ingresa el PIN nuevamente.");
+  }
+  return new Error((await res.text()) || `Error ${res.status}`);
 }
 
 /** Optional cancellation for read helpers (mutations are never cancelled). */
@@ -22,8 +44,8 @@ export function esCancelacion(e: unknown): boolean {
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   // no-store: el dashboard refleja datos vivos; sin esto el navegador cachea GETs
   // (p.ej. /filtros) y sigue mostrando una respuesta vieja tras cambiar el backend.
-  const res = await fetch(`${API_BASE_URL}${path}`, { headers: authHeaders(), cache: "no-store", signal });
-  if (!res.ok) throw new Error((await res.text()) || `Error ${res.status}`);
+  const res = await fetch(`${API_BASE_URL}${path}`, { headers: authHeaders(), cache: "no-store", signal, credentials: MODO_PAGES ? "omit" : undefined });
+  if (!res.ok) throw await errorDeRespuesta(res);
   return res.json() as Promise<T>;
 }
 
@@ -34,8 +56,9 @@ async function sendJson<T>(method: string, path: string, body?: unknown): Promis
     method, headers,
     body: body === undefined ? undefined : JSON.stringify(body),
     cache: "no-store",
+    credentials: MODO_PAGES ? "omit" : undefined,
   });
-  if (!res.ok) throw new Error((await res.text()) || `Error ${res.status}`);
+  if (!res.ok) throw await errorDeRespuesta(res);
   return res.json() as Promise<T>;
 }
 
@@ -46,7 +69,7 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 // ---- Quién está mirando ----
 /** Lee el usuario que la Bóveda guarda en localStorage al iniciar sesión. */
 function usuarioGuardado(): { is_admin?: unknown; role?: unknown; modulos?: unknown } | null {
-  if (typeof window === "undefined") return null;
+  if (MODO_PAGES || typeof window === "undefined") return null; // Pages: nunca hay usuario interno
   try {
     const raw = window.localStorage.getItem(USER_STORAGE_KEY);
     return raw ? (JSON.parse(raw) as { is_admin?: unknown; role?: unknown; modulos?: unknown }) : null;
@@ -727,13 +750,15 @@ export interface SintesisTema {
   n_comentarios: number;
   share_pct: number;
   indice: number | null;
-  confianza: number;
+  confianza: number | null;
   // n < n_min_evidencia ⇒ el índice es anecdótico. La UI DEBE marcarlo: sin esto
   // una fila de 7 comentarios se lee igual que una de 88.
   evidencia_suficiente: boolean;
-  n_pos: number;
-  n_neu: number;
-  n_neg: number;
+  /** wh-api: celda con pocos comentarios. Los campos de detalle vienen null / vacíos. */
+  detalle_suprimido?: boolean;
+  n_pos: number | null;
+  n_neu: number | null;
+  n_neg: number | null;
   emocion_dominante: EmocionDominante | null;
   areas_top: AreaBreve[];
   palabras_top: PalabraDestacada[];   // que se DICE literalmente en este tema
@@ -744,11 +769,13 @@ export interface SintesisArea {
   n_comentarios: number;
   share_pct: number;
   indice: number | null;
-  confianza: number;
+  confianza: number | null;
   evidencia_suficiente: boolean;
-  n_pos: number;
-  n_neu: number;
-  n_neg: number;
+  /** wh-api: celda con pocos comentarios. Los campos de detalle vienen null / vacíos. */
+  detalle_suprimido?: boolean;
+  n_pos: number | null;
+  n_neu: number | null;
+  n_neg: number | null;
   tema_dominante: TemaDominante | null;
   emocion_dominante: EmocionDominante | null;
   /** Reparto favorable / sin postura / adverso. null = la unidad no tiene datos. */
@@ -781,9 +808,11 @@ export interface SintesisResponse {
   global: {
     n_comentarios: number;
     indice: number | null;
-    confianza: number;
-    distribucion: Distribucion;
+    confianza: number | null;
+    distribucion: Distribucion | null;
     emocion_dominante: EmocionDominante | null;
+    /** wh-api: pocos comentarios en el global; indice/confianza/distribucion vienen null. */
+    detalle_suprimido?: boolean;
   } | null;
   nivel_area: string;
   orden: OrdenSintesis;
@@ -860,17 +889,19 @@ export interface TerminoFamilia {
   n_menciones: number;
   // El humor se SEPARA, no se descarta: el modelo detecta ironia mal y un
   // "jajaja paro" puede ser sarcasmo amargo. Fuera del calculo, dentro de la vista.
-  n_serio: number;
-  n_humor: number;
-  n_pos: number;
-  n_neu: number;
-  n_neg: number;
+  /** wh-api: pocas menciones; los campos de detalle vienen null y las listas vacías. */
+  detalle_suprimido?: boolean;
+  n_serio: number | null;
+  n_humor: number | null;
+  n_pos: number | null;
+  n_neu: number | null;
+  n_neg: number | null;
   indice: number | null;      // de los SERIOS: con que animo se habla de esto
   share_pct: number;
   temas: TerminoTema[];       // donde se esta hablando de esto
   primera_mencion: string | null;
   ultima_mencion: string | null;
-  n_anterior: number;
+  n_anterior: number | null;
   delta_menciones_pct: number | null;   // null = sin base previa
   es_nuevo: boolean;
   serie_semanal: TerminoSemana[];
@@ -1091,6 +1122,12 @@ export interface ResumenSemanalResponse {
 }
 
 // ---- API ----
+// Write / admin endpoints (curación, ABM de eventos, correcciones). In the Pages build they
+// fold to `undefined` so their code and URLs never reach the static bundle; the UI that calls
+// them is not rendered there either.
+// Callable that rejects, so a stray call degrades (caught) instead of throwing synchronously.
+const SOLO_LOCAL = (() => Promise.reject(new Error("solo disponible en modo local"))) as never;
+
 export const percepcionApi = {
   filtros: (opts?: ReqOpts): Promise<FiltrosResponse> => getJson<FiltrosResponse>("/percepcion/filtros", opts?.signal),
 
@@ -1127,7 +1164,7 @@ export const percepcionApi = {
     const p = new URLSearchParams({ nivel });
     if (dimension) p.set("dimension", dimension);
     if (semana) p.set("semana", semana);
-    if (forzar) p.set("forzar", "true");
+    if (forzar && !MODO_PAGES) p.set("forzar", "true"); // wh-api responde 403 a forzar
     return getJson<ResumenSemanalResponse>(`/percepcion/resumen-semanal?${p.toString()}`, opts?.signal);
   },
 
@@ -1229,11 +1266,11 @@ export const percepcionApi = {
     getJson<EventosResponse>("/percepcion/eventos/todos", opts?.signal),
   eventosTipos: (opts?: ReqOpts): Promise<{ items: TipoEventoOpcion[] }> =>
     getJson<{ items: TipoEventoOpcion[] }>("/percepcion/eventos/tipos", opts?.signal),
-  crearEvento: (payload: EventoPayload): Promise<EventoItem> =>
+  crearEvento: MODO_PAGES ? SOLO_LOCAL : (payload: EventoPayload): Promise<EventoItem> =>
     postJson<EventoItem>("/percepcion/eventos", payload),
-  actualizarEvento: (id: number, payload: EventoPayload): Promise<EventoItem> =>
+  actualizarEvento: MODO_PAGES ? SOLO_LOCAL : (id: number, payload: EventoPayload): Promise<EventoItem> =>
     sendJson<EventoItem>("PUT", `/percepcion/eventos/${id}`, payload),
-  eliminarEvento: (id: number): Promise<{ eliminado: boolean; id: number }> =>
+  eliminarEvento: MODO_PAGES ? SOLO_LOCAL : (id: number): Promise<{ eliminado: boolean; id: number }> =>
     sendJson<{ eliminado: boolean; id: number }>("DELETE", `/percepcion/eventos/${id}`),
 
   publicacionesDominantes: (f: Filtro, limite = 10, opts?: ReqOpts): Promise<PublicacionesDominantesResponse> =>
@@ -1260,23 +1297,23 @@ export const percepcionApi = {
     getJson<SubtemasResponse>("/percepcion/subtemas", opts?.signal),
   /** `null` (o en blanco) devuelve el subtema a su nombre automático. */
   /** `etiquetaAuto` is the automatic label on screen: if a rebuild changed it, the API answers 409. */
-  renombrarSubtema: (id: number, etiqueta: string | null, etiquetaAuto?: string): Promise<SubtemaItem> =>
+  renombrarSubtema: MODO_PAGES ? SOLO_LOCAL : (id: number, etiqueta: string | null, etiquetaAuto?: string): Promise<SubtemaItem> =>
     sendJson<SubtemaItem>("PUT", `/percepcion/curacion/subtemas/${id}`, { etiqueta, etiqueta_auto: etiquetaAuto }),
-  curacionTemas: (opts?: ReqOpts): Promise<{ items: TemaAsignable[] }> =>
+  curacionTemas: MODO_PAGES ? SOLO_LOCAL : (opts?: ReqOpts): Promise<{ items: TemaAsignable[] }> =>
     getJson<{ items: TemaAsignable[] }>("/percepcion/curacion/temas", opts?.signal),
-  curacionPublicaciones: (opts?: ReqOpts): Promise<{ items: PublicacionCurar[] }> =>
+  curacionPublicaciones: MODO_PAGES ? SOLO_LOCAL : (opts?: ReqOpts): Promise<{ items: PublicacionCurar[] }> =>
     getJson<{ items: PublicacionCurar[] }>("/percepcion/curacion/publicaciones", opts?.signal),
-  curacionComentarios: (opts?: ReqOpts): Promise<{ items: ComentarioCurar[] }> =>
+  curacionComentarios: MODO_PAGES ? SOLO_LOCAL : (opts?: ReqOpts): Promise<{ items: ComentarioCurar[] }> =>
     getJson<{ items: ComentarioCurar[] }>("/percepcion/curacion/comentarios", opts?.signal),
-  asignarTemaPublicacion: (id: number, tema: string): Promise<AsignarTemaResponse> =>
+  asignarTemaPublicacion: MODO_PAGES ? SOLO_LOCAL : (id: number, tema: string): Promise<AsignarTemaResponse> =>
     postJson<AsignarTemaResponse>(`/percepcion/curacion/publicacion/${id}`, { tema }),
-  asignarTemaComentario: (id: number, tema: string): Promise<AsignarTemaResponse> =>
+  asignarTemaComentario: MODO_PAGES ? SOLO_LOCAL : (id: number, tema: string): Promise<AsignarTemaResponse> =>
     postJson<AsignarTemaResponse>(`/percepcion/curacion/comentario/${id}`, { tema }),
-  crearTema: (etiqueta: string, keywords: string[]): Promise<TemaAsignable> =>
+  crearTema: MODO_PAGES ? SOLO_LOCAL : (etiqueta: string, keywords: string[]): Promise<TemaAsignable> =>
     postJson<TemaAsignable>("/percepcion/curacion/tema", { etiqueta, keywords }),
 
   // Corrección de sentimiento / emoción
-  scoringOpciones: (opts?: ReqOpts): Promise<OpcionesScoring> =>
+  scoringOpciones: MODO_PAGES ? SOLO_LOCAL : (opts?: ReqOpts): Promise<OpcionesScoring> =>
     getJson<OpcionesScoring>("/percepcion/curacion/scoring/opciones", opts?.signal),
   // `revisados`/`pendientes` los calcula el servidor sobre COMENTARIOS CUBIERTOS
   // (los cuatro campos anotados y el tema vigente), no sobre correcciones guardadas.
@@ -1297,7 +1334,7 @@ export const percepcionApi = {
   conflicto: (f: Filtro, opts?: ReqOpts): Promise<ConflictoResponse> =>
     getJson<ConflictoResponse>(`/percepcion/conflicto?${qs(f)}`, opts?.signal),
 
-  comentariosScoring: (
+  comentariosScoring: MODO_PAGES ? SOLO_LOCAL : (
     limite = 50, cf: ComentariosFiltro = {}, orden: OrdenScoring = "duda", opts?: ReqOpts,
   ): Promise<ColaScoring> => {
     const p = new URLSearchParams({ limite: String(limite), orden });
@@ -1307,25 +1344,25 @@ export const percepcionApi = {
   },
   // `origenMuestra` viaja con cada corrección: sin él no se puede separar después
   // lo anotado al azar (sirve para medir) de lo anotado por duda (no sirve).
-  corregirSentimiento: (
+  corregirSentimiento: MODO_PAGES ? SOLO_LOCAL : (
     id: number, valor: string, justificacion: string, origenMuestra?: OrdenScoring,
   ): Promise<CorregirResponse> =>
     postJson<CorregirResponse>(`/percepcion/curacion/sentimiento/${id}`,
       { valor, justificacion, origen_muestra: origenMuestra ?? null }),
-  corregirEmocion: (
+  corregirEmocion: MODO_PAGES ? SOLO_LOCAL : (
     id: number, valor: string, justificacion: string, origenMuestra?: OrdenScoring,
   ): Promise<CorregirResponse> =>
     postJson<CorregirResponse>(`/percepcion/curacion/emocion/${id}`,
       { valor, justificacion, origen_muestra: origenMuestra ?? null }),
   // OJO: no es `asignarTemaComentario`. Aquella PISA el tema sin dejar rastro; esta
   // registra la revisión, que es lo que permite medir el clasificador de temas.
-  corregirTema: (
+  corregirTema: MODO_PAGES ? SOLO_LOCAL : (
     id: number, valor: string, justificacion: string, origenMuestra?: OrdenScoring,
   ): Promise<CorregirResponse> =>
     postJson<CorregirResponse>(`/percepcion/curacion/tema/${id}`,
       { valor, justificacion, origen_muestra: origenMuestra ?? null }),
   // Dimensión EN OBSERVACIÓN: no toca el índice ni los hechos.
-  corregirPostura: (
+  corregirPostura: MODO_PAGES ? SOLO_LOCAL : (
     id: number, valor: string, justificacion: string, origenMuestra?: OrdenScoring,
   ): Promise<CorregirResponse> =>
     postJson<CorregirResponse>(`/percepcion/curacion/postura/${id}`,
@@ -1336,9 +1373,9 @@ export const percepcionApi = {
     getJson<ImpactoPalabrasResponse>(`/percepcion/impacto-palabras?${qs(f)}`, opts?.signal),
 
   // Calidad del modelo (A1)
-  calidad: (opts?: ReqOpts): Promise<CalidadResponse> =>
+  calidad: MODO_PAGES ? SOLO_LOCAL : (opts?: ReqOpts): Promise<CalidadResponse> =>
     getJson<CalidadResponse>("/percepcion/curacion/calidad", opts?.signal),
-  correcciones: (limite = 100, opts?: ReqOpts): Promise<{ items: CorreccionItem[] }> =>
+  correcciones: MODO_PAGES ? SOLO_LOCAL : (limite = 100, opts?: ReqOpts): Promise<{ items: CorreccionItem[] }> =>
     getJson<{ items: CorreccionItem[] }>(`/percepcion/curacion/correcciones?limite=${limite}`, opts?.signal),
 };
 

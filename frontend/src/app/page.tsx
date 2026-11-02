@@ -1,10 +1,11 @@
 "use client";
 
 import { LoginScreen } from "../components/LoginScreen";
+import { PaginaPages } from "../components/PaginaPages";
 import { Recibidor } from "../components/Recibidor";
 import { useSession } from "../lib/SessionProvider";
 
-export default function Page() {
+function PaginaLocal() {
   const { estado, alAutenticar, cerrarSesion } = useSession();
   if (estado.fase === "verificando") {
     return (
@@ -17,4 +18,10 @@ export default function Page() {
     return <LoginScreen aviso={estado.aviso} onAuthenticated={alAutenticar} />;
   }
   return <Recibidor usuario={estado.usuario} onCerrarSesion={cerrarSesion} />;
+}
+
+export default function Page() {
+  // Build-time switch: the other branch (and its imports) is dropped from the bundle.
+  // Literal env expression on purpose: webpack prunes the dead branch BEFORE tracking imports.
+  return process.env.NEXT_PUBLIC_MODO === "pages" ? <PaginaPages /> : <PaginaLocal />;
 }

@@ -107,13 +107,16 @@ function opcionAreas(areas: SintesisArea[], minimo: number): Record<string, unkn
 }
 
 /** Barras apiladas pos/neu/neg por tema, el más comentado abajo. */
-function opcionTemas(temas: SintesisTema[]): Record<string, unknown> {
-  const orden = [...temas].sort((a, b) => a.n_comentarios - b.n_comentarios);
+function opcionTemas(temas: SintesisTema[]): Record<string, unknown> | null {
+  // Temas con detalle suprimido no tienen n_pos/neu/neg: dibujarlos daría barras 0/0/0 falsas.
+  const visibles = temas.filter((t) => !t.detalle_suprimido);
+  if (visibles.length === 0) return null;
+  const orden = [...visibles].sort((a, b) => a.n_comentarios - b.n_comentarios);
   const serie = (key: "n_pos" | "n_neu" | "n_neg", color: string, nombre: string) => ({
     name: nombre,
     type: "bar",
     stack: "sent",
-    data: orden.map((t) => t[key]),
+    data: orden.map((t) => t[key] ?? 0),
     itemStyle: { color },
     barMaxWidth: 22,
   });
@@ -443,7 +446,7 @@ export function PercepcionComparar({
   }
 
   const min = data.n_min_evidencia;
-  const areasSinCobertura = data.areas.filter((a) => !a.evidencia_suficiente || a.confianza < 0.3);
+  const areasSinCobertura = data.areas.filter((a) => !a.detalle_suprimido && (!a.evidencia_suficiente || (a.confianza ?? 0) < 0.3));
 
   return (
     <div
@@ -560,10 +563,16 @@ export function PercepcionComparar({
                       </td>
                       <td className="py-1.5 pr-4 tabular-nums">{nro(a.n_comentarios)}</td>
                       <td className="py-1.5 pr-4">
-                        <BarraConfianza valor={a.confianza} />
+                        {a.confianza == null ? (
+                          <span className="text-slate-500">—</span>
+                        ) : (
+                          <BarraConfianza valor={a.confianza} />
+                        )}
                       </td>
                       <td className="py-1.5 pr-4">
-                        {a.indice == null && a.n_comentarios > 0 && filtro.vidaMedia > 0 ? (
+                        {a.detalle_suprimido ? (
+                          <span className="text-slate-500">Detalle oculto: pocos comentarios</span>
+                        ) : a.indice == null && a.n_comentarios > 0 && filtro.vidaMedia > 0 ? (
                           <SinActividadReciente dias={filtro.vidaMedia} />
                         ) : (
                           <span
@@ -584,12 +593,18 @@ export function PercepcionComparar({
                         {a.tema_dominante ? a.tema_dominante.etiqueta : "—"}
                       </td>
                       <td className="py-1.5 pr-4 text-slate-400">
-                        {a.emocion_dominante
-                          ? labelEmocion(a.emocion_dominante.emocion, a.emocion_dominante.etiqueta)
-                          : "—"}
+                        {a.detalle_suprimido
+                          ? "Detalle oculto: pocos comentarios"
+                          : a.emocion_dominante
+                            ? labelEmocion(a.emocion_dominante.emocion, a.emocion_dominante.etiqueta)
+                            : "—"}
                       </td>
                       <td className="py-1.5">
-                        <Palabras palabras={a.palabras_top} />
+                        {a.detalle_suprimido ? (
+                          <span className="text-sm text-slate-500">Detalle oculto: pocos comentarios</span>
+                        ) : (
+                          <Palabras palabras={a.palabras_top} />
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -644,13 +659,20 @@ export function PercepcionComparar({
           Este desglose no se acota por el filtro de tema (mostraría una sola fila).
         </TituloBloque>
 
-        {data.temas.length > 0 && optTemas ? (
+        {data.temas.length > 0 ? (
           <>
-            <EChartsChart
-              option={optTemas}
-              height={Math.max(180, data.temas.length * 40)}
-              ariaLabel="Sentimiento por tema"
-            />
+            {optTemas ? (
+              <EChartsChart
+                option={optTemas}
+                height={Math.max(180, data.temas.filter((t) => !t.detalle_suprimido).length * 40)}
+                ariaLabel="Sentimiento por tema"
+              />
+            ) : null}
+            {data.temas.some((t) => t.detalle_suprimido) ? (
+              <p className="mt-2 text-xs text-slate-500">
+                Los temas con detalle oculto (pocos comentarios) no aparecen en el gráfico.
+              </p>
+            ) : null}
             <div className="mt-3 space-y-2">
               {data.temas.map((t: SintesisTema) => (
                 <div key={t.tema} className="rounded-md border border-white/5 bg-white/[0.02] p-3">
@@ -666,7 +688,9 @@ export function PercepcionComparar({
                         ) : null}
                       </div>
                       <div className="mt-1 text-sm text-slate-400">
-                        {t.emocion_dominante ? (
+                        {t.detalle_suprimido ? (
+                          "Detalle oculto: pocos comentarios"
+                        ) : t.emocion_dominante ? (
                           <>
                             Predomina{" "}
                             <strong className="text-slate-400">
@@ -684,16 +708,18 @@ export function PercepcionComparar({
                           <> · sobre todo en {t.areas_top.map((a) => a.nombre).join(", ")}</>
                         ) : null}
                       </div>
-                      {t.palabras_top.length > 0 ? (
+                      {!t.detalle_suprimido && t.palabras_top.length > 0 ? (
                         <div className="mt-1.5">
                           <Palabras palabras={t.palabras_top} />
                         </div>
                       ) : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
-                      <span className="text-xs tabular-nums text-slate-500">
-                        {t.n_pos}/{t.n_neu}/{t.n_neg}
-                      </span>
+                      {t.detalle_suprimido ? null : (
+                        <span className="text-xs tabular-nums text-slate-500">
+                          {t.n_pos}/{t.n_neu}/{t.n_neg}
+                        </span>
+                      )}
                       <Indice valor={t.indice} evidencia={t.evidencia_suficiente} />
                     </div>
                   </div>

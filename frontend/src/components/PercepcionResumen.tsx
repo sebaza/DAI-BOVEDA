@@ -618,6 +618,9 @@ export function PercepcionResumen({
             </>
           ) : null}
         </div>
+        {g.distribucion === null ? (
+          <p className="mt-3 text-sm text-slate-500">Pocos comentarios: detalle oculto</p>
+        ) : (
         <div className="mt-3">
           <BarraSentimiento
             pos={g.distribucion.positivo}
@@ -640,6 +643,7 @@ export function PercepcionResumen({
             </span>
           </div>
         </div>
+        )}
         {/* La silueta va DENTRO del titular: un número sin su trayectoria no
             dice si estamos bien o si veníamos peor. */}
         {dest ? <ComoFueCambiando meses={dest.serie_mensual} /> : null}

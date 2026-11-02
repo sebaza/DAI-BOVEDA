@@ -101,6 +101,11 @@ function BotonSemana({
   );
 }
 
+// Build-time switch (see docs/github-pages.md). Declared in-file, with the literal
+// `process.env.NEXT_PUBLIC_MODO`, so the bundler folds it and drops the dead branches
+// (an imported constant is NOT folded across modules).
+const MODO_PAGES = process.env.NEXT_PUBLIC_MODO === "pages";
+
 export function PercepcionResumenSemanal() {
   const [data, setData] = useState<ResumenSemanalResponse | null>(null);
   const [semanas, setSemanas] = useState<SemanaDisponible[]>([]);
@@ -300,7 +305,7 @@ export function PercepcionResumenSemanal() {
             · sin datos nuevos, no se volvió a generar
           </span>
         ) : null}
-        {data.hay_datos ? (
+        {data.hay_datos && !MODO_PAGES ? (
           <button
             type="button"
             onClick={() => void cargar(true)}

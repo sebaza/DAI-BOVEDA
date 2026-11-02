@@ -140,19 +140,38 @@ function SenalesVigilancia({ data, vidaMedia }: { data: TerminosResponse; vidaMe
             {g.n_humor > 0 ? `, ${g.n_humor} en tono de broma` : ""}.
           </p>
           <ul className="space-y-2">
-            {data.familias.map((f) => (
+            {data.familias.map((f) => {
+              // Piso de privacidad (wh-api): con pocas menciones solo se publica el conteo.
+              if (f.detalle_suprimido) {
+                return (
+                  <li key={f.clave} className="rounded-md border border-white/5 bg-white/[0.02] p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-100">{f.etiqueta}</span>
+                      <span className="text-lg font-bold tabular-nums" style={{ color: COLOR_COPPER }}>
+                        {f.n_menciones}
+                      </span>
+                      <span className="text-sm text-slate-500">
+                        {f.n_menciones === 1 ? "mención" : "menciones"}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-500">Pocas menciones: detalle oculto por privacidad</p>
+                  </li>
+                );
+              }
+              const nSerio = f.n_serio ?? 0;
+              return (
               <li key={f.clave} className="rounded-md border border-white/5 bg-white/[0.02] p-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-semibold text-slate-100">{f.etiqueta}</span>
                       <span className="text-lg font-bold tabular-nums" style={{ color: COLOR_COPPER }}>
-                        {f.n_serio}
+                        {nSerio}
                       </span>
                       <span className="text-sm text-slate-500">
-                        {f.n_serio === 1 ? "mención en serio" : "menciones en serio"}
+                        {nSerio === 1 ? "mención en serio" : "menciones en serio"}
                       </span>
-                      {f.n_humor > 0 ? (
+                      {(f.n_humor ?? 0) > 0 ? (
                         <span
                           className="rounded border border-white/10 px-2 py-0.5 text-xs text-slate-500"
                           title="El modelo las leyó como humor o ironía. No entran en el cálculo, pero se muestran: la ironía se detecta mal y puede ser sarcasmo amargo."
@@ -180,15 +199,15 @@ function SenalesVigilancia({ data, vidaMedia }: { data: TerminosResponse; vidaMe
                   <div className="flex shrink-0 items-center gap-4">
                     <Sparkline semanas={f.serie_semanal} />
                     <Delta valor={f.delta_menciones_pct} sufijo="%" titulo="volumen" />
-                    <Indice valor={f.indice} evidencia={f.n_serio > 0} />
+                    <Indice valor={f.indice} evidencia={nSerio > 0} />
                   </div>
                 </div>
 
-                {f.n_serio > 0 ? (
+                {nSerio > 0 ? (
                   <div className="mt-2 flex items-center gap-3">
-                    <BarraSentimiento pos={f.n_pos} neu={f.n_neu} neg={f.n_neg} />
+                    <BarraSentimiento pos={f.n_pos ?? 0} neu={f.n_neu ?? 0} neg={f.n_neg ?? 0} />
                     <span className="shrink-0 text-xs tabular-nums text-slate-500">
-                      {f.n_pos}/{f.n_neu}/{f.n_neg}
+                      {f.n_pos ?? 0}/{f.n_neu ?? 0}/{f.n_neg ?? 0}
                     </span>
                   </div>
                 ) : null}
@@ -235,7 +254,8 @@ function SenalesVigilancia({ data, vidaMedia }: { data: TerminosResponse; vidaMe
                   </>
                 ) : null}
               </li>
-            ))}
+              );
+            })}
           </ul>
           <p className="mt-3 text-sm leading-4 text-slate-500">
             Por privacidad, los comentarios se muestran como etiquetas (sentimiento, tema, emoción), sin texto ni autor. El léxico está versionado en

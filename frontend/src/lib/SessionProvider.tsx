@@ -24,7 +24,14 @@ interface SessionContextValue {
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
+/** Pages mode has no Google session: it renders the children untouched. */
 export function SessionProvider({ children }: { children: ReactNode }) {
+  // Literal env expression on purpose: the bundler folds it before analyzing imports, so the
+  // Google session client (and its /auth endpoints) never reaches the Pages bundle.
+  return process.env.NEXT_PUBLIC_MODO === "pages" ? <>{children}</> : <SessionProviderLocal>{children}</SessionProviderLocal>;
+}
+
+function SessionProviderLocal({ children }: { children: ReactNode }) {
   const [estado, setEstado] = useState<Estado>({ fase: "verificando" });
 
   // On load: if there is a stored token, re-validate it against the backend. The backend
