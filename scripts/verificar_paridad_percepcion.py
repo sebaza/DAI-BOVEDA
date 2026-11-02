@@ -198,6 +198,10 @@ def main(argv: list[str] | None = None) -> int:
                     help="Con --guardar-referencia: toma la referencia de ESTE Postgres (p. ej. la Bóveda "
                          "actual, ANTES de pasar al almacén) en vez del SQLite; no se imprime. "
                          "Después, --contra-referencia + --postgres apuntando al almacén.")
+    ap.add_argument("--referencia-publica", type=Path, default=None, metavar="ARCHIVO",
+                    help="Como --guardar-referencia, pero solo endpoints públicos (sin /curacion) y con "
+                         "ruta y params de cada llamada: es la referencia para portar la API a wh-api. "
+                         "Usa --referencia-desde-postgres o el SQLite.")
     ap.add_argument("--contra-referencia", type=Path, default=None, metavar="ARCHIVO",
                     help="Compara el Postgres (cálculo sobre tokens precalculados) contra una referencia "
                          "guardada antes con --guardar-referencia: prueba que refactorizar no cambió resultados.")
@@ -210,6 +214,8 @@ def main(argv: list[str] | None = None) -> int:
             pass
 
     url_pg = args.postgres or os.environ.get("PERCEPCION_DATABASE_URL", "").strip()
+    if args.referencia_publica:
+        args.guardar_referencia = args.referencia_publica
     if not args.guardar_referencia and not url_pg.startswith("postgresql"):
         print("Falta la URL de Postgres: pasa --postgres o define PERCEPCION_DATABASE_URL.", file=sys.stderr)
         return 2
@@ -228,14 +234,14 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return _comparar(args.sqlite, url_pg, args.esquema,
                          guardar=args.guardar_referencia, referencia=args.contra_referencia,
-                         origen_pg=args.referencia_desde_postgres)
+                         origen_pg=args.referencia_desde_postgres, publica=args.referencia_publica)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
 def _comparar(ruta_sqlite: Path, url_pg: str, esquema: str, *,
               guardar: Path | None = None, referencia: Path | None = None,
-              origen_pg: str | None = None) -> int:
+              origen_pg: str | None = None, publica: Path | None = None) -> int:
     from fastapi.testclient import TestClient
     from sqlalchemy.orm import sessionmaker
 
@@ -308,6 +314,16 @@ def _comparar(ruta_sqlite: Path, url_pg: str, esquema: str, *,
         if estado != 200 or not isinstance(filtros, dict):
             print(f"No se pudieron leer los filtros del SQLite (HTTP {estado}).", file=sys.stderr)
             return 1
+        if publica:
+            # Para portar la API a otro lenguaje: ruta, params y respuesta de cada endpoint
+            # PÚBLICO. Sin /curacion (devuelve texto de comentarios) ni /resumen-semanal (LLM).
+            volcado = {n: {"ruta": r, "params": p, "estado": (res := pedir("sqlite", r, p))[0],
+                           "json": res[1]}
+                       for n, r, p in _endpoints(filtros) if "/curacion/" not in r}
+            publica.write_text(json.dumps(volcado, default=str, ensure_ascii=False), encoding="utf-8")
+            malos = [n for n, v in volcado.items() if v["estado"] != 200]
+            print(f"Referencia pública guardada: {len(volcado)} endpoints, {len(malos)} con HTTP != 200.")
+            return 1 if malos else 0
         if guardar:
             volcado = {n: pedir("sqlite", r, p) for n, r, p in _endpoints(filtros)}
             guardar.write_text(json.dumps(volcado, default=str), encoding="utf-8")
