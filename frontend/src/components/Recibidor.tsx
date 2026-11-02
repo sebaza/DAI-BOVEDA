@@ -74,8 +74,16 @@ function Compartimento({ modulo, mostrarRol }: { modulo: ModuloAcceso; mostrarRo
   );
 }
 
-export function Recibidor({ usuario, onCerrarSesion }: { usuario: AuthUser; onCerrarSesion: () => void }) {
-  const nombre = usuario.name || usuario.email;
+interface RecibidorProps {
+  /** Sesión de Google (modo local). Sin ella (modo Pages) se usan `modulos` y no se muestran roles. */
+  usuario?: AuthUser;
+  modulos?: ModuloAcceso[];
+  onCerrarSesion: () => void;
+}
+
+export function Recibidor({ usuario, modulos: modulosSinSesion = [], onCerrarSesion }: RecibidorProps) {
+  const modulos = usuario ? usuario.modulos : modulosSinSesion;
+  const saludo = usuario ? `Te damos la bienvenida, ${usuario.name || usuario.email}` : "Te damos la bienvenida";
   return (
     <div className="flex min-h-screen flex-col">
       <BovedaCabecera usuario={usuario} onCerrarSesion={onCerrarSesion} />
@@ -84,16 +92,16 @@ export function Recibidor({ usuario, onCerrarSesion }: { usuario: AuthUser; onCe
           <BovedaEmblema size={64} />
           <p className="boveda-kicker mt-5">Recibidor</p>
           <h1 className="portal-title mt-2 max-w-full break-words text-3xl font-bold text-[var(--portal-fg)] md:text-4xl">
-            Te damos la bienvenida, {nombre}
+            {saludo}
           </h1>
           <p className="mt-3 max-w-xl text-base text-[var(--portal-muted)]">
             Elige un compartimento para entrar. Cada módulo guarda información reservada a la dirección
             universitaria.
           </p>
-          {usuario.is_admin ? <p className="portal-pill mt-4">Acceso de administración</p> : null}
+          {usuario?.is_admin ? <p className="portal-pill mt-4">Acceso de administración</p> : null}
         </div>
 
-        {usuario.modulos.length === 0 ? (
+        {modulos.length === 0 ? (
           <div className="boveda-madera boveda-baul mx-auto mt-10 max-w-lg text-center">
             <FrenteBaul />
             <div className="boveda-baul-interno">
@@ -108,9 +116,9 @@ export function Recibidor({ usuario, onCerrarSesion }: { usuario: AuthUser; onCe
           </div>
         ) : (
           <div className="mx-auto mt-10 flex max-w-4xl flex-wrap justify-center gap-5">
-            {usuario.modulos.map((m) => (
+            {modulos.map((m) => (
               <div key={m.id} className="w-full max-w-md sm:w-[calc(50%-0.625rem)] lg:w-[calc(33.333%-0.85rem)]">
-                <Compartimento modulo={m} mostrarRol={!usuario.is_admin} />
+                <Compartimento modulo={m} mostrarRol={usuario ? !usuario.is_admin : false} />
               </div>
             ))}
           </div>

@@ -2,17 +2,22 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { BovedaEmblema } from "./BovedaEmblema";
+import { BovedaCabecera } from "./BovedaCabecera";
 import { PercepcionPanel } from "./PercepcionPanel";
 import { PinScreen } from "./PinScreen";
+import { Recibidor } from "./Recibidor";
 import { ACCESO_CAMBIO_EVENT, limpiarToken, obtenerToken, vencimientoToken } from "../lib/accesoPages";
+import type { ModuloAcceso } from "../lib/session";
 
 type Estado = { fase: "verificando" } | { fase: "sin_acceso"; aviso?: string } | { fase: "activo" };
 
 const MAX_TIMEOUT_MS = 2_000_000_000; // setTimeout overflows past ~24.8 days
 
-/** Modo Pages: PIN -> token en sessionStorage -> tablero de solo lectura. */
-export function PaginaPages() {
+// The PIN opens every module listed here (no per-person roles in Pages mode); `rol` is not shown.
+const MODULOS_PAGES: ModuloAcceso[] = [{ id: "percepcion", nombre: "Termómetro Institucional", rol: "lector" }];
+
+/** Modo Pages: PIN -> token en sessionStorage -> recibidor (`/`) o un módulo de solo lectura. */
+export function PaginaPages({ modulo }: { modulo?: "percepcion" }) {
   const [estado, setEstado] = useState<Estado>({ fase: "verificando" });
   const [huboAcceso, setHuboAcceso] = useState(false);
 
@@ -51,26 +56,14 @@ export function PaginaPages() {
   if (estado.fase === "sin_acceso") {
     return <PinScreen aviso={huboAcceso ? estado.aviso : undefined} />;
   }
+  const salir = () => {
+    limpiarToken({ silencioso: true });
+    setEstado({ fase: "sin_acceso" }); // voluntary exit: no "expired" notice
+  };
+  if (!modulo) return <Recibidor modulos={MODULOS_PAGES} onCerrarSesion={salir} />;
   return (
     <div className="min-h-screen">
-      <header className="boveda-banda sticky top-0 z-30 h-16">
-        <div className="mx-auto flex h-full max-w-[1500px] items-center justify-between gap-3 px-4 pb-2 md:px-6">
-          <div className="portal-title flex items-center gap-2 text-lg font-bold tracking-tight text-[var(--portal-fg)]">
-            <BovedaEmblema size={28} />
-            <span className="whitespace-nowrap">Termómetro Institucional</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              limpiarToken({ silencioso: true });
-              setEstado({ fase: "sin_acceso" }); // voluntary exit: no "expired" notice
-            }}
-            className="rounded border border-[color-mix(in_srgb,var(--boveda-laton)_40%,transparent)] whitespace-nowrap px-3 py-2 text-sm font-semibold text-[var(--portal-muted)] transition hover:bg-white/[0.06] hover:text-[var(--portal-fg)]"
-          >
-            Salir
-          </button>
-        </div>
-      </header>
+      <BovedaCabecera onCerrarSesion={salir} modulo="Termómetro Institucional" />
       <main className="mx-auto max-w-[1500px] px-4 py-6 md:px-6">
         <PercepcionPanel />
       </main>

@@ -7,14 +7,15 @@ import { rolDelUsuario } from "../lib/roles";
 import type { AuthUser } from "../lib/session";
 
 interface BovedaCabeceraProps {
-  usuario: AuthUser;
+  /** Sin usuario (modo Pages, acceso por PIN) se omite la identidad y el botón dice "Salir". */
+  usuario?: AuthUser;
   onCerrarSesion: () => void;
   /** Nombre del módulo abierto; en el recibidor se omite. */
   modulo?: string;
 }
 
 export function BovedaCabecera({ usuario, onCerrarSesion, modulo }: BovedaCabeceraProps) {
-  const rol = rolDelUsuario(usuario);
+  const rol = usuario ? rolDelUsuario(usuario) : null;
   return (
     <header className="boveda-banda sticky top-0 z-30 h-16">
       <div className="mx-auto flex h-full max-w-[1500px] items-center justify-between gap-3 px-4 pb-2 md:px-6">
@@ -29,19 +30,21 @@ export function BovedaCabecera({ usuario, onCerrarSesion, modulo }: BovedaCabece
           </Link>
         </div>
         <div className="flex items-center gap-3">
-          <div className="hidden text-right leading-tight sm:block">
-            <p className="text-sm font-semibold text-[var(--portal-fg)]">{usuario.name || usuario.email}</p>
-            <p className="text-xs text-[var(--portal-subtle)]">
-              {usuario.email}
-              {rol ? ` · ${rol}` : ""}
-            </p>
-          </div>
+          {usuario ? (
+            <div className="hidden text-right leading-tight sm:block">
+              <p className="text-sm font-semibold text-[var(--portal-fg)]">{usuario.name || usuario.email}</p>
+              <p className="text-xs text-[var(--portal-subtle)]">
+                {usuario.email}
+                {rol ? ` · ${rol}` : ""}
+              </p>
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={onCerrarSesion}
             className="rounded border border-[color-mix(in_srgb,var(--boveda-laton)_40%,transparent)] whitespace-nowrap px-3 py-2 text-sm font-semibold text-[var(--portal-muted)] transition hover:bg-white/[0.06] hover:text-[var(--portal-fg)]"
           >
-            Cerrar sesión
+            {usuario ? "Cerrar sesión" : "Salir"}
           </button>
         </div>
       </div>

@@ -58,6 +58,8 @@ ignora): no hay protección contra incrustación (clickjacking) en Pages.
 - Acceso: pantalla de clave -> `POST /percepcion/acceso`. El token (Bearer) vive en `sessionStorage`
   junto con su vencimiento; al vencer, o ante un 401/403 de cualquier consulta, se borra y vuelve
   la pantalla de clave. "Salir" lo borra a mano. No se usan cookies.
+- Rutas: `/` es el recibidor (un compartimento por módulo, de la lista `MODULOS_PAGES` en
+  `PaginaPages.tsx`; la clave abre todos) y `/percepcion/` es el Termómetro. Ambas piden la clave.
 - Pestañas visibles: Resumen, Alertas, Comparar y Conversación.
 - Excluido (y fuera del bundle): Curación (calidad, revisión, temas, subtemas), Simulación,
   administración de marcas de contexto (crear/editar/borrar eventos), login de Google, dev-login y
