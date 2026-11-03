@@ -794,5 +794,48 @@ class TestSeleccionDeModelo(unittest.TestCase):
                 self.assertIn(modelo, PRECIOS_LLM_DEFAULT)
 
 
+class TestSoloSemanasCompletas(unittest.TestCase):
+    """`generar_tras_ingesta(solo_completas=True)` no resume la semana que aún no termina."""
+
+    def _correr(self, *, ultima: date, hoy: date, semanas: int, solo_completas: bool) -> list[str]:
+        pedidas: list[str] = []
+
+        def falso_resumen(db, wdb, *, semana_inicio, **kw):
+            pedidas.append(str(semana_inicio))
+            return {"hay_datos": True, "texto": "x", "desde_cache": True,
+                    "n_comentarios": 1, "costo_usd": 0.0, "aviso": None}
+
+        sesion = mock.MagicMock()
+        with mock.patch("app.services.percepcion.db.PercepcionSessionLocal", return_value=sesion), \
+             mock.patch("app.services.percepcion.db.PercepcionWriteSessionLocal", return_value=sesion), \
+             mock.patch("app.services.percepcion.db.PercepcionProcesoSessionLocal", return_value=sesion), \
+             mock.patch.object(resumen_llm, "ultima_semana", return_value=ultima), \
+             mock.patch.object(resumen_llm, "resumen_semanal", side_effect=falso_resumen):
+            resumen_llm.generar_tras_ingesta(semanas=semanas, solo_completas=solo_completas, hoy=hoy)
+        return pedidas
+
+    def test_lunes_con_datos_de_esa_manana_salta_la_semana_en_curso(self):
+        # Datos hasta el lunes 2026-11-02 (semana en curso); hoy es ese mismo lunes.
+        pedidas = self._correr(ultima=date(2026, 11, 2), hoy=date(2026, 11, 2),
+                               semanas=2, solo_completas=True)
+        self.assertEqual(pedidas, ["2026-10-26", "2026-10-19"])
+
+    def test_semana_cerrada_el_domingo_se_resume_desde_el_lunes(self):
+        # Última semana con datos: la del 26/10, que terminó el domingo 01/11.
+        pedidas = self._correr(ultima=date(2026, 10, 26), hoy=date(2026, 11, 2),
+                               semanas=1, solo_completas=True)
+        self.assertEqual(pedidas, ["2026-10-26"])
+
+    def test_domingo_todavia_es_semana_en_curso(self):
+        pedidas = self._correr(ultima=date(2026, 10, 26), hoy=date(2026, 11, 1),
+                               semanas=1, solo_completas=True)
+        self.assertEqual(pedidas, ["2026-10-19"])
+
+    def test_sin_la_opcion_se_resume_la_ultima_con_datos(self):
+        pedidas = self._correr(ultima=date(2026, 11, 2), hoy=date(2026, 11, 2),
+                               semanas=1, solo_completas=False)
+        self.assertEqual(pedidas, ["2026-11-02"])
+
+
 if __name__ == "__main__":
     unittest.main()

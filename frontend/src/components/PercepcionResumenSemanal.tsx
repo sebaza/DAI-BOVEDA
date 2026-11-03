@@ -74,12 +74,15 @@ function BotonSemana({
   // Ir a una semana sin resumen escrito dispara una llamada al modelo. Son
   // milésimas de dólar, pero el usuario tiene que poder saberlo ANTES del clic:
   // un botón que gasta plata sin decirlo es una trampa, por barato que sea.
-  const generara = Boolean(destino && !destino.tiene_resumen);
+  // En el sitio público nunca se redacta: una semana sin resumen solo se muestra sin texto.
+  const generara = !MODO_PAGES && Boolean(destino && !destino.tiene_resumen);
   const titulo = !destino
     ? (atras ? "No hay semanas anteriores con datos" : "Ya está en la más reciente")
     : `${atras ? "Semana anterior" : "Semana siguiente"}: ${destino.semana}` +
       ` · ${destino.n_comentarios} comentarios` +
-      (generara ? " · se va a redactar (tiene costo)" : " · ya está redactada");
+      (MODO_PAGES
+        ? (destino.tiene_resumen ? " · con resumen" : " · sin resumen todavía")
+        : (generara ? " · se va a redactar (tiene costo)" : " · ya está redactada"));
 
   return (
     <button
@@ -111,6 +114,9 @@ export function PercepcionResumenSemanal() {
   const [semanas, setSemanas] = useState<SemanaDisponible[]>([]);
   // `null` = la última con datos. Se guarda el lunes en ISO, igual que el backend.
   const [semana, setSemana] = useState<string | null>(null);
+  // Sitio público: se espera el catálogo para abrir en la última semana YA resumida (la
+  // semana en curso no tiene resumen hasta que termina). En local no se espera.
+  const [catalogoListo, setCatalogoListo] = useState(!MODO_PAGES);
   const [cargando, setCargando] = useState(false);
   const [regenerando, setRegenerando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -123,11 +129,17 @@ export function PercepcionResumenSemanal() {
     void (async () => {
       try {
         const r = await percepcionApi.semanasResumen("global", null, 260, { signal: ctrl.signal });
-        if (!ctrl.signal.aborted) setSemanas(r.semanas);
+        if (ctrl.signal.aborted) return;
+        setSemanas(r.semanas);
+        if (MODO_PAGES) {
+          const resumida = r.semanas.find((s) => s.tiene_resumen);
+          if (resumida) setSemana(resumida.semana);
+        }
       } catch {
         // Sin catálogo el bloque sigue mostrando la última semana; solo se pierden
         // las flechas. No es motivo para vaciar la pantalla.
       }
+      if (!ctrl.signal.aborted) setCatalogoListo(true);
     })();
     return () => ctrl.abort();
   }, []);
@@ -155,8 +167,8 @@ export function PercepcionResumenSemanal() {
   );
 
   useEffect(() => {
-    void cargar();
-  }, [cargar]);
+    if (catalogoListo) void cargar();
+  }, [cargar, catalogoListo]);
 
   // Índice de la semana mostrada dentro del catálogo (0 = la más reciente).
   // Con `semana === null` el backend eligió la última, que es el índice 0.
@@ -167,6 +179,8 @@ export function PercepcionResumenSemanal() {
   // se nombra por el TIEMPO y no por la posición.
   const masVieja = enCatalogo ? semanas[idx + 1] : undefined;
   const masNueva = enCatalogo && idx > 0 ? semanas[idx - 1] : undefined;
+  // "hoy": en local, la última con datos (null); en el sitio público, la última ya resumida.
+  const ultimaResumida = MODO_PAGES ? (semanas.find((s) => s.tiene_resumen)?.semana ?? null) : null;
 
   const irA = (destino?: SemanaDisponible) => {
     if (!destino || cargando || regenerando) return;
@@ -213,8 +227,8 @@ export function PercepcionResumenSemanal() {
                     hacia atrás, y encontrarlo a fuerza de flechas es tedioso. */}
                 <button
                   type="button"
-                  onClick={() => setSemana(null)}
-                  disabled={idx === 0 || cargando || regenerando}
+                  onClick={() => setSemana(ultimaResumida)}
+                  disabled={(MODO_PAGES ? semana === ultimaResumida : idx === 0) || cargando || regenerando}
                   className="toque rounded border border-white/10 px-2 py-0.5 text-xs text-slate-400 transition hover:border-white/25 hover:text-slate-100 disabled:opacity-30"
                   title="Volver a la última semana con datos"
                 >
@@ -263,7 +277,9 @@ export function PercepcionResumenSemanal() {
         </div>
       ) : (
         <p className="py-2 text-sm text-slate-500">
-          {data.aviso ?? "Todavía no hay resumen para esta semana."}
+          {MODO_PAGES
+            ? "El resumen de esta semana se publica cuando la semana termina."
+            : (data.aviso ?? "Todavía no hay resumen para esta semana.")}
         </p>
       )}
 

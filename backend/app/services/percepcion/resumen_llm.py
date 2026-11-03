@@ -1022,7 +1022,8 @@ def resumen_semanal(db, write_db, *, semana_inicio: date | None = None,
     return base
 
 
-def generar_tras_ingesta(*, semanas: int = 1, forzar: bool = False) -> dict:
+def generar_tras_ingesta(*, semanas: int = 1, forzar: bool = False,
+                         solo_completas: bool = False, hoy: date | None = None) -> dict:
     """Entry point para disparar la generación DESPUÉS de una ingesta.
 
     Es lo que llama `POST /ai-tasks/run/percepcion-resumen`, que a su vez es lo que
@@ -1044,6 +1045,11 @@ def generar_tras_ingesta(*, semanas: int = 1, forzar: bool = False) -> dict:
 
     `semanas` regenera hacia atrás desde la última con datos: 1 = solo la última.
     Útil cuando una ingesta trae comentarios viejos y mueve semanas ya resumidas.
+
+    `solo_completas` omite la semana en curso (la que aún no termina el domingo según
+    `hoy`, por defecto la fecha local): una ingesta del lunes trae los comentarios de esa
+    misma mañana y, sin esto, se resumiría una semana de pocas horas que el lunes
+    siguiente habría que pagar de nuevo.
     """
     from app.services.percepcion.db import (
         PercepcionProcesoSessionLocal,
@@ -1059,6 +1065,11 @@ def generar_tras_ingesta(*, semanas: int = 1, forzar: bool = False) -> dict:
         if ultima is None:
             return {"status": "skipped", "fuente": "percepcion-resumen",
                     "reason": "no hay datos de percepción todavía.", "generados": 0}
+        if solo_completas:
+            # Una semana está completa cuando ya pasó su domingo: lunes + 7 <= hoy.
+            hoy = hoy or date.today()
+            while ultima + timedelta(days=7) > hoy:
+                ultima -= timedelta(days=7)
         resultados = []
         for i in range(max(1, int(semanas))):
             semana = ultima - timedelta(days=7 * i)

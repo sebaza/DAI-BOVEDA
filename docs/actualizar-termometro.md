@@ -79,9 +79,14 @@ anterior. Necesita `backend/requirements-ml.txt` instalado.
 backend\.venv\Scripts\python.exe -I scripts\generar_resumen_percepcion.py --semanas 2
 ```
 
-- Revisa las últimas 2 semanas con datos (la ingesta trae 14 días hacia atrás, así que puede mover
-  la semana anterior). Solo llama al modelo en las semanas cuyos datos cambiaron; el resto sale de
-  caché y cuesta 0. Cada resumen cuesta menos de un centavo de dólar.
+- Las semanas van de **lunes a domingo**. Solo se resumen semanas **terminadas**: la semana en
+  curso se omite (`--incluir-en-curso` la incluye). Por eso conviene ingestar el **lunes**: la
+  semana anterior ya cerró y queda resumida completa.
+- Revisa las últimas 2 semanas terminadas (la ingesta trae 14 días hacia atrás, así que puede mover
+  la anterior). Solo llama al modelo en las semanas cuyos datos cambiaron; el resto sale de caché y
+  cuesta 0. Cada resumen cuesta menos de un centavo de dólar.
+- El sitio público abre en la última semana que ya tiene resumen; la semana en curso aparece como
+  "se publica cuando la semana termina".
 - Necesita `ANTHROPIC_API_KEY` (u `OPENAI_API_KEY`) en `backend/.env`. Sin ella imprime el aviso
   "no hay ANTHROPIC_API_KEY ni OPENAI_API_KEY" y no genera nada.
 - `--forzar` vuelve a pagar aunque nada haya cambiado: solo para cuando cambia el prompt.

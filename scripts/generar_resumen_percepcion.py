@@ -2,8 +2,10 @@
 
 QUÉ HACE
 --------
-Llama a `resumen_llm.generar_tras_ingesta` sobre las últimas `--semanas` semanas con datos
-(nivel universidad). Para cada una compara la huella de sus insumos con la guardada: si los datos
+Llama a `resumen_llm.generar_tras_ingesta` sobre las últimas `--semanas` semanas COMPLETAS
+(lunes a domingo, ya terminadas; nivel universidad). La semana en curso se omite: una ingesta
+del lunes trae comentarios de esa mañana y no tiene sentido resumir unas pocas horas
+(`--incluir-en-curso` la incluye). Para cada semana compara la huella de sus insumos con la guardada: si los datos
 no cambiaron, devuelve el resumen en caché y NO llama al modelo (costo 0). Solo paga por las
 semanas cuyos datos cambiaron con la ingesta. `--forzar` paga de nuevo aunque nada haya cambiado
 (solo para cuando cambia el prompt).
@@ -34,7 +36,9 @@ if str(BACKEND) not in sys.path:      # `python -I` no agrega el cwd
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Genera el resumen semanal de Percepción tras una ingesta.")
     ap.add_argument("--semanas", type=int, default=2,
-                    help="semanas hacia atrás desde la última con datos (1..12, por defecto 2)")
+                    help="semanas completas hacia atrás desde la última terminada (1..12, por defecto 2)")
+    ap.add_argument("--incluir-en-curso", action="store_true",
+                    help="resume también la semana que todavía no termina")
     ap.add_argument("--forzar", action="store_true",
                     help="vuelve a pagar aunque los datos no hayan cambiado (solo si cambió el prompt)")
     args = ap.parse_args(argv)
@@ -51,7 +55,8 @@ def main(argv: list[str] | None = None) -> int:
     from app.services.percepcion import resumen_llm
 
     try:
-        r = resumen_llm.generar_tras_ingesta(semanas=args.semanas, forzar=args.forzar)
+        r = resumen_llm.generar_tras_ingesta(semanas=args.semanas, forzar=args.forzar,
+                                             solo_completas=not args.incluir_en_curso)
     except Exception as e:  # noqa: BLE001 - el mensaje del driver puede traer la URL
         print(f"No se pudo generar ({type(e).__name__}).", file=sys.stderr)
         return 1
