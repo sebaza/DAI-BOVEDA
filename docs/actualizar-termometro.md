@@ -73,15 +73,28 @@ Agrupa los comentarios de cada tema con un modelo de embeddings local (sin APIs 
 nombres puestos a mano en Curación se conservan si el subtema nuevo se parece lo suficiente al
 anterior. Necesita `backend/requirements-ml.txt` instalado.
 
+### A3b. Generar el resumen semanal
+
+```powershell
+backend\.venv\Scripts\python.exe -I scripts\generar_resumen_percepcion.py --semanas 2
+```
+
+- Revisa las últimas 2 semanas con datos (la ingesta trae 14 días hacia atrás, así que puede mover
+  la semana anterior). Solo llama al modelo en las semanas cuyos datos cambiaron; el resto sale de
+  caché y cuesta 0. Cada resumen cuesta menos de un centavo de dólar.
+- Necesita `ANTHROPIC_API_KEY` (u `OPENAI_API_KEY`) en `backend/.env`. Sin ella imprime el aviso
+  "no hay ANTHROPIC_API_KEY ni OPENAI_API_KEY" y no genera nada.
+- `--forzar` vuelve a pagar aunque nada haya cambiado: solo para cuando cambia el prompt.
+- El sitio público nunca genera resúmenes: muestra los que viajan en la publicación (A5).
+
 ### A4. Revisar en la Bóveda local (opcional, recomendado)
 
 Levante la Bóveda local y revise:
 
 - que la fecha "hasta" del rango llegue al último día ingestado;
 - que la cola de Curación muestre lo nuevo;
-- el **Resumen semanal**: al abrir una semana con datos nuevos se genera solo, y eso **cuesta**
-  (centavos de dólar por semana). "Regenerar" fuerza otra llamada pagada aunque nada haya cambiado.
-  El sitio público solo muestra los resúmenes ya generados; nunca los genera.
+- el **Resumen semanal** de la última semana. Ojo: abrir en la Bóveda local una semana sin resumen
+  también lo genera (y paga), y "Regenerar" fuerza otra llamada pagada aunque nada haya cambiado.
 
 ### A5. Publicar en el almacén
 
