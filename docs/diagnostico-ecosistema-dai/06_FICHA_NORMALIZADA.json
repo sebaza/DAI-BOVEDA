@@ -1,0 +1,308 @@
+{
+  "schema_version": "1.0",
+  "application": {
+    "current_name": "Bóveda DAI",
+    "institution": "UCN",
+    "department": "DAI",
+    "purpose": "Aplicación de acceso restringido y auditado que custodia módulos con información sensible. Su único módulo actual, el Termómetro Institucional (id percepcion), mide la percepción de la comunidad UCN en cuentas públicas institucionales de Instagram mediante un índice 0-100, alertas de conflicto y comparación por unidad, sin exponer el texto de los comentarios.",
+    "value_proposition": "Entrega a la alta dirección una señal semanal, comparable y con límites explícitos del clima de opinión pública hacia la UCN, con alertas tempranas medidas, protegiendo los datos de la comunidad mediante acceso por listas que falla cerrado, permisos por columna en la base de datos y auditoría de cada lectura de texto crudo.",
+    "maturity": "prototipo_local",
+    "primary_users": [
+      {"id": "USR-01", "actor": "Alta dirección universitaria (rectoría, vicerrectorías, direcciones)", "papel": "Destinataria de la lectura del índice y alertas", "estado": "confirmado por el responsable"},
+      {"id": "USR-02", "actor": "Equipo DAI (rol equipo)", "papel": "Operador: eventos de contexto, regeneración de resúmenes, simulación", "estado": "confirmado"},
+      {"id": "USR-03", "actor": "Administrador global", "papel": "Curación y anotación con acceso auditado a texto crudo", "estado": "confirmado"},
+      {"id": "USR-04", "actor": "Académicos en fase de prueba", "papel": "Retroalimentación de usabilidad", "estado": "confirmado como documentado en scripts/crear_form_retroalimentacion_termometro.gs; vigencia no verificada"}
+    ],
+    "modules": [
+      {"id": "MOD-01", "nombre": "Acceso y Recibidor", "estado": "funcional", "roles": ["publico", "lector", "equipo", "admin"]},
+      {"id": "MOD-02", "nombre": "Termómetro: Resumen", "estado": "funcional", "roles": ["lector", "equipo", "admin"]},
+      {"id": "MOD-03", "nombre": "Termómetro: Alertas", "estado": "funcional", "roles": ["lector", "equipo", "admin"]},
+      {"id": "MOD-04", "nombre": "Termómetro: Comparar", "estado": "funcional (volatilidad limitada por datos)", "roles": ["lector", "equipo", "admin"]},
+      {"id": "MOD-05", "nombre": "Termómetro: Conversación", "estado": "funcional", "roles": ["lector", "equipo", "admin"]},
+      {"id": "MOD-06", "nombre": "Termómetro: Simulación", "estado": "experimental", "roles": ["equipo", "admin"]},
+      {"id": "MOD-07", "nombre": "Termómetro: Curación", "estado": "funcional", "roles": ["admin"]},
+      {"id": "MOD-08", "nombre": "Resumen semanal por modelo de lenguaje", "estado": "funcional", "roles": ["lector", "equipo", "admin"]},
+      {"id": "MOD-09", "nombre": "Eventos y calendario institucional", "estado": "funcional", "roles": ["lector", "equipo", "admin"]},
+      {"id": "MOD-10", "nombre": "Subtemas con modelo local", "estado": "funcional", "roles": ["lector", "admin"]},
+      {"id": "MOD-11", "nombre": "Administración de accesos por CLI", "estado": "funcional (sin interfaz web)", "roles": ["operador con credencial de base"]},
+      {"id": "MOD-12", "nombre": "Disparador post-ingesta", "estado": "funcional", "roles": ["worker externo con token"]},
+      {"id": "MOD-13", "nombre": "Scripts de mantenimiento y evaluación metodológica", "estado": "funcional / experimental", "roles": ["responsable técnico"]}
+    ],
+    "main_workflows": [
+      {"id": "FLW-01", "nombre": "Inicio de sesión con Google y autorización que falla cerrado", "actor": "Usuario", "estado": "confirmado"},
+      {"id": "FLW-02", "nombre": "Lectura del índice con filtros", "actor": "Lector o superior", "estado": "confirmado"},
+      {"id": "FLW-03", "nombre": "Curación con auditoría de texto crudo y reagregado de hechos", "actor": "Administrador", "estado": "confirmado"},
+      {"id": "FLW-04", "nombre": "Ingesta, migración a PostgreSQL, precálculo y resumen semanal con caché por huella", "actor": "Worker externo y responsable técnico", "estado": "confirmado (frecuencia manual inferida)"}
+    ]
+  },
+  "technical": {
+    "frontend": [
+      {"nombre": "Next.js", "version": "^16.1.6"},
+      {"nombre": "React", "version": "^19.1.0"},
+      {"nombre": "TypeScript", "version": "^5.7.2"},
+      {"nombre": "Tailwind CSS", "version": "^3.4.16"},
+      {"nombre": "Apache ECharts (CDN jsDelivr con SRI)", "version": "5.5.1"},
+      {"nombre": "Google Identity Services", "version": null}
+    ],
+    "backend": [
+      {"nombre": "Python", "version": "3.11+"},
+      {"nombre": "FastAPI", "version": "0.139.0"},
+      {"nombre": "Starlette", "version": ">=1.0.1,<1.4.0"},
+      {"nombre": "Uvicorn", "version": "0.40.0"},
+      {"nombre": "Pydantic", "version": "2.12.5"},
+      {"nombre": "SQLAlchemy", "version": "2.0.41"},
+      {"nombre": "psycopg", "version": "3.3.6"},
+      {"nombre": "google-auth", "version": "2.41.1"},
+      {"nombre": "anthropic", "version": "1.0.0"},
+      {"nombre": "httpx", "version": "0.28.1"},
+      {"nombre": "pytest", "version": ">=8,<9"},
+      {"nombre": "torch / sentence-transformers / scikit-learn (solo scripts)", "version": "2.7.1 / 6.2.0 / 1.9.1"}
+    ],
+    "databases": [
+      {"id": "DB-01", "nombre": "PostgreSQL esquema boveda", "uso": "Catálogo de módulos, accesos por módulo, administradores y auditoría de texto"},
+      {"id": "DB-02", "nombre": "Base de Percepción: SQLite local o PostgreSQL esquema percepcion", "uso": "Tablas espejo del worker, tablas propias y derivadas; tres motores (lectura, escritura, proceso) y dos roles (boveda_app, boveda_proceso)"}
+    ],
+    "authentication": "Google ID token verificado en el servidor (audiencia GOOGLE_CLIENT_ID, email verificado, sin restricción de dominio) canjeado por una sesión propia firmada con HMAC-SHA256 (TTL 8 h por defecto), enviada como Authorization Bearer y guardada en localStorage. Dev-login solo con APP_ENV=dev.",
+    "authorization": "Listas en PostgreSQL: roles lector y equipo por módulo, administrador global. El rol se recalcula en cada petición y falla cerrado. GET requiere lector; POST/PUT/DELETE requieren equipo; /percepcion/curacion/* requiere administrador. Permiso por columna en la base impide al rol de la aplicación leer texto y captions.",
+    "api_style": ["REST JSON sin versionado", "OpenAPI autogenerado por FastAPI y expuesto sin autenticación", "Webhook entrante con token compartido (disparador post-ingesta)"],
+    "documented_endpoints": [
+      {"id": "API-AUTH", "grupo": "/auth", "cantidad": 5, "autenticacion": "Ninguna o Bearer", "ejemplos": ["GET /auth/config", "GET /auth/me", "POST /auth/google/verify"]},
+      {"id": "API-PERC-LECTURA", "grupo": "/percepcion (lectura)", "cantidad": 28, "autenticacion": "Bearer + rol lector", "ejemplos": ["GET /percepcion/resumen", "GET /percepcion/evolucion", "GET /percepcion/anomalias", "GET /percepcion/resumen-semanal"]},
+      {"id": "API-PERC-EVENTOS", "grupo": "/percepcion/eventos (escritura)", "cantidad": 3, "autenticacion": "Bearer + rol equipo", "ejemplos": ["POST /percepcion/eventos", "PUT /percepcion/eventos/{evento_id}", "DELETE /percepcion/eventos/{evento_id}"]},
+      {"id": "API-PERC-CURACION", "grupo": "/percepcion/curacion", "cantidad": 15, "autenticacion": "Bearer + administrador", "ejemplos": ["GET /percepcion/curacion/scoring", "POST /percepcion/curacion/sentimiento/{com_id}", "GET /percepcion/curacion/calidad"]},
+      {"id": "API-TASKS", "grupo": "/tasks (y /ai-tasks oculto)", "cantidad": 1, "autenticacion": "X-Tasks-Token", "ejemplos": ["POST /tasks/run/percepcion-resumen"]},
+      {"id": "API-HEALTH", "grupo": "/health", "cantidad": 1, "autenticacion": "Ninguna", "ejemplos": ["GET /health"]}
+    ],
+    "external_dependencies": [
+      {"id": "EXT-01", "nombre": "Worker Sentiment_Analisys_University", "tipo": "Sistema DAI externo al repositorio", "uso": "Ingesta y scoring; dueño de las tablas espejo"},
+      {"id": "EXT-02", "nombre": "Google Identity", "tipo": "Proveedor de identidad", "uso": "ID token de inicio de sesión"},
+      {"id": "EXT-03", "nombre": "Anthropic (por defecto claude-haiku-4-5)", "tipo": "IA externa", "uso": "Resumen semanal"},
+      {"id": "EXT-04", "nombre": "OpenAI (fallback, por defecto gpt-5.4-mini)", "tipo": "IA externa", "uso": "Resumen semanal si no hay clave de Anthropic; scripts de evaluación"},
+      {"id": "EXT-05", "nombre": "jsDelivr", "tipo": "CDN", "uso": "ECharts 5.5.1"},
+      {"id": "EXT-06", "nombre": "Google Fonts", "tipo": "CDN de tipografías", "uso": "Manrope y Space Grotesk"},
+      {"id": "EXT-07", "nombre": "Hugging Face (descarga del modelo de embeddings)", "tipo": "Repositorio de modelos", "uso": "Script de subtemas; inferencia local"}
+    ]
+  },
+  "data": {
+    "main_entities": [
+      {"id": "ENT-01", "nombre": "percepcion_cuenta", "propietario": "worker", "descripcion": "Cuenta de red social con tipo y unidad"},
+      {"id": "ENT-02", "nombre": "percepcion_publicacion", "propietario": "worker", "descripcion": "Publicación con caption (sensible) y métricas"},
+      {"id": "ENT-03", "nombre": "percepcion_comentario", "propietario": "worker (la Bóveda modifica tema)", "descripcion": "Comentario con texto (sensible), autor seudonimizado y tema"},
+      {"id": "ENT-04", "nombre": "percepcion_score", "propietario": "worker (la Bóveda corrige)", "descripcion": "Sentimiento y emoción con probabilidades"},
+      {"id": "ENT-05", "nombre": "percepcion_hecho_diario", "propietario": "worker (la Bóveda reconstruye)", "descripcion": "Agregado diario por unidad y tema"},
+      {"id": "ENT-06", "nombre": "percepcion_correccion", "propietario": "Bóveda", "descripcion": "Correcciones y anotaciones humanas con instantánea del modelo"},
+      {"id": "ENT-07", "nombre": "percepcion_evento", "propietario": "Bóveda", "descripcion": "Eventos de contexto y calendario institucional"},
+      {"id": "ENT-08", "nombre": "percepcion_resumen_semanal", "propietario": "Bóveda", "descripcion": "Caché del resumen LLM con huella y costo"},
+      {"id": "ENT-09", "nombre": "percepcion_subtema", "propietario": "Bóveda (scripts)", "descripcion": "Subtemas anonimizados por tema"},
+      {"id": "ENT-10", "nombre": "boveda.modulos / accesos_modulo / administradores", "propietario": "Bóveda", "descripcion": "Catálogo de módulos y listas de acceso"},
+      {"id": "ENT-11", "nombre": "boveda.auditoria_texto", "propietario": "Bóveda", "descripcion": "Registro de lecturas de texto crudo por administradores"}
+    ],
+    "source_systems": [
+      {"id": "SRC-01", "nombre": "Cuentas públicas institucionales de Instagram de la UCN", "via": "Worker externo", "frecuencia": "Manual, tras cada ingesta (inferido)"},
+      {"id": "SRC-02", "nombre": "Calendario académico UCN 2022-2026 entregado por la DAI", "via": "Archivo JSON versionado", "frecuencia": "Carga puntual"},
+      {"id": "SRC-03", "nombre": "Anotación humana de administradores", "via": "Curación", "frecuencia": "Continua"}
+    ],
+    "sensitivity_categories": [
+      "Texto libre de comentarios de la comunidad",
+      "Captions de publicaciones",
+      "Identificadores y nombres de cuentas de redes sociales, incluidas organizaciones estudiantiles",
+      "Seudónimo irreversible del autor (autor_hash)",
+      "Correos de administradores, revisores y operadores",
+      "Justificaciones libres de curación",
+      "Registros de auditoría de acceso"
+    ],
+    "data_outputs": [
+      "Índice de percepción 0-100 con tendencia y confianza",
+      "Distribuciones de sentimiento, emoción y postura",
+      "Alertas y anomalías quincenales",
+      "Comparación por sede, facultad, departamento y tema",
+      "Nube de palabras y palabras de impacto agregadas",
+      "Resumen semanal narrativo",
+      "Métricas de calidad del modelo frente a anotación humana",
+      "Análisis de simulación (ensayo, líneas base, respuesta a paros, comunicación)"
+    ]
+  },
+  "ux": {
+    "primary_navigation": [
+      {"id": "NAV-01", "ruta": "/", "nombre": "Login / Recibidor"},
+      {"id": "NAV-02", "ruta": "/percepcion", "nombre": "Termómetro: Resumen, Alertas, Comparar, Conversación, Curación, Simulación"}
+    ],
+    "colors": [
+      {"token": "--ucn-azul", "valor": "#759cc0", "uso": "Acento institucional, favorable"},
+      {"token": "--ucn-azul-claro", "valor": "#9dbad6", "uso": "Acento"},
+      {"token": "--ucn-tierra", "valor": "#c06125", "uso": "Botón primario, alerta alta"},
+      {"token": "--ucn-tierra-clara", "valor": "#e2b49a", "uso": "Acento"},
+      {"token": "--boveda-fondo", "valor": "#121314", "uso": "Fondo"},
+      {"token": "--boveda-madera", "valor": "#1b1c1f", "uso": "Superficies"},
+      {"token": "--boveda-hierro", "valor": "#0c0d0e", "uso": "Fajas"},
+      {"token": "--boveda-laton", "valor": "#c9a25e", "uso": "Adornos, emblema"},
+      {"token": "--portal-fg", "valor": "#ededef", "uso": "Texto"},
+      {"token": "--portal-muted", "valor": "#a8abb1", "uso": "Texto secundario"},
+      {"token": "dato adverso", "valor": "#d27a45", "uso": "Serie desfavorable"},
+      {"token": "dato neutro", "valor": "#8c9097", "uso": "Serie neutral"}
+    ],
+    "typographies": [
+      {"familia": "Manrope", "uso": "Cuerpo", "pesos": "400-800", "carga": "Google Fonts @import"},
+      {"familia": "Space Grotesk", "uso": "Títulos", "pesos": "500, 700", "carga": "Google Fonts @import"}
+    ],
+    "component_libraries": [],
+    "design_tokens_location": "frontend/src/app/globals.css (:root), frontend/src/lib/paleta.ts, frontend/tailwind.config.ts"
+  },
+  "identity": {
+    "core_function": "Custodiar información sensible con acceso autorizado y auditado (contenedor) y medir e interpretar el clima de opinión pública hacia la UCN de forma agregada y honesta (módulo).",
+    "personality": [
+      {"atributo": "Reservada", "descripcion": "Protege por defecto; en la duda, niega"},
+      {"atributo": "Rigurosa", "descripcion": "Mide antes de afirmar y declara su error"},
+      {"atributo": "Honesta", "descripcion": "Explica para qué no sirve y distingue señal de ruido"},
+      {"atributo": "Serena", "descripcion": "Alertas graduadas y explicadas, sin alarmismo"},
+      {"atributo": "Anticipatoria", "descripcion": "Busca avisar antes de que un conflicto escale"}
+    ],
+    "semantic_concepts": ["custodia", "resguardo", "medición", "escucha agregada", "evidencia", "alerta temprana", "interpretación", "rigor metodológico", "memoria histórica"],
+    "visual_metaphors": ["bóveda o cámara acorazada con compartimentos", "cerradura y placa de latón con remaches", "termómetro", "barómetro", "sismógrafo", "prisma"],
+    "naming_constraints": [
+      "El id técnico percepcion está en rutas, tablas y roles de base; cambiar el rótulo es barato, cambiar el id es costoso",
+      "El catálogo boveda.modulos siembra el nombre Termómetro Institucional",
+      "Evitar asociaciones con vigilancia de personas u organizaciones estudiantiles",
+      "Claridad para la alta dirección sin formación técnica",
+      "Distinguir el nivel contenedor del nivel módulo",
+      "Adopción del nombre Bóveda no verificada (aplicación con días de historia)",
+      "Relación de origen con la Torre de Control"
+    ],
+    "preferred_naming_directions": [
+      {"nivel": "contenedor", "direcciones": ["custodia responsable", "resguardo", "compartimento", "archivo protegido"], "evitar": ["secreto", "encierro", "ocultamiento"]},
+      {"nivel": "módulo", "direcciones": ["clima", "temperatura", "presión atmosférica", "resonancia", "lectura pública"], "evitar": ["vigilancia", "monitoreo", "radar", "rastreo"]}
+    ]
+  },
+  "integration": {
+    "existing_apis": [
+      {"id": "INT-API-01", "descripcion": "API REST /percepcion de agregados, solo con sesión de usuario"},
+      {"id": "INT-API-02", "descripcion": "GET /auth/me con is_admin y modulos del usuario"},
+      {"id": "INT-API-03", "descripcion": "POST /tasks/run/percepcion-resumen con token compartido para el worker"}
+    ],
+    "reusable_capabilities": [
+      {"id": "CAP-01", "nombre": "Autorización por módulo con fail-closed y recálculo por petición", "estado": "confirmado en código; reutilización inferida"},
+      {"id": "CAP-02", "nombre": "Auditoría de acceso a datos sensibles (si no se registra, no se entrega)", "estado": "confirmado; reutilización inferida"},
+      {"id": "CAP-03", "nombre": "Anonimización por privilegio de base de datos", "estado": "confirmado; reutilización inferida"},
+      {"id": "CAP-04", "nombre": "Recibidor como lanzador de módulos por permisos", "estado": "confirmado; reutilización propuesta"},
+      {"id": "CAP-05", "nombre": "Calendario académico normalizado 2022-2026", "estado": "confirmado; reutilización inferida"},
+      {"id": "CAP-06", "nombre": "Detección de anomalías mediana + MAD", "estado": "confirmado; reutilización inferida"},
+      {"id": "CAP-07", "nombre": "Narrativa LLM con verificación de cifras y caché por huella", "estado": "confirmado; reutilización inferida"},
+      {"id": "CAP-08", "nombre": "Tokens de diseño UCN y componentes de estado", "estado": "confirmado; reutilización inferida"}
+    ],
+    "candidate_consumers": [
+      {"aplicacion": "Torre de Control", "uso": "Identidad común, lanzador e indicador agregado", "confianza": "media", "estado": "propuesto"},
+      {"aplicacion": "Sonda Intelligence", "uso": "Agregados y resumen semanal como insumo, si su función lo justifica", "confianza": "baja", "estado": "propuesto"},
+      {"aplicacion": "Sonda", "uso": "Contraste con datos declarados, si recoge opinión o encuestas", "confianza": "baja", "estado": "propuesto"},
+      {"aplicacion": "Plataforma CAPD", "uso": "Registro central de accesos a datos sensibles", "confianza": "baja", "estado": "propuesto"}
+    ],
+    "candidate_providers": [
+      {"aplicacion": "Torre de Control", "uso": "Proveedor o par de identidad común", "confianza": "media", "estado": "propuesto"},
+      {"aplicacion": "Plataforma CAPD", "uso": "Aprobación y gobernanza del tratamiento de comentarios y del uso de IA externa", "confianza": "baja", "estado": "propuesto"},
+      {"aplicacion": "Sonda Intelligence", "uso": "Servicio de IA gobernado para el resumen, si existiera", "confianza": "baja", "estado": "propuesto"}
+    ],
+    "possible_events": [
+      {"id": "EVT-01", "nombre": "percepcion.ingesta_completada", "estado": "propuesto"},
+      {"id": "EVT-02", "nombre": "percepcion.resumen_semanal_generado", "estado": "propuesto"},
+      {"id": "EVT-03", "nombre": "percepcion.alerta_detectada", "estado": "propuesto"},
+      {"id": "EVT-04", "nombre": "boveda.acceso_concedido", "estado": "propuesto"},
+      {"id": "EVT-05", "nombre": "boveda.acceso_revocado", "estado": "propuesto"},
+      {"id": "EVT-06", "nombre": "boveda.texto_consultado", "estado": "propuesto"}
+    ],
+    "security_considerations": [
+      "No compartir texto de comentarios, captions, identificadores de cuentas, autor_hash, justificaciones ni filas de auditoría",
+      "Ningún consumidor accede a tablas internas; solo API de agregados versionada o eventos",
+      "Credenciales de servicio con alcance solo de agregados y umbral mínimo de n",
+      "Sesión actual en localStorage sin CSP: migrar a cookie HttpOnly o BFF antes de un SSO",
+      "Política institucional previa para el envío de contenido a proveedores externos de IA",
+      "No reintroducir en la Torre de Control la sensibilidad que motivó la separación"
+    ]
+  },
+  "assessment": {
+    "strengths": [
+      "Acceso que falla cerrado con defensa en profundidad",
+      "Separación del texto crudo por permisos de columna y pruebas estructurales",
+      "Auditoría obligatoria de lecturas de texto crudo",
+      "Metodología medida y autocrítica, con límites visibles en la interfaz",
+      "Modelo de acceso hexagonal con contrato de pruebas",
+      "Identidad visual propia y sistema de tokens organizado",
+      "README vigente y transparente"
+    ],
+    "risks": [
+      {"id": "R-01", "descripcion": "Datos personales en el repositorio versionado (por categoría)", "impacto": "alto"},
+      {"id": "R-02", "descripcion": "Token en localStorage sin CSP", "impacto": "alto"},
+      {"id": "R-03", "descripcion": "Lectores pueden disparar llamadas pagadas al LLM y escrituras", "impacto": "medio"},
+      {"id": "R-04", "descripcion": "Contenido de la comunidad hacia proveedores externos de IA sin contrato documentado", "impacto": "alto"},
+      {"id": "R-05", "descripcion": "Pérdida de curación por recarga destructiva o reclasificación del worker", "impacto": "alto"},
+      {"id": "R-06", "descripcion": "Asociación con vigilancia de la comunidad u organizaciones estudiantiles", "impacto": "alto"},
+      {"id": "R-07", "descripcion": "Persona única y sin CI", "impacto": "alto"},
+      {"id": "R-08", "descripcion": "Documentación OpenAPI pública", "impacto": "bajo"},
+      {"id": "R-09", "descripcion": "Fallos silenciosos en disparador y arranque", "impacto": "medio"}
+    ],
+    "opportunities": [
+      "Generalizar la autorización por módulo y la auditoría al ecosistema",
+      "Usar el Recibidor como semilla del lanzador DAI",
+      "Publicar agregados anonimizados mediante una API versionada",
+      "Compartir el calendario institucional normalizado",
+      "Aportar los tokens UCN a un design system común"
+    ],
+    "open_questions": [
+      "Base legal y política de tratamiento de comentarios de terceros",
+      "Qué cuentas se monitorean y quién las autoriza",
+      "Quién aprueba las reglas metodológicas con impacto institucional",
+      "Política de uso de proveedores externos de IA",
+      "Dónde y cómo se desplegará la Bóveda",
+      "Flujo de ingesta definitivo y preservación de la curación",
+      "Quién aprueba los accesos",
+      "Saneamiento del historial del repositorio",
+      "Si la Bóveda alojará otros módulos"
+    ]
+  },
+  "evidence": [
+    {"id": "EVD-001", "afirmacion": "La Bóveda aloja el Termómetro Institucional, separado de la Torre de Control por sensibilidad de datos", "ruta": "README.md", "ubicacion": "líneas 3-7", "estado": "confirmado"},
+    {"id": "EVD-002", "afirmacion": "El catálogo de módulos siembra percepcion / Termómetro Institucional", "ruta": "backend/sql/001_boveda_access.sql", "ubicacion": "líneas 32-38", "estado": "confirmado"},
+    {"id": "EVD-003", "afirmacion": "La aplicación es un prototipo local", "ruta": null, "ubicacion": "Confirmación del responsable, 2026-10-22", "estado": "confirmado"},
+    {"id": "EVD-004", "afirmacion": "Responsable funcional y técnico: Sebastián Zapata", "ruta": null, "ubicacion": "Confirmación del responsable, 2026-10-22", "estado": "confirmado"},
+    {"id": "EVD-005", "afirmacion": "Usuarios objetivo: alta dirección universitaria", "ruta": null, "ubicacion": "Confirmación del responsable, 2026-10-22", "estado": "confirmado"},
+    {"id": "EVD-006", "afirmacion": "El acceso falla cerrado ante URL vacía o error de base", "ruta": "backend/app/services/accesos/__init__.py", "ubicacion": "líneas 60-124 (DenyAllAccessRepository, get_repository)", "estado": "confirmado"},
+    {"id": "EVD-007", "afirmacion": "La aplicación no arranca en producción sin secreto de sesión ni BOVEDA_DATABASE_URL", "ruta": "backend/app/config.py", "ubicacion": "líneas 101-117", "estado": "confirmado"},
+    {"id": "EVD-008", "afirmacion": "El rol se recalcula en cada petición desde la base", "ruta": "backend/app/services/auth.py", "ubicacion": "líneas 76-114", "estado": "confirmado"},
+    {"id": "EVD-009", "afirmacion": "Sesión propia HMAC-SHA256 con exp y nonce", "ruta": "backend/app/services/auth.py", "ubicacion": "líneas 60-63, 129-174", "estado": "confirmado"},
+    {"id": "EVD-010", "afirmacion": "El token se guarda en localStorage", "ruta": "frontend/src/lib/session.ts", "ubicacion": "líneas 76-77", "estado": "confirmado"},
+    {"id": "EVD-011", "afirmacion": "No hay CSP en el frontend", "ruta": "frontend/next.config.ts", "ubicacion": "headers()", "estado": "confirmado"},
+    {"id": "EVD-012", "afirmacion": "Ningún GET fuera de Curación devuelve texto crudo", "ruta": "backend/tests/test_anonimizacion_api.py", "ubicacion": "módulo completo", "estado": "confirmado"},
+    {"id": "EVD-013", "afirmacion": "Permiso por columna impide a boveda_app leer texto y caption", "ruta": "backend/sql/003_percepcion_roles.sql", "ubicacion": "líneas 34-52, 92-101", "estado": "confirmado"},
+    {"id": "EVD-014", "afirmacion": "La lectura de texto crudo se audita y sin auditoría responde 503", "ruta": "backend/app/routers/percepcion.py", "ubicacion": "líneas 81-96", "estado": "confirmado"},
+    {"id": "EVD-015", "afirmacion": "Fórmula del índice 50 + 50(pos-neg)/den acotada a 0-100", "ruta": "backend/app/services/percepcion/repository.py", "ubicacion": "líneas 371-374 (_indice)", "estado": "confirmado"},
+    {"id": "EVD-016", "afirmacion": "Peso por tema con crédito y daño, denominador sin ponderar", "ruta": "backend/app/services/percepcion/ponderacion.py", "ubicacion": "líneas 18-28, 118-166", "estado": "confirmado"},
+    {"id": "EVD-017", "afirmacion": "NEU en cuentas de federación cuenta como adverso (configurable)", "ruta": "backend/app/services/percepcion/postura.py", "ubicacion": "líneas 198-229", "estado": "confirmado"},
+    {"id": "EVD-018", "afirmacion": "Anomalías quincenales con mediana y MAD sobre 26 semanas", "ruta": "backend/app/services/percepcion/repository.py", "ubicacion": "líneas 189-313", "estado": "confirmado"},
+    {"id": "EVD-019", "afirmacion": "GET /resumen-semanal puede llamar al LLM y escribir sin rol equipo", "ruta": "backend/app/routers/percepcion.py", "ubicacion": "líneas 400-435", "estado": "confirmado"},
+    {"id": "EVD-020", "afirmacion": "Fallback de Anthropic a OpenAI en el resumen", "ruta": "backend/app/services/percepcion/resumen_llm.py", "ubicacion": "líneas 693-701", "estado": "confirmado"},
+    {"id": "EVD-021", "afirmacion": "Al LLM viajan hasta 6 captions de 320 caracteres y 12 palabras agregadas, no el texto de comentarios", "ruta": "backend/app/services/percepcion/resumen_llm.py", "ubicacion": "líneas 24-35, 470-560", "estado": "confirmado"},
+    {"id": "EVD-022", "afirmacion": "La curación reconstruye toda percepcion_hecho_diario", "ruta": "backend/app/services/percepcion/curacion.py", "ubicacion": "líneas 142-237 (reagregar)", "estado": "confirmado"},
+    {"id": "EVD-023", "afirmacion": "La recarga con --reemplazar sobrescribe la curación", "ruta": "README.md", "ubicacion": "líneas 139-143", "estado": "confirmado"},
+    {"id": "EVD-024", "afirmacion": "El disparador responde siempre 200 con el mensaje de la excepción", "ruta": "backend/app/routers/tasks.py", "ubicacion": "líneas 55-56", "estado": "confirmado"},
+    {"id": "EVD-025", "afirmacion": "Ruta heredada de la Torre /ai-tasks montada", "ruta": "backend/app/main.py", "ubicacion": "líneas 41-44", "estado": "confirmado"},
+    {"id": "EVD-026", "afirmacion": "Código de sesión modelado sobre la Torre de Control", "ruta": "frontend/src/lib/session.ts", "ubicacion": "línea 2", "estado": "confirmado"},
+    {"id": "EVD-027", "afirmacion": "Sin CI, lint, Dockerfile ni pruebas de frontend", "ruta": "frontend/package.json", "ubicacion": "scripts; ausencia de .github y Dockerfile en git ls-files", "estado": "confirmado"},
+    {"id": "EVD-028", "afirmacion": "Unas 715 funciones de prueba en el backend", "ruta": "backend/tests", "ubicacion": "conteo estático de def test_", "estado": "confirmado"},
+    {"id": "EVD-029", "afirmacion": "Tokens de color y tipografías del sistema visual", "ruta": "frontend/src/app/globals.css", "ubicacion": ":root y @import (línea 1)", "estado": "confirmado"},
+    {"id": "EVD-030", "afirmacion": "El favicon no coincide con el emblema ni la paleta", "ruta": "frontend/src/app/icon.svg", "ubicacion": "archivo completo", "estado": "confirmado"},
+    {"id": "EVD-031", "afirmacion": "Texto de UI Señales bajo vigilancia", "ruta": "frontend/src/components/PercepcionAlertas.tsx", "ubicacion": "línea 114", "estado": "confirmado"},
+    {"id": "EVD-032", "afirmacion": "Datos sensibles por categoría en código, pruebas y documentos versionados", "ruta": "backend/tests/test_percepcion.py", "ubicacion": "líneas 955-975; ver también derivados.py:87, repository.py:2211-2215 y docs/notas", "estado": "confirmado"},
+    {"id": "EVD-033", "afirmacion": "Sonda, Sonda Intelligence y CAPD no se mencionan en el repositorio", "ruta": null, "ubicacion": "búsqueda en todos los archivos versionados", "estado": "confirmado"},
+    {"id": "EVD-034", "afirmacion": "La ingesta es manual, sin programador", "ruta": "backend/app/routers/tasks.py", "ubicacion": "línea 42", "estado": "inferido"},
+    {"id": "EVD-035", "afirmacion": "La Bóveda está diseñada para alojar más módulos", "ruta": "frontend/src/components/Recibidor.tsx", "ubicacion": "CATALOGO; tabla boveda.modulos", "estado": "inferido"},
+    {"id": "EVD-036", "afirmacion": "API de agregados versionada como vía de integración", "ruta": "docs/diagnostico-ecosistema-dai/04_INTEGRACION_ECOSISTEMA.md", "ubicacion": "sección 9", "estado": "propuesto"},
+    {"id": "EVD-037", "afirmacion": "Base legal del tratamiento de comentarios", "ruta": null, "ubicacion": "sin evidencia en el repositorio", "estado": "no verificado"}
+  ],
+  "limitations": [
+    "Análisis estático: no se ejecutó la aplicación, las pruebas ni los scripts, ni se abrió ninguna base de datos",
+    "Sin capturas de pantalla por tratarse de un prototipo local con datos reales",
+    "El repositorio del worker externo no está disponible",
+    "Los archivos .env.example no pudieron leerse en uno de los análisis; nombres de variables tomados de config.py, README y el código",
+    "Conteos de pruebas y endpoints estáticos",
+    "Cifras de corpus y calidad del modelo tomadas de documentos con fechas anteriores, no verificadas contra la base actual",
+    "Las demás aplicaciones del ecosistema DAI no se analizaron"
+  ]
+}
