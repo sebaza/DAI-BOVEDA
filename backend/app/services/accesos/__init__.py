@@ -77,6 +77,12 @@ class DenyAllAccessRepository:
     ) -> None:
         raise AuditError(self._motivo)
 
+    def registrar_aceptacion(self, modulo_id: str, email: str, version: str) -> None:
+        raise AccessDatabaseError(self._motivo)
+
+    def acepto(self, modulo_id: str, email: str, version: str) -> bool:
+        raise AccessDatabaseError(self._motivo)
+
 
 _override: AccessRepository | None = None
 _default: tuple[str, AccessRepository] | None = None  # (url it was built from, repository)

@@ -18,6 +18,11 @@ const CATALOGO: Record<string, ModuloInfo> = {
     ruta: "/percepcion",
     descripcion: "Percepción de la comunidad UCN en redes sociales",
   },
+  // En GitHub Pages la lista de módulos (MODULOS_PAGES) incluye Neural y sirve respuestas precalculadas, en solo lectura.
+  neural: {
+    ruta: "/neural",
+    descripcion: "Trayectorias estudiantiles: avance, malla y contexto de cohortes",
+  },
 };
 
 function Esquinas() {

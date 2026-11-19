@@ -28,3 +28,6 @@ os.environ["BOVEDA_DATABASE_URL"] = ""
 os.environ["TASKS_TRIGGER_TOKEN"] = ""
 os.environ["ANTHROPIC_API_KEY"] = ""
 os.environ["OPENAI_API_KEY"] = ""
+# DAI Neural: the suite never reaches a real Neural database; the opt-in integration module
+# (test_neural_api.py) sets what it needs with monkeypatch.
+os.environ["NEURAL_DATABASE_URL"] = ""

@@ -66,6 +66,21 @@ _SQL_AUDITAR = text(
     """
 )
 
+_SQL_ACEPTAR = text(
+    """
+    INSERT INTO boveda.aceptaciones_modulo (modulo_id, email, version_texto)
+    VALUES (:modulo, :email, :version)
+    ON CONFLICT (modulo_id, email, version_texto) DO NOTHING
+    """
+)
+
+_SQL_ACEPTO = text(
+    """
+    SELECT 1 FROM boveda.aceptaciones_modulo
+     WHERE modulo_id = :modulo AND email = :email AND version_texto = :version
+    """
+)
+
 
 class PostgresAccessRepository:
     def __init__(self, abrir: Abrir) -> None:
@@ -144,6 +159,28 @@ class PostgresAccessRepository:
         except Exception as exc:  # noqa: BLE001 - the caller must refuse to serve the text
             logger.error("No se pudo registrar la auditoría de texto (%s).", type(exc).__name__)
             raise AuditError("No se pudo registrar la auditoría de texto.") from exc
+
+    # ------------------------------------------------------------------ #
+    # AccessRepository: confidentiality acceptance (raises, never grants on doubt)
+    # ------------------------------------------------------------------ #
+    def registrar_aceptacion(self, modulo_id: str, email: str, version: str) -> None:
+        email = validate_email(email)
+        with self._gestion() as con:
+            self._existe_modulo(con, modulo_id)
+            con.execute(_SQL_ACEPTAR, {"modulo": modulo_id, "email": email, "version": version})
+
+    def acepto(self, modulo_id: str, email: str, version: str) -> bool:
+        email = normalize_email(email)
+        if not email or not version:
+            return False
+        try:
+            with self._abrir() as con:
+                return con.execute(
+                    _SQL_ACEPTO, {"modulo": modulo_id, "email": email, "version": version}
+                ).first() is not None
+        except Exception as exc:  # noqa: BLE001 - "could not check" must never read as "accepted"
+            _log_denegado("acepto", exc)
+            raise AccessDatabaseError(_mensaje_bd(exc)) from exc
 
     # ------------------------------------------------------------------ #
     # AccessManager (raises domain errors / AccessDatabaseError)

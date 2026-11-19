@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { PALETA } from "@/lib/paleta";
 
 // Apache ECharts (open-source) desde el CDN gratuito jsDelivr. Sin npm install.
@@ -74,6 +74,12 @@ const TORRE_THEME: Record<string, unknown> = {
   pie: { itemStyle: { borderColor: PALETA.panel, borderWidth: 2 } },
 };
 let themeRegistered = false;
+
+/** Segundos que se espera a que el gráfico esté listo antes de avisar que no cargó (red que bloquea el CDN, script colgado). */
+const ESPERA_MAX_MS = 8000;
+
+/** `MarcoGrafico` lo activa con el título de la tabla plegada donde están los datos del gráfico («Ver los datos», o la del recorte); sin tabla, nulo. */
+export const HayTablaContext = createContext<string | null>(null);
 
 let loaderPromise: Promise<EChartsLib> | null = null;
 
@@ -180,6 +186,9 @@ export function EChartsChart({
   const chartRef = useRef<EChartsInstance | null>(null);
   const [visible, setVisible] = useState(false);
   const [ready, setReady] = useState(false);
+  // El gráfico no se pudo cargar (error del CDN) o no estuvo listo a tiempo: se avisa en vez de dejar el esqueleto para siempre.
+  const [fallo, setFallo] = useState(false);
+  const hayTabla = useContext(HayTablaContext);
   // Alto efectivo (px) del contenedor visible. Arranca con el pedido (SSR-safe) y se
   // recalcula en el cliente al montar y en cada cambio de viewport/orientación.
   const [effHeight, setEffHeight] = useState<number>(height);
@@ -273,11 +282,15 @@ export function EChartsChart({
     let disposed = false;
     let ro: ResizeObserver | null = null;
     let onResize: (() => void) | null = null;
+    const espera = window.setTimeout(() => {
+      if (!disposed && !chartRef.current) setFallo(true);
+    }, ESPERA_MAX_MS);
     loadECharts()
       .then((echarts) => {
         if (disposed || !containerRef.current) {
           return;
         }
+        window.clearTimeout(espera);
         if (!themeRegistered) {
           echarts.registerTheme("torre", TORRE_THEME);
           themeRegistered = true;
@@ -294,6 +307,7 @@ export function EChartsChart({
           onReady(chart);
         }
         setReady(true);
+        setFallo(false);
         // Responsive real: redimensiona el canvas cuando el CONTENEDOR cambia de tamaño por
         // CUALQUIER causa (ancho por el layout/breakpoint, alto por la prop dinámica al filtrar
         // datos), no solo en window.resize. Sin esto el canvas mantiene su tamaño inicial y, si
@@ -307,10 +321,13 @@ export function EChartsChart({
         }
       })
       .catch(() => {
-        /* CDN bloqueado/offline: queda el contenedor con su aria-label. */
+        // CDN bloqueado/offline: se avisa (no se reintenta solo) y el contenedor conserva su aria-label.
+        window.clearTimeout(espera);
+        if (!disposed) setFallo(true);
       });
     return () => {
       disposed = true;
+      window.clearTimeout(espera);
       if (ro) {
         ro.disconnect();
       }
@@ -375,7 +392,13 @@ export function EChartsChart({
       }}
     >
       <div ref={containerRef} style={{ height: innerHeight, width: "100%" }} role="img" aria-label={ariaLabel} />
-      {ready ? null : <div className="portal-skeleton" aria-hidden="true" />}
+      {ready ? null : fallo ? (
+        <div role="status" className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-md border border-dashed border-[var(--boveda-linea-fuerte)] px-4 text-center text-sm leading-6 text-[var(--portal-muted)]">
+          <span className="font-semibold text-[var(--portal-fg)]">No se pudo cargar el gráfico.</span>
+          {hayTabla ? <span>Los datos están en «{hayTabla}».</span> : null}
+          <span>Recargue la página para reintentar.</span>
+        </div>
+      ) : <div className="portal-skeleton" aria-hidden="true" />}
     </div>
   );
 }

@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { BovedaCabecera } from "./BovedaCabecera";
+import { NeuralPanel } from "./NeuralPanel";
 import { PercepcionPanel } from "./PercepcionPanel";
 import { PinScreen } from "./PinScreen";
 import { Recibidor } from "./Recibidor";
@@ -14,10 +16,13 @@ type Estado = { fase: "verificando" } | { fase: "sin_acceso"; aviso?: string } |
 const MAX_TIMEOUT_MS = 2_000_000_000; // setTimeout overflows past ~24.8 days
 
 // The PIN opens every module listed here (no per-person roles in Pages mode); `rol` is not shown.
-const MODULOS_PAGES: ModuloAcceso[] = [{ id: "percepcion", nombre: "Termómetro Institucional", rol: "lector" }];
+const MODULOS_PAGES: ModuloAcceso[] = [
+  { id: "percepcion", nombre: "Termómetro Institucional", rol: "lector" },
+  { id: "neural", nombre: "DAI Neural", rol: "lector" },
+];
 
 /** Modo Pages: PIN -> token en sessionStorage -> recibidor (`/`) o un módulo de solo lectura. */
-export function PaginaPages({ modulo }: { modulo?: "percepcion" }) {
+export function PaginaPages({ modulo }: { modulo?: "percepcion" | "neural" }) {
   const [estado, setEstado] = useState<Estado>({ fase: "verificando" });
   const [huboAcceso, setHuboAcceso] = useState(false);
 
@@ -61,6 +66,29 @@ export function PaginaPages({ modulo }: { modulo?: "percepcion" }) {
     setEstado({ fase: "sin_acceso" }); // voluntary exit: no "expired" notice
   };
   if (!modulo) return <Recibidor modulos={MODULOS_PAGES} onCerrarSesion={salir} />;
+  if (modulo === "neural") {
+    return (
+      <div className="min-h-screen">
+        <BovedaCabecera onCerrarSesion={salir} modulo="DAI Neural" />
+        <main className="mx-auto max-w-[1500px] px-4 py-6 md:px-6">
+          <nav aria-label="Ruta de navegación" className="mb-4 min-w-0">
+            <ol className="flex min-w-0 items-center gap-2 text-sm">
+              <li className="shrink-0">
+                <Link href="/" className="rounded text-[var(--ucn-azul-claro)] underline-offset-4 hover:underline">
+                  Recibidor
+                </Link>
+              </li>
+              <li aria-hidden="true" className="shrink-0 text-[var(--portal-subtle)]">›</li>
+              <li className="min-w-0 truncate font-semibold text-[var(--portal-fg)]" aria-current="page">
+                DAI Neural
+              </li>
+            </ol>
+          </nav>
+          <NeuralPanel />
+        </main>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen">
       <BovedaCabecera onCerrarSesion={salir} modulo="Termómetro Institucional" />

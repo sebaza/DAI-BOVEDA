@@ -176,3 +176,34 @@ class ContratoAccesos:
         with pytest.raises(AuditError):
             env.repo.record_text_view("jefe@ucn.cl", "no_existe", "/x", [1])
         assert env.leer_auditoria() == []
+
+    # --- confidentiality acceptance (per module, e-mail and text version) ---
+    def test_no_acceptance_by_default(self, env):
+        assert env.repo.acepto(MOD, EMAIL, "v1") is False
+
+    def test_registrar_aceptacion_then_acepto(self, env):
+        env.repo.registrar_aceptacion(MOD, " Persona@UCN.cl ", "v1")
+        assert env.repo.acepto(MOD, EMAIL, "v1") is True
+
+    def test_registrar_aceptacion_is_idempotent(self, env):
+        env.repo.registrar_aceptacion(MOD, EMAIL, "v1")
+        env.repo.registrar_aceptacion(MOD, EMAIL, "v1")
+        assert env.repo.acepto(MOD, EMAIL, "v1") is True
+
+    def test_acceptance_is_per_version(self, env):
+        env.repo.registrar_aceptacion(MOD, EMAIL, "v1")
+        assert env.repo.acepto(MOD, EMAIL, "v2") is False
+        env.repo.registrar_aceptacion(MOD, EMAIL, "v2")
+        assert env.repo.acepto(MOD, EMAIL, "v1") is True  # the old record is kept
+        assert env.repo.acepto(MOD, EMAIL, "v2") is True
+
+    def test_acceptance_is_per_module_and_per_person(self, env):
+        env.repo.registrar_aceptacion(MOD, EMAIL, "v1")
+        assert env.repo.acepto(MOD_B, EMAIL, "v1") is False
+        assert env.repo.acepto(MOD, "otra@ucn.cl", "v1") is False
+
+    def test_registrar_aceptacion_validates_its_input(self, env):
+        with pytest.raises(InvalidEmailError):
+            env.repo.registrar_aceptacion(MOD, "sin-arroba", "v1")
+        with pytest.raises(UnknownModuleError):
+            env.repo.registrar_aceptacion("no_existe", EMAIL, "v1")

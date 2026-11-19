@@ -10,6 +10,7 @@ from typing import Sequence
 
 from app.schemas import AppRole, ModuloAcceso
 from app.services.accesos.puerto import (
+    AccessDatabaseError,
     AccessEntry,
     AuditError,
     Listing,
@@ -27,6 +28,8 @@ class InMemoryAccessRepository:
         self._accesos: dict[tuple[str, str], tuple[str, str | None]] = {}  # (modulo, email) -> (rol, por)
         self.vistas: list[dict] = []
         self.fallar_auditoria = False
+        self.fallar_aceptacion = False
+        self._aceptaciones: set[tuple[str, str, str]] = set()  # (modulo, email, version)
 
     # --- test setup ---
     def add_module(self, module_id: str, nombre: str, *, activo: bool = True) -> None:
@@ -83,6 +86,18 @@ class InMemoryAccessRepository:
                 "comentario_ids": [int(i) for i in comment_ids],
             }
         )
+
+    def registrar_aceptacion(self, modulo_id: str, email: str, version: str) -> None:
+        if self.fallar_aceptacion:
+            raise AccessDatabaseError("Simulación: no se pudo registrar la aceptación.")
+        email = validate_email(email)
+        self._exigir_modulo(modulo_id)
+        self._aceptaciones.add((modulo_id, email, version))
+
+    def acepto(self, modulo_id: str, email: str, version: str) -> bool:
+        if self.fallar_aceptacion:
+            raise AccessDatabaseError("Simulación: no se pudo consultar la aceptación.")
+        return (modulo_id, normalize_email(email), version) in self._aceptaciones
 
     # --- AccessManager ---
     def _exigir_modulo(self, module_id: str) -> None:

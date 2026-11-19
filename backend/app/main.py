@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.database import Base
-from app.routers import auth, percepcion, tasks
+from app.routers import auth, neural, percepcion, tasks
 from app.services.percepcion.cripto import ErrorCripto
 from app.services.percepcion.db import percepcion_write_engine
 
@@ -50,6 +50,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(percepcion.router)
+app.include_router(neural.router)
 app.include_router(tasks.router, prefix="/tasks")
 app.include_router(tasks.router, prefix="/ai-tasks", include_in_schema=False)  # legacy Torre path
 

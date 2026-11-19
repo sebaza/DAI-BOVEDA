@@ -8,7 +8,9 @@ contract both must honour.
 Fail closed is part of the contract: the four LOOKUPS never raise. If the answer cannot
 be determined (database down, missing row, unknown module) they answer "no access".
 ``record_text_view`` is the opposite on purpose: if the audit cannot be written it raises
-``AuditError`` so the caller refuses to deliver the text.
+``AuditError`` so the caller refuses to deliver the text. ``acepto`` and ``registrar_aceptacion``
+(confidentiality acceptance) raise too: a "no" and "could not check" must stay distinguishable
+and neither may grant.
 """
 from __future__ import annotations
 
@@ -102,6 +104,16 @@ class AccessRepository(Protocol):
     ) -> None:
         """Audit: ``admin_email`` was served the raw text of ``comment_ids`` by ``endpoint``.
         Raises ``AuditError`` if it could not be recorded."""
+
+    def registrar_aceptacion(self, modulo_id: str, email: str, version: str) -> None:
+        """Record that ``email`` accepted version ``version`` of the confidentiality text of
+        ``modulo_id`` (idempotent; older versions are kept). Raises ``InvalidEmailError``,
+        ``UnknownModuleError`` or ``AccessDatabaseError``: unlike the lookups, a record that
+        cannot be written must never look like a success."""
+
+    def acepto(self, modulo_id: str, email: str, version: str) -> bool:
+        """Did ``email`` accept exactly ``version`` for ``modulo_id``? FAIL CLOSED by raising
+        ``AccessDatabaseError`` when the store cannot answer (the caller must never grant)."""
 
 
 class AccessManager(Protocol):
