@@ -1,0 +1,17 @@
+[
+  {"url": "/neural/historico", "ruta": "/neural/historico", "consulta": ""},
+  {"url": "/neural/historico?facultad=Escuela%20de%20Ingenier%C3%ADa", "ruta": "/neural/historico", "consulta": "facultad=Escuela de Ingeniería"},
+  {"url": "/neural/historico?facultad=Escuela+de+Ingenier%C3%ADa", "ruta": "/neural/historico", "consulta": "facultad=Escuela de Ingeniería"},
+  {"url": "/neural/traslados/resumen?tipo=cambio_carrera&anio_desde=2017&solo_abandono=true", "ruta": "/neural/traslados/resumen", "consulta": "anio_desde=2017&solo_abandono=true&tipo=cambio_carrera"},
+  {"url": "/neural/traslados/resumen?anio_desde=", "ruta": "/neural/traslados/resumen", "consulta": ""},
+  {"url": "/neural/programa/8616/cohortes/", "ruta": "/neural/programa/8616/cohortes", "consulta": ""},
+  {"url": "/neural/modelos/tarea/t2/grupos?variante=base&nivel=sexo&corte=2", "ruta": "/neural/modelos/tarea/t2/grupos", "consulta": "corte=2&nivel=sexo&variante=base"},
+  {"url": "/neural/programa/86%2016/cohortes", "ruta": "/neural/programa/86 16/cohortes", "consulta": ""},
+  {"url": "/neural/traslados/resumen?tipo=b&tipo=a", "ruta": "/neural/traslados/resumen", "consulta": "tipo=a&tipo=b"},
+  {"url": "/neural/historico?facultad=A%26B%3DC", "ruta": "/neural/historico", "consulta": "facultad=A&B=C"},
+  {"url":"/neural/historico?k=%F0%9F%98%80&k=%EF%BD%9E","ruta":"/neural/historico","consulta":"k=～&k=😀"},
+  {"url":"/neural/historico?k=%EF%BB%BFa","ruta":"/neural/historico","consulta":"k=\ufeffa"},
+  {"url":"/neural/historico?a=%2B&b=+","ruta":"/neural/historico","consulta":"a=+&b= "},
+  {"url":"/neural/programa/8616%2F","ruta":"/neural/programa/8616","consulta":""},
+  {"url": "/", "ruta": "/", "consulta": ""}
+]
