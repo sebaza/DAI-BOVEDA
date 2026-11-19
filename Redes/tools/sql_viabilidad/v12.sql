@@ -1,0 +1,10 @@
+-- R1 | creditaje malla cobertura y total por programa-catalogo
+WITH t AS (SELECT malla_program_code, malla_ctlg, sum(NULLIF(regexp_replace(malla_creditaje,'[^0-9.]','','g'),'')::numeric) cred, count(*) n, sum((malla_creditaje IS NULL OR malla_creditaje='')::int) nulos FROM banner.ban_malla_programa GROUP BY 1,2) SELECT count(*) prog_cat, sum((nulos>0)::int) con_nulos, percentile_cont(0.5) WITHIN GROUP (ORDER BY cred) mediana_cred, min(cred) cmin, max(cred) cmax FROM t
+-- R2 | capstone y practica: tipo de nota
+SELECT CASE WHEN titulo ~* 'capstone' THEN 'capstone' WHEN titulo ~* 'pr[aá]ctica profesional' THEN 'practica_prof' END tipo, count(*) intentos, sum((nota ~ '^[0-9.,]+$')::int) con_nota_num, sum((nota='DPA')::int) dpa, count(distinct cod_carrera) progs, min(periodo) desde FROM banner.ban_historia_notas WHERE (titulo ~* 'capstone' OR titulo ~* 'pr[aá]ctica profesional') AND periodo>='201510' GROUP BY 1
+-- R3 | egresados (Z) sin practica ni capstone detectables: proporcion de episodios egresados 2019-2025 por programa con curso practica en malla
+SELECT count(*) combos_prog_catalogo, sum((tiene_prac)::int) con_practica_en_malla, sum((tiene_cap)::int) con_capstone_en_malla FROM (SELECT malla_program_code, malla_ctlg, bool_or(malla_asignatura ~* 'pr[aá]ctica') tiene_prac, bool_or(malla_asignatura ~* '(capstone|t[ií]tulo|titulaci|grado)') tiene_cap FROM banner.ban_malla_programa GROUP BY 1,2) x
+-- R4 | cartas/solicitudes: tablas banner con 'solicit'/'carta' en cualquier columna
+SELECT table_schema, table_name, column_name FROM information_schema.columns WHERE table_schema NOT IN ('pg_catalog','information_schema','sirh1','vcm','sigda') AND column_name ~* '(solicit|carta|reintegro|apelaci|excepci|reconsider)' ORDER BY 1,2 LIMIT 40
+-- R5 | tablas por area/depto que describan reglamento: tablas con 'regla','norma','art'
+SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema','sirh1','vcm','sigda') AND table_name ~* '(regla|norma|articul|decreto|politica|causal)' ORDER BY 1,2

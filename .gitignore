@@ -28,7 +28,12 @@ tema.json
 __pycache__/
 *.py[cod]
 .venv/
+.venv-*/
 venv/
+# DAI Neural experiment tracking and model artifacts (may derive from personal data)
+mlruns/
+mlartifacts/
+Redes/artefactos/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
@@ -54,3 +59,6 @@ _x/
 
 # Local backups of curation data (may contain admin-written free text)
 backend/respaldos/
+
+# Brainstorming mockups (local only)
+.superpowers/
